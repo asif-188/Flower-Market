@@ -12,15 +12,18 @@
 </head>
 <body>
   <div id="app"></div>
-  <script src="xlsx.min.js"></script>
-  <script src="customer.js"></script>
-  <script src="farmer.js"></script>
-  <script src="absent_farmer.js"></script>
-  <script src="flower.js"></script>
-  <script src="purchase.js"></script>
-  <script src="cash_pay.js"></script>
-  <script src="expenses.js"></script>
-  <script src="accounts.js"></script>
-  <script src="app.js"></script>
+
+  <!-- Module scripts loaded in dependency order -->
+  <script src="/farmer.js"></script>
+  <script src="/absent_farmer.js"></script>
+  <script src="/flower.js"></script>
+  <script src="/purchase.js"></script>
+  <script src="/cash_pay.js"></script>
+  <script src="/expenses.js"></script>
+  <script src="/accounts.js"></script>
+  <script src="/customer.js"></script>
+  <script src="/sales.js"></script>
+  <script src="/sales_reports.js"></script>
+  <script src="/app.js"></script>
 </body>
 </html>

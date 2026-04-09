@@ -68,55 +68,95 @@ const CashReceiveModule = (() => {
     const custs = getCustomers();
     const modal = document.createElement('div');
     modal.className = 'fm-modal-overlay';
+    modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:99999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(5px);';
+
     modal.innerHTML = `
-      <div class="fm-modal animate-pop">
-        <div class="fm-modal-header">
-          <h2>💰 Record Cash Receipt</h2>
-          <button class="fm-close-btn">&times;</button>
+      <div class="fm-modal animate-pop" style="background:#fff; border-radius:12px; width:95%; max-width:600px; box-shadow:0 10px 40px rgba(0,0,0,0.2); overflow:hidden; position:relative;">
+        <div class="fm-modal-header" style="padding:15px 20px; background:#1e8a4a; display:flex; justify-content:space-between; align-items:center;">
+          <h2 style="margin:0; color:#fff; font-size:1.4rem; font-weight:800;">Cash Receive</h2>
+          <button class="fm-close-btn" style="background:none; border:none; color:rgba(255,255,255,0.6); font-size:1.5rem; cursor:pointer;">&times;</button>
         </div>
-        <form class="fm-form receipt-form">
-          <div class="fm-field">
-            <label>Date</label>
-            <input type="date" id="r-date" value="${new Date().toISOString().split('T')[0]}" required>
-          </div>
-          <div class="fm-field">
-            <label>Customer *</label>
-            <select id="r-cust" required>
+        <form class="fm-form receipt-form" style="padding:25px; display:flex; flex-direction:column; gap:12px;">
+          <input type="hidden" id="r-date" value="${new Date().toISOString().split('T')[0]}">
+
+          <!-- Customer Row -->
+          <div style="display:grid; grid-template-columns: 200px 1fr; align-items:center; gap:15px;">
+            <label style="font-weight:bold; color:#334155;">Customer</label>
+            <select id="r-cust" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; outline:none;" required>
               <option value="">Select Customer</option>
               ${custs.map(c => `<option value="${c.id}">${c.name} (${c.id})</option>`).join('')}
             </select>
           </div>
-          <div class="fm-field">
-            <label>Amount (₹) *</label>
-            <input type="number" id="r-amount" placeholder="0.00" step="0.01" required>
+
+          <!-- Opening Balance Row -->
+          <div style="display:grid; grid-template-columns: 200px 1fr; align-items:center; gap:15px;">
+            <label style="font-weight:bold; color:#334155;">Opening Balance / Debit</label>
+            <div id="r-opening" style="padding:8px; font-weight:bold; color:#475569;">₹0.00</div>
           </div>
-          <div class="fm-field">
-            <label>Notes</label>
-            <textarea id="r-notes" placeholder="e.g. Paid via cash"></textarea>
+
+          <!-- Given Amount Row -->
+          <div style="display:grid; grid-template-columns: 200px 1fr; align-items:center; gap:15px;">
+            <label style="font-weight:bold; color:#334155;">Given Amount</label>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <input type="number" id="r-amount" placeholder="0.00" step="0.01" style="flex:1; padding:8px 12px; border:1px solid #ddd; border-radius:6px; outline:none;" required>
+              <label style="display:flex; align-items:center; gap:6px; color:#475569; font-size:0.9rem; font-weight:600;">
+                <input type="checkbox" id="r-gpay"> GPay
+              </label>
+            </div>
           </div>
-          <div class="fm-modal-footer">
-            <button type="button" class="fm-btn-sub cancel-btn">Cancel</button>
-            <button type="submit" class="fm-btn-add">Save Receipt</button>
+
+          <!-- Closing Balance Row -->
+          <div style="display:grid; grid-template-columns: 200px 1fr; align-items:center; gap:15px;">
+            <label style="font-weight:bold; color:#334155;">Closing Balance</label>
+            <div id="r-closing" style="padding:8px; font-weight:bold; color:#1e8a4a;">₹0.00</div>
+          </div>
+
+          <div class="fm-modal-footer" style="padding-top:20px; display:flex; justify-content:flex-end; gap:12px;">
+            <button type="submit" style="background:#1e8a4a; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold; display:flex; align-items:center; gap:8px;">
+               <span style="font-size:1.2rem;">✅</span>
+            </button>
+            <button type="button" class="cancel-btn" style="background:#64748b; color:#fff; border:none; padding:10px 20px; border-radius:6px; cursor:pointer; font-weight:bold;">Close</button>
           </div>
         </form>
       </div>
     `;
     document.body.appendChild(modal);
+
+    const custSel = modal.querySelector('#r-cust');
+    const amountInp = modal.querySelector('#r-amount');
+    const openDisp = modal.querySelector('#r-opening');
+    const closeDisp = modal.querySelector('#r-closing');
+
+    function updateBalances() {
+       const cid = custSel.value;
+       const cust = custs.find(c => c.id === cid);
+       const opening = cust ? (window.CustomerModule ? window.CustomerModule.getDues(cust) : 0) : 0;
+       const given = parseFloat(amountInp.value) || 0;
+       
+       openDisp.textContent = `₹${opening.toFixed(2)}`;
+       closeDisp.textContent = `₹${(opening - given).toFixed(2)}`;
+    }
+
+    custSel.addEventListener('change', updateBalances);
+    amountInp.addEventListener('input', updateBalances);
+
     modal.querySelector('.fm-close-btn').addEventListener('click', () => modal.remove());
     modal.querySelector('.cancel-btn').addEventListener('click', () => modal.remove());
 
     modal.querySelector('.receipt-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      const custId = modal.querySelector('#r-cust').value;
+      const custId = custSel.value;
       const cust = custs.find(c => c.id === custId);
+      const isGPay = modal.querySelector('#r-gpay').checked;
       
       const r = {
         id: Date.now(),
         date: modal.querySelector('#r-date').value,
         customerId: custId,
         customerName: cust.name,
-        amount: parseFloat(modal.querySelector('#r-amount').value),
-        notes: modal.querySelector('#r-notes').value
+        amount: parseFloat(amountInp.value),
+        notes: isGPay ? 'GPay' : 'Cash',
+        method: isGPay ? 'GPay' : 'Cash'
       };
 
       receipts.push(r);

@@ -32,12 +32,13 @@ const FarmerModule = (() => {
 
   function generateId() {
     const farmers = getFarmers();
-    if (!farmers.length) return 'F001';
+    if (!farmers.length) return '101';
     const nums = farmers.map(f => {
-      const m = (f.id || '').match(/\d+/);
+      const m = String(f.id || '').match(/\d+/);
       return m ? parseInt(m[0], 10) : 0;
     });
-    return 'F' + String(Math.max(...nums) + 1).padStart(3, '0');
+    const max = Math.max(...nums);
+    return max < 101 ? '101' : String(max + 1);
   }
 
   function getAmountDue(farmer) {
@@ -52,9 +53,9 @@ const FarmerModule = (() => {
     if (!searchQuery.trim()) return all;
     const q = searchQuery.toLowerCase();
     return all.filter(f =>
-      (f.name    || '').toLowerCase().includes(q) ||
-      (f.id      || '').toLowerCase().includes(q) ||
-      (f.contact || '').includes(q)
+      String(f.name || '').toLowerCase().includes(q) ||
+      String(f.id || '').toLowerCase().includes(q) ||
+      String(f.contact || '').includes(q)
     );
   }
 
@@ -75,17 +76,16 @@ const FarmerModule = (() => {
     const header = el('div', 'fm-header');
     header.innerHTML = `
       <div class="fm-page-header">
-        <h1 class="fm-title">👨‍🌾 Farmer Management</h1>
+        <h1 class="fm-title">👨‍🌾 ${App.i18n.t('farmerMgmt')}</h1>
         <div class="fm-header-actions">
           <button class="fm-tpl-btn ripple" id="fm-tpl-btn" title="Download Excel Template">
-            📋 Template
+            📋 ${App.i18n.t('template')}
           </button>
-          <label class="fm-import-btn ripple" id="fm-import-label" title="Import from Excel">
-            <span>📥 Import</span>
+            <span>📥 ${App.i18n.t('import')}</span>
             <input type="file" id="fm-import-input" accept=".xlsx,.xls" style="display:none" />
           </label>
-          <button class="fm-btn-add ripple" id="fm-add-btn">
-            ＋ Add Farmer
+          <button class="fm-btn-add ripple" id="fm-add-btn" style="background:#fff !important; color:#1e8a4a !important; border:2px solid #1e8a4a !important; font-weight:800 !important; cursor:pointer !important; min-width:130px !important; display:flex !important; align-items:center !important; justify-content:center !important;">
+            ${App.i18n.t('addFarmerBtn')}
           </button>
         </div>
       </div>
@@ -93,11 +93,10 @@ const FarmerModule = (() => {
         <div class="fm-search-wrap">
           <span class="fm-search-icon">🔍</span>
           <input id="fm-search" class="fm-search-input" type="text"
-            placeholder="Search by name, ID or contact…"
+            placeholder="${App.i18n.t('searchHint')}"
             value="${esc(searchQuery)}" autocomplete="off" />
           ${searchQuery ? '<button class="fm-clear-btn" id="fm-clear">✕</button>' : ''}
         </div>
-        <div class="fm-search-hint">Real-time search across all farmers</div>
       </div>`;
     _container.appendChild(header);
 
@@ -173,9 +172,9 @@ const FarmerModule = (() => {
     } else {
       const stats = el('div', 'fm-stats-bar');
       stats.innerHTML = `
-        <span class="fm-stat">📋 Total: <strong>${getFarmers().length}</strong></span>
-        <span class="fm-stat">🔍 Shown: <strong>${total}</strong></span>
-        <span class="fm-stat">💰 Total Due: <strong>₹${fmt(
+        <span class="fm-stat">📋 ${App.i18n.t('total')}: <strong>${getFarmers().length}</strong></span>
+        <span class="fm-stat">🔍 ${App.i18n.t('shown')}: <strong>${total}</strong></span>
+        <span class="fm-stat">💰 ${App.i18n.t('totalDue')}: <strong>₹${fmt(
           getFarmers().reduce((s, f) => s + Math.max(0, getAmountDue(f)), 0)
         )}</strong></span>`;
       area.appendChild(stats);
@@ -186,15 +185,13 @@ const FarmerModule = (() => {
       table.innerHTML = `
         <thead>
           <tr>
-            <th class="th-id">Farmer ID</th>
-            <th>Farmer Name</th>
-            <th>Contact</th>
-            <th>Location</th>
-            <th class="th-num">Commission (%)</th>
-            <th class="th-num">Amount Due (₹)</th>
-            <th class="th-center">Ledger</th>
-            <th class="th-center">Edit</th>
-            <th class="th-center">Delete</th>
+            <th class="th-id">${App.i18n.t('id')}</th>
+            <th>${App.i18n.t('date')}</th>
+            <th>${App.i18n.t('name')}</th>
+            <th>${App.i18n.t('contact')}</th>
+            <th class="th-center">${App.i18n.t('ledger')}</th>
+            <th class="th-center">${App.i18n.t('edit')}</th>
+            <th class="th-center">${App.i18n.t('delete')}</th>
           </tr>
         </thead>
         <tbody id="fm-tbody"></tbody>`;
@@ -209,21 +206,17 @@ const FarmerModule = (() => {
         tr.className = 'fm-row' + (idx % 2 ? ' fm-row-alt' : '');
         tr.innerHTML = `
           <td><span class="fm-id-badge">${esc(farmer.id)}</span></td>
+          <td style="font-size: 0.85rem; color: var(--text-muted);">${esc(farmer.createdAt || '—')}</td>
           <td class="fm-name-cell">${esc(farmer.name)}</td>
           <td>${esc(farmer.contact || '—')}</td>
-          <td>${esc(farmer.location || '—')}</td>
-          <td class="th-num">${farmer.commission ?? 0}%</td>
-          <td class="th-num">
-            <span class="fm-due ${dueClass}">₹${fmt(Math.abs(due))} ${due < 0 ? '<em>CR</em>' : ''}</span>
+          <td class="th-center">
+            <button class="fm-ledger-btn ripple" data-id="${esc(farmer.id)}">📒 ${App.i18n.t('view')}</button>
           </td>
           <td class="th-center">
-            <button class="fm-ledger-btn ripple" data-id="${esc(farmer.id)}">📒 View</button>
+            <button class="fm-edit-btn ripple" data-id="${esc(farmer.id)}">✏️ ${App.i18n.t('edit')}</button>
           </td>
           <td class="th-center">
-            <button class="fm-edit-btn ripple" data-id="${esc(farmer.id)}">✏️ Edit</button>
-          </td>
-          <td class="th-center">
-            <button class="fm-delete-btn ripple" data-id="${esc(farmer.id)}">🗑 Del</button>
+            <button class="fm-delete-btn ripple" data-id="${esc(farmer.id)}">🗑 ${App.i18n.t('delete')}</button>
           </td>`;
         tbody.appendChild(tr);
       });
@@ -255,12 +248,12 @@ const FarmerModule = (() => {
     if (typeof XLSX === 'undefined') {
       toast('⚠️ Excel library not loaded. Check internet connection.'); return;
     }
-    const headers = ['Farmer ID', 'Farmer Name', 'Contact Number', 'Location', 'Initial Dues', 'Commission Percentage'];
-    const sample  = ['F001', 'Sample Farmer', '9876543210', 'Chennai', '500', '5'];
+    const headers = ['Farmer ID', 'Farmer Name', 'Contact Number', 'Location', 'Initial Dues'];
+    const sample  = ['F001', 'Sample Farmer', '9876543210', 'Chennai', '500'];
     const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
 
     // Column widths
-    ws['!cols'] = [14, 22, 18, 16, 14, 22].map(w => ({ wch: w }));
+    ws['!cols'] = [14, 22, 18, 16, 14].map(w => ({ wch: w }));
 
     // Header style hint (bold — SheetJS CE doesn't apply cell styles but sets structure)
     const wb = XLSX.utils.book_new();
@@ -304,7 +297,7 @@ const FarmerModule = (() => {
           }
 
           // Validate headers
-          const EXPECTED = ['Farmer ID', 'Farmer Name', 'Contact Number', 'Location', 'Initial Dues', 'Commission Percentage'];
+          const EXPECTED = ['Farmer ID', 'Farmer Name', 'Contact Number', 'Location', 'Initial Dues'];
           const headers = (rows[0] || []).map(h => String(h).trim());
           const mismatched = EXPECTED.filter((h, i) => headers[i] !== h);
           if (mismatched.length) {
@@ -323,7 +316,6 @@ const FarmerModule = (() => {
             const contact    = String(row[2] || '').trim();
             const location   = String(row[3] || '').trim();
             const initialDues= parseFloat(row[4]) || 0;
-            const commission = parseFloat(row[5]) || 0;
 
             if (!id && !name) return; // skip blank rows
 
@@ -336,7 +328,7 @@ const FarmerModule = (() => {
             }
 
             existingIds.add(id);
-            results.success.push({ id, name, contact, location, initialDues, commission, createdAt: today(), ledger: [] });
+            results.success.push({ id, name, contact, location, initialDues, createdAt: today(), ledger: [] });
           });
 
           if (results.success.length > 0) {
@@ -449,19 +441,19 @@ const FarmerModule = (() => {
     overlay.innerHTML = `
       <div class="fm-modal fm-confirm-modal" id="fm-confirm-modal" role="dialog">
         <div class="fm-modal-header">
-          <h3 class="fm-modal-title">🗑 Delete Farmer</h3>
+          <h3 class="fm-modal-title">🗑 ${App.i18n.t('delete')} ${App.i18n.t('farmer')}</h3>
         </div>
         <div class="fm-modal-body" style="text-align:center; padding: 28px 24px;">
           <div class="fm-confirm-icon">⚠️</div>
           <p class="fm-confirm-msg">
-            Are you sure you want to delete<br/>
+            ${App.i18n.t('deleteConfirm')}<br/>
             <strong>${esc(farmer.name)}</strong> (${esc(farmer.id)})?
           </p>
-          <p class="fm-confirm-sub">This action cannot be undone.</p>
+          <p class="fm-confirm-sub">${App.i18n.t('deleteActionUndone')}</p>
         </div>
         <div class="fm-modal-footer" style="justify-content:center; gap:16px;">
-          <button class="fm-btn-cancel ripple" id="fm-confirm-cancel">Cancel</button>
-          <button class="fm-btn-delete ripple" id="fm-confirm-delete">🗑 Yes, Delete</button>
+          <button class="fm-btn-cancel ripple" id="fm-confirm-cancel">${App.i18n.t('cancel')}</button>
+          <button class="fm-btn-delete ripple" id="fm-confirm-delete">🗑 ${App.i18n.t('yesDelete')}</button>
         </div>
       </div>`;
 
@@ -490,55 +482,51 @@ const FarmerModule = (() => {
 
     const overlay = el('div', 'fm-overlay');
     overlay.id = 'fm-modal-ov';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:99999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(5px); transition: opacity 0.3s;';
+    
     overlay.innerHTML = `
-      <div class="fm-modal" id="fm-modal" role="dialog" aria-modal="true">
-        <div class="fm-modal-header">
-          <h3 class="fm-modal-title">${existing ? '✏️ Edit Farmer' : '➕ Add New Farmer'}</h3>
-          <button class="fm-modal-close ripple" id="fm-modal-close">✕</button>
+      <div class="fm-modal animate-pop" id="fm-modal" role="dialog" aria-modal="true" style="background:#fff; border-radius:16px; width:90%; max-width:600px; box-shadow:0 10px 40px rgba(0,0,0,0.2); overflow:hidden; border:1px solid #ddd;">
+        <div class="fm-modal-header" style="padding:20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; background:#f9fcfb;">
+          <h3 class="fm-modal-title" style="margin:0; color:#1e8a4a; font-size:1.4rem; font-weight:800;">${existing ? '✏️ ' + App.i18n.t('edit') + ' ' + App.i18n.t('farmer') : '➕ ' + App.i18n.t('addFarmerBtn')}</h3>
+          <button class="fm-modal-close ripple" id="fm-modal-close" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#999;">✕</button>
         </div>
-        <form class="fm-modal-body" id="fm-form" novalidate>
+        <form class="fm-modal-body" id="fm-form" novalidate style="padding:25px;">
           <div class="fm-form-grid">
             <div class="fm-field">
-              <label class="fm-label" for="fm-fid">Farmer ID</label>
+              <label class="fm-label" for="fm-fid">${App.i18n.t('id')}</label>
               <input id="fm-fid" class="fm-input${existing?' fm-input-readonly':''}" type="text"
                 value="${esc(existing?.id || generateId())}"
                 ${existing ? 'readonly' : ''}
-                placeholder="Auto-generated" />
+                placeholder="${App.i18n.t('placeholderAuto')}" />
             </div>
             <div class="fm-field">
-              <label class="fm-label" for="fm-fname">Farmer Name <span class="fm-req">*</span></label>
+              <label class="fm-label" for="fm-fname">${App.i18n.t('name')} <span class="fm-req">*</span></label>
               <input id="fm-fname" class="fm-input" type="text"
-                value="${esc(existing?.name || '')}" placeholder="Full name" />
+                value="${esc(existing?.name || '')}" placeholder="${App.i18n.t('placeholderName')}" />
             </div>
             <div class="fm-field">
-              <label class="fm-label" for="fm-fcontact">Contact Number <span class="fm-req">*</span></label>
-              <input id="fm-fcontact" class="fm-input" type="tel"
-                value="${esc(existing?.contact || '')}" placeholder="Mobile number" maxlength="15" />
-            </div>
-            <div class="fm-field">
-              <label class="fm-label" for="fm-flocation">Location</label>
-              <input id="fm-flocation" class="fm-input" type="text"
-                value="${esc(existing?.location || '')}" placeholder="City / Village" />
-            </div>
-            <div class="fm-field">
-              <label class="fm-label" for="fm-fcommission">Commission (%)</label>
-              <input id="fm-fcommission" class="fm-input" type="number"
-                min="0" max="100" step="0.01"
-                value="${existing?.commission ?? ''}" placeholder="e.g. 5" />
-            </div>
-            <div class="fm-field">
-              <label class="fm-label" for="fm-finitial">Initial Dues (₹)</label>
+              <label class="fm-label" for="fm-finitial">${App.i18n.t('initialDues')}</label>
               <input id="fm-finitial" class="fm-input" type="number"
                 min="0" step="0.01"
                 value="${existing?.initialDues ?? ''}" placeholder="0.00" />
             </div>
+            <div class="fm-field">
+              <label class="fm-label" for="fm-fcontact">${App.i18n.t('contact')} <span class="fm-req">*</span></label>
+              <input id="fm-fcontact" class="fm-input" type="tel"
+                value="${esc(existing?.contact || '')}" placeholder="${App.i18n.t('placeholderMobile')}" maxlength="15" />
+            </div>
+            <div class="fm-field">
+              <label class="fm-label" for="fm-flocation">${App.i18n.t('location')}</label>
+              <input id="fm-flocation" class="fm-input" type="text"
+                value="${esc(existing?.location || '')}" placeholder="${App.i18n.t('placeholderLocation')}" />
+            </div>
           </div>
-          <div id="fm-form-err" class="fm-form-err hidden"></div>
+          <div id="fm-form-err" class="fm-form-err hidden" style="margin-top:15px; color:#d32f2f; background:#ffebee; padding:10px; border-radius:6px; font-size:0.9rem;"></div>
         </form>
-        <div class="fm-modal-footer">
-          <button class="fm-btn-cancel ripple" id="fm-modal-cancel">Cancel</button>
-          <button class="fm-btn-save ripple" id="fm-modal-save">
-            ${existing ? '💾 Update Farmer' : '✅ Register Farmer'}
+        <div class="fm-modal-footer" style="padding:20px; border-top:1px solid #eee; background:#f9fcfb; display:flex; justify-content:flex-end; gap:12px;">
+          <button class="fm-btn-cancel ripple" id="fm-modal-cancel" style="padding:10px 20px; border-radius:8px; border:1px solid #ddd; background:#fff; cursor:pointer;">${App.i18n.t('cancel')}</button>
+          <button class="fm-btn-save ripple" id="fm-modal-save" style="padding:10px 25px; border-radius:8px; border:none; background:#10b981; color:#fff; font-weight:600; cursor:pointer;">
+            ${existing ? '💾 ' + App.i18n.t('save') : '✅ ' + App.i18n.t('register')}
           </button>
         </div>
       </div>`;
@@ -569,13 +557,12 @@ const FarmerModule = (() => {
     const name       = v('fm-fname');
     const contact    = v('fm-fcontact');
     const location   = v('fm-flocation');
-    const commission = parseFloat(v('fm-fcommission')) || 0;
     const initialDues = parseFloat(v('fm-finitial')) || 0;
     const errEl = document.getElementById('fm-form-err');
 
-    if (!name)    { showErr(errEl, '⚠️ Farmer Name is required.'); return; }
-    if (!contact) { showErr(errEl, '⚠️ Contact Number is required.'); return; }
-    if (!id)      { showErr(errEl, '⚠️ Farmer ID is required.'); return; }
+    if (!name)    { showErr(errEl, '⚠️ ' + App.i18n.t('farmerNameReq')); return; }
+    if (!contact) { showErr(errEl, '⚠️ ' + App.i18n.t('contactNumReq')); return; }
+    if (!id)      { showErr(errEl, '⚠️ ' + App.i18n.t('farmerIdReq')); return; }
 
     errEl?.classList.add('hidden');
     const farmers = getFarmers();
@@ -583,13 +570,13 @@ const FarmerModule = (() => {
     if (existing) {
       const idx = farmers.findIndex(f => f.id === existing.id);
       if (idx > -1) {
-        farmers[idx] = { ...farmers[idx], name, contact, location, commission, initialDues };
+        farmers[idx] = { ...farmers[idx], name, contact, location, initialDues };
       }
     } else {
       if (farmers.find(f => f.id === id)) {
         showErr(errEl, `⚠️ Farmer ID "${id}" already exists.`); return;
       }
-      farmers.push({ id, name, contact, location, commission, initialDues, createdAt: today(), ledger: [] });
+      farmers.push({ id, name, contact, location, initialDues, createdAt: today(), ledger: [] });
     }
 
     saveFarmers(farmers);
