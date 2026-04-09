@@ -25,20 +25,20 @@ const FlowerModule = (() => {
   function renderPage() {
     _container.innerHTML = `
       <div class="fm-page-header">
-        <h1 class="fm-title">🌼 <span data-i18n="flower_title">Flower</span></h1>
-        <button id="add-flower-btn" class="fm-btn-add">＋ <span data-i18n="add_flower">Add Flower</span></button>
+        <h1 class="fm-title">🌼 <span>${App.i18n.t('flowerMgmt')}</span></h1>
+        <button id="add-flower-btn" class="fm-btn-add">＋ ${App.i18n.t('addNew')}</button>
       </div>
 
       <div class="fm-card">
         <table class="fm-table">
           <thead>
             <tr>
-              <th style="width: 80%"><span data-i18n="flower_name">Flower Name</span></th>
-              <th style="text-align: right"><span data-i18n="actions">Actions</span></th>
+              <th style="width: 80%">${App.i18n.t('name')}</th>
+              <th style="text-align: right">${App.i18n.t('actions')}</th>
             </tr>
           </thead>
           <tbody id="flower-list">
-            ${flowers.length === 0 ? `<tr><td colspan="2" class="fm-empty-state">No flowers found. Click 'Add Flower' to start!</td></tr>` : ''}
+            ${flowers.length === 0 ? `<tr><td colspan="2" class="fm-empty-state">${App.i18n.t('noFlowers')}</td></tr>` : ''}
           </tbody>
         </table>
       </div>
@@ -48,7 +48,7 @@ const FlowerModule = (() => {
     flowers.forEach((flower, index) => {
       const row = document.createElement('tr');
       row.innerHTML = `
-        <td class="fm-semi-bold">${flower.name}</td>
+        <td class="fm-semi-bold">${App.i18n.t(flower.name.toLowerCase())}</td>
         <td style="text-align: right">
           <div class="fm-table-actions">
             <button class="fm-action-btn edit-btn" title="Edit">✏️</button>
@@ -67,61 +67,86 @@ const FlowerModule = (() => {
 
   function openModal(flower = null, index = -1) {
     const isEdit = flower !== null;
-    const modal = document.createElement('div');
-    modal.className = 'fm-modal-overlay';
-    modal.innerHTML = `
-      <div class="fm-modal animate-pop">
+    const overlay = document.createElement('div');
+    overlay.className = 'fm-overlay';
+    overlay.id = 'flower-modal-ov';
+    overlay.innerHTML = `
+      <div class="fm-modal" id="flower-modal">
         <div class="fm-modal-header">
-          <h2>${isEdit ? '✏️ Edit Flower' : '🌼 Add New Flower'}</h2>
-          <button class="fm-close-btn">&times;</button>
+          <div class="fm-ledger-header-info">
+            <div class="fm-modal-title">${isEdit ? '✏️ ' + App.i18n.t('edit') + ' ' + App.i18n.t('flower') : '🌼 ' + App.i18n.t('addNew') + ' ' + App.i18n.t('flower')}</div>
+          </div>
+          <button class="fm-modal-close" id="flower-modal-close">✕ ${App.i18n.t('close')}</button>
         </div>
-        <form class="fm-form">
-          <div class="fm-field">
-            <label>Flower Name *</label>
-            <input type="text" id="flower-name" placeholder="Enter name" value="${isEdit ? flower.name : ''}" required>
-          </div>
-          <div class="fm-modal-footer">
-            <button type="button" class="fm-btn-sub cancel-btn">Cancel</button>
-            <button type="submit" class="fm-btn-add">${isEdit ? 'Update' : 'Register'} Flower</button>
-          </div>
-        </form>
+        <div class="fm-modal-body">
+          <form class="fm-form" id="flower-form">
+            <div class="fm-field">
+              <label class="fm-label">${App.i18n.t('name')} <span class="fm-req">*</span></label>
+              <input type="text" id="flower-inp-name" class="fm-input" placeholder="${App.i18n.t('placeholderName')}" value="${isEdit ? flower.name : ''}" required>
+            </div>
+            <div id="flower-form-err" class="fm-form-err hidden"></div>
+          </form>
+        </div>
+        <div class="fm-modal-footer">
+          <button type="button" class="fm-btn-secondary ripple" id="flower-modal-cancel">${App.i18n.t('cancel')}</button>
+          <button type="button" class="fm-btn-add ripple" id="flower-modal-save">${isEdit ? App.i18n.t('update') : App.i18n.t('register')} ${App.i18n.t('flower')}</button>
+        </div>
       </div>
     `;
 
-    document.body.appendChild(modal);
-    modal.querySelector('#flower-name').focus();
+    document.body.appendChild(overlay);
+    
+    // Animation
+    requestAnimationFrame(() => {
+        overlay.classList.add('fm-ov-show');
+        document.getElementById('flower-modal')?.classList.add('fm-modal-show');
+    });
 
-    const closeModal = () => modal.remove();
-    modal.querySelector('.fm-close-btn').addEventListener('click', closeModal);
-    modal.querySelector('.cancel-btn').addEventListener('click', closeModal);
+    const inp = document.getElementById('flower-inp-name');
+    inp.focus();
 
-    modal.querySelector('.fm-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const name = modal.querySelector('#flower-name').value.trim();
-      
+    const close = () => {
+        overlay.classList.remove('fm-ov-show');
+        document.getElementById('flower-modal')?.classList.remove('fm-modal-show');
+        setTimeout(() => overlay.remove(), 300);
+    };
+
+    document.getElementById('flower-modal-close').addEventListener('click', close);
+    document.getElementById('flower-modal-cancel').addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+    const save = () => {
+      const name = inp.value.trim();
       if (!name) return;
 
-      // Duplicate check
       const exists = flowers.some((f, i) => f.name.toLowerCase() === name.toLowerCase() && i !== index);
       if (exists) {
-        alert('This flower name already exists!');
+        const err = document.getElementById('flower-form-err');
+        err.textContent = App.i18n.t('flowerExists');
+        err.classList.remove('hidden');
         return;
       }
 
       if (isEdit) {
         flowers[index].name = name;
       } else {
-        flowers.push({ name });
+        flowers.push({ name, createdAt: new Date().toISOString().split('T')[0] });
       }
 
       saveData();
-      closeModal();
+      close();
+    };
+
+    document.getElementById('flower-modal-save').addEventListener('click', save);
+    document.getElementById('flower-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        save();
     });
   }
 
   function confirmDelete(index) {
     const flower = flowers[index];
-    if (confirm(`Are you sure you want to delete "${flower.name}"?`)) {
+    if (confirm(`${App.i18n.t('deleteConfirm')} "${flower.name}"?`)) {
       flowers.splice(index, 1);
       saveData();
     }

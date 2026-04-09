@@ -28,18 +28,18 @@ const CashPayModule = (() => {
   function renderPage() {
     _container.innerHTML = `
       <div class="fm-page-header">
-        <h1 class="fm-title">💸 Cash Pay</h1>
-        <button id="add-pay-btn" class="fm-btn-add">＋ Add Payment</button>
+        <h1 class="fm-title">💸 ${App.i18n.t('cashPay')}</h1>
+        <button id="add-pay-btn" class="fm-btn-add">＋ ${App.i18n.t('addPayment')}</button>
       </div>
       <div class="fm-card animate-fade-in">
         <table class="fm-table">
           <thead>
             <tr>
-              <th>Date</th><th>Farmer Name</th><th>Amount Paid</th><th>Notes</th><th style="text-align:right">Action</th>
+              <th>${App.i18n.t('date')}</th><th>${App.i18n.t('farmer')} ${App.i18n.t('name')}</th><th>${App.i18n.t('amountPaid')}</th><th>${App.i18n.t('notes')}</th><th style="text-align:right">${App.i18n.t('actions')}</th>
             </tr>
           </thead>
           <tbody id="pay-list">
-            ${payments.length === 0 ? `<tr><td colspan="5" class="fm-empty-state">No payments made recently.</td></tr>` : ''}
+            ${payments.length === 0 ? `<tr><td colspan="5" class="fm-empty-state">${App.i18n.t('noPaymentsMade')}</td></tr>` : ''}
           </tbody>
         </table>
       </div>
@@ -72,32 +72,32 @@ const CashPayModule = (() => {
     modal.innerHTML = `
       <div class="fm-modal animate-pop">
         <div class="fm-modal-header">
-          <h2>💸 New Cash Payment</h2>
+          <h2>💸 ${App.i18n.t('newCashPayment')}</h2>
           <button class="fm-close-btn">&times;</button>
         </div>
         <form class="fm-form pay-form">
           <div class="fm-field">
-            <label>Date</label>
+            <label>${App.i18n.t('date')}</label>
             <input type="date" id="pay-date" value="${new Date().toISOString().split('T')[0]}" required>
           </div>
           <div class="fm-field">
-            <label>Farmer Name *</label>
+            <label>${App.i18n.t('farmer')} ${App.i18n.t('name')} *</label>
             <select id="pay-farmer" required>
-              <option value="">Select Farmer</option>
+              <option value="">${App.i18n.t('selectFarmer')}</option>
               ${farmers.map(f => `<option value="${f.id}">${f.name} (${f.id})</option>`).join('')}
             </select>
           </div>
           <div class="fm-field">
-            <label>Amount (₹) *</label>
+            <label>${App.i18n.t('amount')} (₹) *</label>
             <input type="number" id="pay-amount" placeholder="0.00" step="0.01" required>
           </div>
           <div class="fm-field">
-            <label>Notes</label>
-            <textarea id="pay-notes" placeholder="e.g. Batch #102 pay"></textarea>
+            <label>${App.i18n.t('notes')}</label>
+            <textarea id="pay-notes" placeholder="..."></textarea>
           </div>
           <div class="fm-modal-footer">
-            <button type="button" class="fm-btn-sub cancel-btn">Cancel</button>
-            <button type="submit" class="fm-btn-add">Save Payment</button>
+            <button type="button" class="fm-btn-sub cancel-btn">${App.i18n.t('cancel')}</button>
+            <button type="submit" class="fm-btn-add">${App.i18n.t('savePayment')}</button>
           </div>
         </form>
       </div>
@@ -145,7 +145,7 @@ const CashPayModule = (() => {
   }
 
   function confirmDelete(idx) {
-    if (confirm('Delete this payment?')) {
+    if (confirm(App.i18n.t('deleteConfirm'))) {
       payments.splice(idx, 1);
       saveData();
     }

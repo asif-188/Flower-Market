@@ -72,12 +72,59 @@ const App = (() => {
         flower: 'Flower', purchase: 'Purchase', cashPay: 'Cash Pay',
         expenses: 'Expenses', dayAccount: 'Day Account', monthAccount: 'Month Account',
         customer: 'Customer', cashReceive: 'Cash Receive',
-        customerReport: 'Customer Report', back: 'Back to Main Menu',
+        customerReport: 'Customer Report', back: 'BACK',
         welcome: 'Welcome', invalidCreds: 'Invalid credentials. Please try again.',
         loginTitle: 'Flower Market Billing', loginSubtitle: 'Manage your floral empire',
         selectLanguage: 'Language', comingSoon: 'Feature coming soon!',
         tenantHint: 'Hint: Try sakura/shop123, lotus/shop456, yuki/shop789',
-        keyNav: '↑↓ Navigate  •  Enter Select  •  Esc Back'
+        keyNav: '↑↓ Navigate  •  Enter Select  •  Esc Back',
+        // Shared
+        template: 'Template', import: 'Import', addNew: 'Add New',
+        search: 'Search', searchHint: 'Search by name or ID...',
+        total: 'Total', shown: 'Shown', totalDue: 'Total Due',
+        id: 'ID', name: 'Name', contact: 'Contact', location: 'Location',
+        amountDue: 'Amount Due (₹)',
+        status: 'Status', actions: 'Actions', view: 'View', edit: 'Edit', delete: 'Delete',
+        cancel: 'Cancel', save: 'Save', close: 'Close', register: 'Register', update: 'Update',
+        date: 'Date', ledger: 'Ledger', initialDues: 'Initial Dues (₹)',
+        // Module Specific
+        farmerMgmt: 'Farmer Management', absentMgmt: 'Absent Farmer',
+        flowerMgmt: 'Flower Management', communication: 'Communication',
+        absent: 'Absent', viewRange: 'Viewing range',
+        // Farmer Specific
+        addFarmerBtn: '+ Add Farmer',
+        farmerNameReq: 'Farmer Name is required.',
+        contactNumReq: 'Contact Number is required.',
+        farmerIdReq: 'Farmer ID is required.',
+        farmerIdExists: 'Farmer ID already exists.',
+        deleteConfirm: 'Are you sure you want to delete',
+        deleteActionUndone: 'This action cannot be undone.',
+        yesDelete: 'Yes, Delete', updateFarmer: 'Update Farmer', registerFarmer: 'Register Farmer',
+        placeholderName: 'Full name', placeholderMobile: 'Mobile number', placeholderLocation: 'City / Village',
+        placeholderAuto: 'Auto-generated',
+        // Purchase / Sales
+        purchase: 'Purchase', addPurchase: 'Add Purchase', qty: 'Qty', rate: 'Rate', total: 'Total',
+        netAmount: 'Total',
+        noPurchases: 'No purchases found today.', newPurchaseEntry: 'New Purchase Entry',
+        selectFarmer: 'Select Farmer', selectFlower: 'Select Flower', savePurchase: 'Save Purchase',
+        customerMaster: 'Customer Master', addCustomer: 'Add Customer', creditLimit: 'Credit Limit', currentDues: 'Current Dues',
+        invNo: 'Inv #', totalAmount: 'Total Amount', noSales: 'No sales recorded.', generateInvoice: 'Generate Invoice',
+        batchId: 'Batch ID', flowerType: 'Flower Type', totalFlowerCost: 'Total Flower Cost', outstanding: 'Outstanding', balanceAmount: 'Balance Amount',
+        directCustomer: 'Direct Customer', saleDate: 'Sale Date', flowerVariety: 'Flower Variety', weightQty: 'Weight / Qty', submitSales: 'Submit Sales',
+        noItemsAdded: 'No items added yet.', fillAllFields: 'Please fill all item fields!', fillRequiredFields: 'Please select a farmer and add at least one item.',
+        noFlowers: "No flowers found. Click 'Add Flower' to start!", flowerExists: '⚠️ This flower name already exists!',
+        allPresent: 'All farmers are present for this chosen range!', noAbsentFound: 'No absent farmers found to message.',
+        addExpense: 'Add Expense', expenseType: 'Expense Type', amount: 'Amount', notes: 'Notes', recordExpense: 'Record Expense', noExpenses: 'No expenses recorded.',
+        typeRent: 'Rent', typeElectricity: 'Electricity', typeTea: 'Tea/Snacks', typeTransport: 'Transport', typeLabour: 'Labour', typeStationary: 'Stationary', typeOther: 'Other',
+        amountPaid: 'Amount Paid', noPaymentsMade: 'No payments made recently.', newCashPayment: 'New Cash Payment', savePayment: 'Save Payment', addPayment: 'Add Payment',
+        dayAccountTitle: 'Day Account', monthAccountTitle: 'Month Account', filterDate: 'Filter Date', totalPurchase: 'Total Purchase', cashPaid: 'Cash Paid', netBalance: 'Net Balance', detailedEntries: 'Detailed Entries', debit: 'Debit', credit: 'Credit', noTransactions: 'No transactions for this date.',
+        selectMonth: 'Select Month', print: 'Print', download: 'Download', monthFarmerReport: 'Month-wise Farmer Report', sNo: 'S.No', noTransactionsMonth: 'No transaction data found for this month.',
+        // Common Flowers
+        rose: 'Rose', jasmine: 'Jasmine', marigold: 'Marigold', crossandra: 'Crossandra', nerium: 'Nerium', lilly: 'Lilly', lotus: 'Lotus', sampangi: 'Sampangi', mullai: 'Mullai', jathimalli: 'Jathi Malli',
+        // Common Locations
+        salem: 'Salem', villupuram: 'Villupuram', dharmapuri: 'Dharmapuri', krishnagiri: 'Krishnagiri', erode: 'Erode', namakkal: 'Namakkal', trichy: 'Trichy', madurai: 'Madurai', coimbatore: 'Coimbatore', chennai: 'Chennai',
+        // Date Presets
+        today: 'Today', thisWeek: 'This Week', thisMonth: 'This Month', lastMonth: 'Last Month', thisYear: 'This Year', customDate: 'Custom Date'
       },
       ta: {
         login: 'உள்நுழை', username: 'பயனர்பெயர்', password: 'கடவுச்சொல்',
@@ -86,12 +133,59 @@ const App = (() => {
         flower: 'பூ', purchase: 'கொள்முதல்', cashPay: 'பண கட்டணம்',
         expenses: 'செலவுகள்', dayAccount: 'நாள் கணக்கு', monthAccount: 'மாத கணக்கு',
         customer: 'வாடிக்கையாளர்', cashReceive: 'பண முறை',
-        customerReport: 'வாடிக்கையாளர் அறிக்கை', back: 'முகப்புக்கு திரும்பு',
+        customerReport: 'வாடிக்கையாளர் அறிக்கை', back: 'பின்செல்',
         welcome: 'வரவேற்கிறோம்', invalidCreds: 'தவறான நற்சான்றிதழ்கள். மீண்டும் முயற்சிக்கவும்.',
         loginTitle: 'பூக்கடை பில்லிங்', loginSubtitle: 'உங்கள் பூ வணிகத்தை நிர்வகிக்கவும்',
         selectLanguage: 'மொழி', comingSoon: 'விரைவில் வரும்!',
         tenantHint: 'குறிப்பு: sakura/shop123, lotus/shop456, yuki/shop789 முயற்சிக்கவும்',
-        keyNav: '↑↓ நகர்வு  •  Enter தேர்வு  •  Esc திரும்பு'
+        keyNav: '↑↓ நகர்வு  •  Enter தேர்வு  •  Esc திரும்பு',
+        // Shared
+        template: 'மாதிரி', import: 'இறக்குமதி', addNew: 'புதியதைச் சேர்',
+        search: 'தேடு', searchHint: 'பெயர் அல்லது ஐடி மூலம் தேடு...',
+        total: 'மொத்தம்', shown: 'காட்டப்படுவது', totalDue: 'மொத்த நிலுவை',
+        id: 'ஐடி', name: 'பெயர்', contact: 'தொடர்பு', location: 'இடம்',
+        amountDue: 'நிலுவைத் தொகை (₹)',
+        status: 'நிலை', actions: 'செயல்கள்', view: 'காண்க', edit: 'திருத்து', delete: 'அழி',
+        cancel: 'ரத்து செய்', save: 'சேமி', close: 'மூடு', register: 'பதிவு செய்', update: 'புதுப்பி',
+        date: 'தேதி', ledger: 'பேரேடு', initialDues: 'ஆரம்ப நிலுவை (₹)',
+        // Module Specific
+        farmerMgmt: 'விவசாயி மேலாண்மை', absentMgmt: 'வராத விவசாயி',
+        flowerMgmt: 'பூக்கள் மேலாண்மை', communication: 'தொடர்பு',
+        absent: 'இல்லை', viewRange: 'பார்க்கும் காலம்',
+        // Farmer Specific
+        addFarmerBtn: '+ விவசாயியைச் சேர்',
+        farmerNameReq: 'விவசாயி பெயர் தேவை.',
+        contactNumReq: 'தொடர்பு எண் தேவை.',
+        farmerIdReq: 'விவசாயி ஐடி தேவை.',
+        farmerIdExists: 'விவசாயி ஐடி ஏற்கனவே உள்ளது.',
+        deleteConfirm: 'நிச்சயமாக நீங்கள் அழிக்க விரும்புகிறீர்களா?',
+        deleteActionUndone: 'இந்த செயலை மாற்ற முடியாது.',
+        yesDelete: 'ஆம், அழி', updateFarmer: 'விவசாயியைப் புதுப்பி', registerFarmer: 'விவசாயியைப் பதிவு செய்',
+        placeholderName: 'முழு பெயர்', placeholderMobile: 'கைபேசி எண்', placeholderLocation: 'நகரம் / கிராமம்',
+        placeholderAuto: 'தானாக உருவானது',
+        // Purchase / Sales
+        purchase: 'கொள்முதல்', addPurchase: 'கொள்முதலைச் சேர்', qty: 'அளவு', rate: 'விலை', total: 'மொத்தம்',
+        netAmount: 'மொத்தம்',
+        noPurchases: 'இன்று கொள்முதல் ஏதும் இல்லை.', newPurchaseEntry: 'புதிய கொள்முதல் பதிவு',
+        selectFarmer: 'விவசாயியைத் தேர்ந்தெடுக்கவும்', selectFlower: 'பூவைத் தேர்ந்தெடுக்கவும்', savePurchase: 'கொள்முதலைச் சேமி',
+        customerMaster: 'வாடிக்கையாளர் பட்டியல்', addCustomer: 'வாடிக்கையாளரைச் சேர்', creditLimit: 'கடன் வரம்பு', currentDues: 'நடப்பு நிலுவை',
+        invNo: 'விலைப்பட்டியல் எண்', totalAmount: 'மொத்த தொகை', noSales: 'விற்பனை ஏதும் இல்லை.', generateInvoice: 'விலைப்பட்டியல் உருவாக்கு',
+        batchId: 'தொகுப்பு ஐடி', flowerType: 'பூ வகை', totalFlowerCost: 'மொத்த பூ செலவு', outstanding: 'நிலுவை', balanceAmount: 'நிச்சய நிலுவைத் தொகை',
+        directCustomer: 'நேரடி வாடிக்கையாளர்', saleDate: 'விற்பனை தேதி', flowerVariety: 'மலர் வகை', weightQty: 'எடை / அளவு', submitSales: 'விற்பனையைச் சமர்ப்பிக்கவும்',
+        noItemsAdded: 'இன்னும் உருப்படிகள் எதுவும் சேர்க்கப்படவில்லை.', fillAllFields: 'தயவுசெய்து அனைத்து பொருட்களையும் நிரப்பவும்!', fillRequiredFields: 'தயவுசெய்து ஒரு விவசாயியைத் தேர்ந்தெடுத்து குறைந்தபட்சம் ஒரு பொருளைச் சேர்க்கவும்.',
+        noFlowers: 'பூக்கள் எதுவும் இல்லை. தொடங்க "புதியதைச் சேர்" என்பதைக் கிளிக் செய்யவும்!', flowerExists: '⚠️ இந்தப் பூ ஏற்கனவே உள்ளது!',
+        allPresent: 'தேர்ந்தெடுக்கப்பட்ட காலப்பகுதியில் அனைத்து விவசாயிகளும் வந்துள்ளனர்!', noAbsentFound: 'செய்தி அனுப்ப வராத விவசாயிகள் யாரும் இல்லை.',
+        addExpense: 'செலவுச் சேர்', expenseType: 'செலவு வகை', amount: 'தொகை', notes: 'குறிப்புகள்', recordExpense: 'செலவைப் பதிவு செய்', noExpenses: 'செலவுகள் எதுவும் பதிவு செய்யப்படவில்லை.',
+        typeRent: 'வாடகை', typeElectricity: 'மின்சாரம்', typeTea: 'தேநீர்/சிற்றுண்டி', typeTransport: 'போக்குவரத்து', typeLabour: 'கூலி', typeStationary: 'எழுதுபொருட்கள்', typeOther: 'மற்றவை',
+        amountPaid: 'செலுத்தப்பட்ட தொகை', noPaymentsMade: 'சமீபத்தில் எந்தக் கொடுப்பனவுகளும் செய்யப்படவில்லை.', newCashPayment: 'புதிய பணப் பட்டுவாடா', savePayment: 'கொடுப்பனவைச் சேமி', addPayment: 'கொடுப்பனவைச் சேர்',
+        dayAccountTitle: 'நாள் கணக்கு', monthAccountTitle: 'மாத கணக்கு', filterDate: 'தேதியை வடிகட்டு', totalPurchase: 'மொத்த கொள்முதல்', cashPaid: 'பணம் செலுத்தப்பட்டது', netBalance: 'நிகர நிலுவை', detailedEntries: 'விரிவான பதிவுகள்', debit: 'பற்று', credit: 'வரவு', noTransactions: 'இந்தத் தேதியில் பரிவர்த்தனைகள் இல்லை.',
+        selectMonth: 'மாதத்தைத் தேர்ந்தெடுக்கவும்', print: 'அச்சிடுக', download: 'பதிவிறக்கம்', monthFarmerReport: 'மாதாந்திர விவசாயி அறிக்கை', sNo: 'வ.எண்', noTransactionsMonth: 'இந்த மாதத்தில் பரிவர்த்தனை தரவு எதுவும் இல்லை.',
+        // Common Flowers
+        rose: 'ரோஜா', jasmine: 'மல்லிகை', marigold: 'சாமந்தி', crossandra: 'கனகாம்பரம்', nerium: 'அரளி', lilly: 'அல்லி', lotus: 'தாமரை', sampangi: 'சம்பங்கி', mullai: 'முல்லை', jathimalli: 'ஜாதி மல்லி',
+        // Common Locations
+        salem: 'சேலம்', villupuram: 'விழுப்புரம்', dharmapuri: 'தர்மபுரி', krishnagiri: 'கிருஷ்ணகிரி', erode: 'ஈரோடு', namakkal: 'நாமக்கல்', trichy: 'திருச்சி', madurai: 'மதுரை', coimbatore: 'கோயம்புத்தூர்', chennai: 'சென்னை',
+        // Date Presets
+        today: 'இன்று', thisWeek: 'இந்த வாரம்', thisMonth: 'இந்த மாதம்', lastMonth: 'கடந்த மாதம்', thisYear: 'இந்த ஆண்டு', customDate: 'குறிப்பிட்ட தேதி'
       }
     },
     t(key) { return this.strings[this.lang][key] || key; },
@@ -277,8 +371,9 @@ const App = (() => {
     center.appendChild(welcomeTitle);
 
     const mainBtns = el('div', 'main-buttons');
-    const farmerBtn = makeMenuBtn('🌿', i18n.t('farmer'), 'btn-farmer', 'main-btn-farmer', () => navigate('farmer'));
-    const salesBtn  = makeMenuBtn('💐', i18n.t('sales'),  'btn-sales',  'main-btn-sales',  () => navigate('sales'));
+    const farmerBtn = makeMenuBtn('👨‍🌾', i18n.t('farmer'), 'btn-farmer', 'main-btn-farmer', () => navigate('farmer'));
+    const salesBtn  = makeMenuBtn('🧾', i18n.t('sales'),  'btn-sales',  'main-btn-sales',  () => navigate('sales'));
+
     mainBtns.appendChild(farmerBtn);
     mainBtns.appendChild(salesBtn);
     center.appendChild(mainBtns);
@@ -314,7 +409,6 @@ const App = (() => {
         }
         if (e.key === 'F' || e.key === 'f') navigate('farmer');
         if (e.key === 'S' || e.key === 's') navigate('sales');
-        // Escape on main menu does nothing — user must click Exit/Logout explicitly
       });
     }, 100);
 
@@ -350,127 +444,146 @@ const App = (() => {
     const page = el('div', 'page page-section');
     addPetals(page);
 
-    // Top bar
-    const topBar = el('div', 'top-bar glass');
-    const backBtn = document.createElement('button');
-    backBtn.className = 'btn-back ripple'; backBtn.id = 'sec-back-btn';
-    backBtn.innerHTML = `← ${i18n.t('back')}`;
-    backBtn.addEventListener('click', () => navigate('main'));
-    topBar.appendChild(backBtn);
-    const pageTitle = el('div', 'section-page-title');
-    pageTitle.innerHTML = `${emoji} ${title}`;
-    topBar.appendChild(pageTitle);
-    const topRight = el('div', 'top-right');
-    topRight.appendChild(renderLangSelector());
-    topBar.appendChild(topRight);
-    page.appendChild(topBar);
+    let isDashboard = true; // Start with the Dashboard Grid
 
-    // Layout
-    const layout = el('div', 'section-layout');
+    function renderActiveLayout() {
+      page.innerHTML = '';
+      addPetals(page);
 
-    // Sidebar
-    const sidebar = el('div', 'sidebar glass-card');
-    const sideTitle = el('div', 'sidebar-title');
-    sideTitle.innerHTML = `${emoji} ${title}`;
-    sidebar.appendChild(sideTitle);
+      // Top bar
+      const topBar = el('div', 'top-bar glass');
+      const backBtn = document.createElement('button');
+      backBtn.className = 'btn-back ripple'; 
+      backBtn.id = 'sec-back-btn';
+      
+      if (isDashboard) {
+        backBtn.innerHTML = `← ${i18n.t('back')}`;
+        backBtn.addEventListener('click', () => navigate('main'));
+      } else {
+        backBtn.innerHTML = `← ${i18n.t('back')}`;
+        backBtn.addEventListener('click', () => { isDashboard = true; renderActiveLayout(); });
+      }
+      
+      topBar.appendChild(backBtn);
+      const pageTitle = el('div', 'section-page-title');
+      pageTitle.innerHTML = `${emoji} ${title}${isDashboard ? '' : ' — ' + (i18n.t(items[activeSidebarIdx].key) || items[activeSidebarIdx].key)}`;
+      topBar.appendChild(pageTitle);
+      const topRight = el('div', 'top-right');
+      const versionTag = el('span', 'version-tag', 'v2.7');
+      topRight.appendChild(versionTag);
+      topRight.appendChild(renderLangSelector());
+      topBar.appendChild(topRight);
+      page.appendChild(topBar);
 
-    const menuList = el('ul', 'sidebar-menu');
-    menuList.setAttribute('role', 'menu');
-    let activeSidebarIdx = 0;
-
-    items.forEach((item, idx) => {
-      const li = document.createElement('li');
-      li.className = 'sidebar-menu-item ripple';
-      li.setAttribute('role', 'menuitem');
-      li.setAttribute('tabindex', idx === 0 ? '0' : '-1');
-      li.dataset.idx = idx;
-      if (idx === 0) li.classList.add('active');
-      li.innerHTML = `<span class="menu-icon">${item.icon}</span> <span class="menu-label">${i18n.t(item.key) || item.key}</span>`;
-
-      li.addEventListener('click', () => {
-        setActiveSidebarItem(idx);
-        updateContentPanel(item);
-      });
-
-      menuList.appendChild(li);
-    });
-
-    function setActiveSidebarItem(idx) {
-      activeSidebarIdx = idx;
-      const all = menuList.querySelectorAll('.sidebar-menu-item');
-      all.forEach((x, i) => {
-        x.classList.toggle('active', i === idx);
-        x.setAttribute('tabindex', i === idx ? '0' : '-1');
-      });
-      all[idx]?.focus();
-      updateContentPanel(items[idx]);
+      if (isDashboard) {
+        renderDashboard();
+      } else {
+        renderFullLayout();
+      }
     }
 
-    sidebar.appendChild(menuList);
-    layout.appendChild(sidebar);
+    function renderDashboard() {
+      const grid = el('div', 'fm-dashboard-grid');
+      items.forEach((item, idx) => {
+        const card = el('div', 'fm-dashboard-card ripple');
+        card.setAttribute('tabindex', idx === activeSidebarIdx ? '0' : '-1');
+        card.dataset.idx = idx;
 
-    // Content Panel
-    const content = el('div', 'content-panel glass-card');
-    content.id = 'content-panel';
-    updateContentPanel(items[0], content);
-    layout.appendChild(content);
+        const themes = ['card-theme-green', 'card-theme-purple', 'card-theme-blue', 'card-theme-orange', 'card-theme-red'];
+        const theme = themes[idx % themes.length];
+        if (theme) card.classList.add(theme);
 
-    page.appendChild(layout);
+        card.innerHTML = `
+          <div class="card-icon">${item.icon}</div>
+          <div class="card-label">${i18n.t(item.key) || item.key}</div>
+        `;
+        card.addEventListener('click', () => {
+          activeSidebarIdx = idx;
+          isDashboard = false;
+          renderActiveLayout();
+        });
+        grid.appendChild(card);
+      });
+      page.appendChild(grid);
+
+      // Focus management
+      setTimeout(() => {
+        grid.querySelectorAll('.fm-dashboard-card')[activeSidebarIdx]?.focus();
+      }, 100);
+    }
+
+    function renderFullLayout() {
+      const layout = el('div', 'section-layout layout-focused');
+
+      // Content Panel
+      const content = el('div', 'content-panel glass-card');
+      content.id = 'content-panel';
+      updateContentPanel(items[activeSidebarIdx], content);
+      layout.appendChild(content);
+
+      page.appendChild(layout);
+
+      // Focus management
+      setTimeout(() => {
+        document.getElementById('content-panel')?.focus();
+      }, 100);
+    }
 
     // ── Section Keyboard Nav ──
-    setTimeout(() => {
-      // Start focus on first sidebar item
-      menuList.querySelectorAll('.sidebar-menu-item')[0]?.focus();
+    page.addEventListener('keydown', e => {
+      const isCard = document.activeElement?.classList.contains('fm-dashboard-card');
 
-      page.addEventListener('keydown', e => {
-        const focused = document.activeElement;
-        const isSidebarFocused = focused?.classList?.contains('sidebar-menu-item');
+      if (e.key === 'Escape') {
+        if (!isDashboard) {
+           isDashboard = true;
+           renderActiveLayout();
+        } else {
+           navigate('main');
+        }
+        return;
+      }
 
-        // ── Arrow Up/Down in sidebar
-        if ((e.key === 'ArrowDown') && isSidebarFocused) {
+      // Numeric shortcuts 1-8 (Ignore if user is typing in an input)
+      const isInput = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
+      const num = parseInt(e.key);
+      if (!isInput && !isNaN(num) && num >= 1 && num <= items.length) {
+        e.preventDefault();
+        activeSidebarIdx = num - 1;
+        isDashboard = false;
+        renderActiveLayout();
+        return;
+      }
+
+      if (isDashboard && isCard) {
+        // Dashboard arrows
+        const cols = window.innerWidth > 1000 ? 3 : window.innerWidth > 600 ? 2 : 1;
+        let next = activeSidebarIdx;
+        if (e.key === 'ArrowRight') next = Math.min(items.length - 1, activeSidebarIdx + 1);
+        if (e.key === 'ArrowLeft')  next = Math.max(0, activeSidebarIdx - 1);
+        if (e.key === 'ArrowDown')  next = Math.min(items.length - 1, activeSidebarIdx + cols);
+        if (e.key === 'ArrowUp')    next = Math.max(0, activeSidebarIdx - cols);
+        
+        if (next !== activeSidebarIdx) {
           e.preventDefault();
-          const next = (activeSidebarIdx + 1) % items.length;
-          setActiveSidebarItem(next);
+          activeSidebarIdx = next;
+          const cards = page.querySelectorAll('.fm-dashboard-card');
+          cards.forEach((c, i) => c.setAttribute('tabindex', i === next ? '0' : '-1'));
+          cards[next]?.focus();
         }
-        if ((e.key === 'ArrowUp') && isSidebarFocused) {
+        if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          const prev = (activeSidebarIdx - 1 + items.length) % items.length;
-          setActiveSidebarItem(prev);
+          isDashboard = false;
+          renderActiveLayout();
         }
+      }
+    });
 
-        // ── Left arrow: focus back to sidebar from content
-        if (e.key === 'ArrowLeft') {
-          e.preventDefault();
-          menuList.querySelectorAll('.sidebar-menu-item')[activeSidebarIdx]?.focus();
-        }
-
-        // ── Right arrow: move focus into content panel
-        if (e.key === 'ArrowRight' && isSidebarFocused) {
-          e.preventDefault();
-          document.getElementById('content-panel')?.focus();
-        }
-
-        // ── Enter / Space: activate sidebar item
-        if ((e.key === 'Enter' || e.key === ' ') && isSidebarFocused) {
-          e.preventDefault();
-          setActiveSidebarItem(activeSidebarIdx);
-        }
-
-        // ── Escape: go back to main
-        if (e.key === 'Escape') {
-          navigate('main');
-        }
-
-        // ── Number shortcuts 1-8
-        const num = parseInt(e.key);
-        if (!isNaN(num) && num >= 1 && num <= items.length) {
-          setActiveSidebarItem(num - 1);
-        }
-      });
-    }, 100);
+    let activeSidebarIdx = 0;
+    renderActiveLayout();
 
     return page;
   }
+
 
   function updateContentPanel(item, panel) {
     const cp = panel || document.getElementById('content-panel');
@@ -553,7 +666,7 @@ const App = (() => {
     }
     render();
   }
-  return { init };
+  return { init, i18n };
 })();
 
 document.addEventListener('DOMContentLoaded', () => App.init());
