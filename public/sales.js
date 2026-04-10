@@ -396,18 +396,24 @@ const SalesModule = (() => {
        const ledger = cust.ledger || [];
        const prevBalance = ledger.reduce((s, row) => s + (parseFloat(row.debit) || 0) - (parseFloat(row.credit) || 0), 0);
        const itemsTotal = currentBatch.reduce((s, i) => s + i.total, 0);
-
+       const profile = App.getProfile();
        const footer = "🌸 நன்றி 🌸";
        const isTa = App.i18n.lang === 'ta';
 
+       const h = isTa ? "ID  வகை           எடை   விலை   தொகை" : "ID  VARIETY      QTY    RATE   TOTAL";
        let itemsText = currentBatch.map(i => {
          const f = flowersList.find(fl => fl.name === i.name);
-         const id = f ? f.id : '';
+         const id = (f ? f.id : '').padEnd(3);
          const name = isTa ? (App.i18n.strings.ta[i.name.toLowerCase()] || i.name) : i.name;
-         return `${id} ${name} - ${i.weight}kg @ ₹${i.price} = *₹${i.total.toFixed(0)}*`;
+         const namePad = name.padEnd(12).substring(0, 12);
+         const qty = (i.weight + 'kg').padStart(6);
+         const rate = (i.price.toString()).padStart(6);
+         const total = (i.total.toFixed(0)).padStart(7);
+         return `${id} ${namePad} ${qty} ${rate} ${total}`;
        }).join('%0A');
 
-       const text = `---------------------------%0A*CUST:* ${cust.name}%0A*DATE:* ${_container.querySelector('#s-date').value}%0A---------------------------%0A${itemsText}%0A---------------------------%0Aஇன்றைய சரக்கு: *₹${itemsTotal.toLocaleString()}*%0Aமுன் பாக்கி: *₹${prevBalance.toLocaleString()}*%0Aமொத்தம்: *₹${(itemsTotal + prevBalance).toLocaleString()}*%0Aவரவு: *₹0*%0Aபாக்கி: *₹${(itemsTotal + prevBalance).toLocaleString()}*%0A---------------------------%0A${footer}`;
+       const shopName = (isTa && profile.nameTa) ? profile.nameTa : profile.name;
+       const text = `*${shopName}*%0A${profile.phone ? 'Ph: ' + profile.phone + '%0A' : ''}---------------------------%0A*CUST:* ${cust.name}%0A*DATE:* ${_container.querySelector('#s-date').value}%0A---------------------------%0A\`\`\`%0A${h}%0A${itemsText}%0A\`\`\`%0A---------------------------%0A${isTa ? 'இன்றைய சரக்கு' : "Today's Total"}: *₹${itemsTotal.toLocaleString()}*%0A${isTa ? 'முன் பாக்கி' : 'Prev Balance'}: *₹${prevBalance.toLocaleString()}*%0A${isTa ? 'மொத்தம்' : 'Grand Total'}: *₹${(itemsTotal + prevBalance).toLocaleString()}*%0A${isTa ? 'வரவு' : 'Received'}: *₹0*%0A${isTa ? 'பாக்கி' : 'Balance'}: *₹${(itemsTotal + prevBalance).toLocaleString()}*%0A---------------------------%0ANandri / Thank You`;
        
        window.open(`https://wa.me/91${cust.contact}?text=${text}`, '_blank');
     });

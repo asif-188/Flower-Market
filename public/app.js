@@ -129,6 +129,7 @@ const App = (() => {
         today: 'Today', thisWeek: 'This Week', thisMonth: 'This Month', lastMonth: 'Last Month', thisYear: 'This Year', customDate: 'Custom Date',
         intake: 'Intake', currentBatch: 'Current Batch Items', items: 'Items', totalQty: 'Total Quantity', grandTotal: 'Grand Total',
         salesLogDesc: 'Log details of flowers sold to customers.',
+        profile: 'Profile', shopName: 'Shop Name', shopAddress: 'Shop Address', shopPhone: 'Phone Number',
         billType: 'Variety', billWeight: 'Weight', billPrice: 'Price', billAmount: 'Amount',
         todayGoods: "Today's Goods", prevBalance: 'Previous Balance', billTotal: 'Total',
         received: 'Received', pendingBalance: 'Balance', thanks: 'Thank You'
@@ -197,6 +198,7 @@ const App = (() => {
         today: 'இன்று', thisWeek: 'இந்த வாரம்', thisMonth: 'இந்த மாதம்', lastMonth: 'கடந்த மாதம்', thisYear: 'இந்த ஆண்டு', customDate: 'குறிப்பிட்ட தேதி',
         intake: 'உள்வருதல்', currentBatch: 'தற்போதைய தொகுப்பு உருப்படிகள்', items: 'உருப்படிகள்', totalQty: 'மொத்த அளவு', grandTotal: 'மொத்தத் தொகை',
         salesLogDesc: 'வாடிக்கையாளர்களுக்கு விற்கப்பட்ட பூக்களின் விவரங்களை பதிவு செய்யவும்.',
+        profile: 'சுயவிவரம்', shopName: 'கடை பெயர்', shopAddress: 'கடை முகவரி', shopPhone: 'தொலைபேசி எண்',
         billType: 'வகை', billWeight: 'எடை', billPrice: 'விலை', billAmount: 'தொகை',
         todayGoods: 'இன்றைய சரக்கு', prevBalance: 'முன் பாக்கி', billTotal: 'மொத்தம்',
         received: 'வரவு', pendingBalance: 'பாக்கி', thanks: '🌸 நன்றி 🌸'
@@ -374,6 +376,7 @@ const App = (() => {
       <div class="tenant-user">@${DB.currentUser.username}</div></div>`;
     topBar.appendChild(tenantInfo);
     const topRight = el('div', 'top-right');
+    topRight.appendChild(renderProfileBtn());
     topRight.appendChild(renderLangSelector());
     topBar.appendChild(topRight);
     page.appendChild(topBar);
@@ -483,8 +486,9 @@ const App = (() => {
       pageTitle.innerHTML = `${emoji} ${title}${isDashboard ? '' : ' — ' + (i18n.t(items[activeSidebarIdx].key) || items[activeSidebarIdx].key)}`;
       topBar.appendChild(pageTitle);
       const topRight = el('div', 'top-right');
-      const versionTag = el('span', 'version-tag', 'v2.7');
+      const versionTag = el('span', 'version-tag', 'v2.8');
       topRight.appendChild(versionTag);
+      topRight.appendChild(renderProfileBtn());
       topRight.appendChild(renderLangSelector());
       topBar.appendChild(topRight);
       page.appendChild(topBar);
@@ -642,6 +646,86 @@ const App = (() => {
       </div>`;
   }
 
+  // ── Profile Management ──────────────────────────────────────────────────
+  function renderProfileBtn() {
+    const btn = el('button', 'btn-profile-top ripple');
+    btn.innerHTML = '👤';
+    btn.title = i18n.t('profile');
+    btn.addEventListener('click', openProfileModal);
+    return btn;
+  }
+
+  function getProfile() {
+    const data = sessionStorage.getItem(`profile_${DB.currentTenant}`);
+    return data ? JSON.parse(data) : { 
+      name: DB.currentUser.tenantName, nameTa: '', 
+      address: '', addressTa: '', 
+      phone: '' 
+    };
+  }
+
+  function openProfileModal() {
+    const profile = getProfile();
+    const modal = document.createElement('div');
+    modal.className = 'fm-modal-overlay';
+    modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:99999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(5px);';
+
+    modal.innerHTML = `
+      <div class="fm-modal animate-pop" style="background:#fff; border-radius:12px; width:95%; max-width:600px; box-shadow:0 10px 40px rgba(0,0,0,0.2); overflow:hidden;">
+        <div class="fm-modal-header" style="padding:15px 20px; background:#10b981; display:flex; justify-content:space-between; align-items:center;">
+          <h2 style="margin:0; color:#fff; font-size:1.3rem;">👤 ${i18n.t('profile')}</h2>
+          <button class="close-btn" style="background:none; border:none; color:#fff; font-size:1.5rem; cursor:pointer;">&times;</button>
+        </div>
+        <form id="profile-form" style="padding:25px; display:flex; flex-direction:column; gap:15px; max-height: 80vh; overflow-y: auto;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div class="field-group-v">
+              <label>${i18n.t('shopName')} (EN)</label>
+              <input type="text" id="p-name" value="${profile.name}" class="fm-input" required>
+            </div>
+            <div class="field-group-v">
+              <label>${i18n.t('shopName')} (TA)</label>
+              <input type="text" id="p-name-ta" value="${profile.nameTa || ''}" class="fm-input" placeholder="கடை பெயர்">
+            </div>
+          </div>
+
+          <div class="field-group-v">
+            <label>${i18n.t('shopAddress')} (EN)</label>
+            <textarea id="p-addr" class="fm-input" style="height:60px; resize:none;">${profile.address}</textarea>
+          </div>
+          <div class="field-group-v">
+            <label>${i18n.t('shopAddress')} (TA)</label>
+            <textarea id="p-addr-ta" class="fm-input" style="height:60px; resize:none;" placeholder="முகவரி">${profile.addressTa || ''}</textarea>
+          </div>
+
+          <div class="field-group-v">
+            <label>${i18n.t('shopPhone')}</label>
+            <input type="text" id="p-phone" value="${profile.phone}" class="fm-input">
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+            <button type="submit" class="btn-primary ripple" style="padding:10px 25px;">${i18n.t('save')}</button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.querySelector('.close-btn').addEventListener('click', () => modal.remove());
+    modal.querySelector('#profile-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const newProfile = {
+        name: document.getElementById('p-name').value,
+        nameTa: document.getElementById('p-name-ta').value,
+        address: document.getElementById('p-addr').value,
+        addressTa: document.getElementById('p-addr-ta').value,
+        phone: document.getElementById('p-phone').value
+      };
+      sessionStorage.setItem(`profile_${DB.currentTenant}`, JSON.stringify(newProfile));
+      modal.remove();
+      render(); 
+    });
+  }
+
   // ── Helpers ────────────────────────────────────────────────────────────────
   function el(tag, cls = '', text = '') {
     const e = document.createElement(tag);
@@ -662,6 +746,7 @@ const App = (() => {
   // ── Print Helper ───────────────────────────────────────────────────────────
   function printBill(data) {
     const isTa = i18n.lang === 'ta';
+    const profile = getProfile();
     const win = window.open('', '_blank');
     const today = new Date().toLocaleDateString('en-GB'); // DD/MM/YYYY
     
@@ -714,10 +799,9 @@ const App = (() => {
           }
 
           .header { text-align: center; margin-bottom: 25px; }
-          .biz-name { font-size: 28px; font-weight: 900; margin: 0; letter-spacing: 0.5px; color: #000; }
-          .biz-sub { font-size: 16px; margin: 4px 0; color: #333; font-weight: 700; }
-          .biz-addr { font-size: 12px; margin: 5px 0; line-height: 1.5; color: #444; }
-          .biz-ph { font-size: 13px; font-weight: 800; margin-top: 10px; }
+          .biz-name { font-size: 28px; font-weight: 900; margin: 0; letter-spacing: 0.5px; color: #000; text-transform: uppercase; }
+          .biz-addr { font-size: 13px; margin: 5px 0; line-height: 1.5; color: #333; font-weight: 700; white-space: pre-line; }
+          .biz-ph { font-size: 14px; font-weight: 900; margin-top: 10px; }
           
           .cust-row { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 30px; }
           .cust-name { font-size: 22px; font-weight: 900; color: #000; }
@@ -764,6 +848,12 @@ const App = (() => {
       <body>
         <div class="print-area">
           <div class="bill-wrap">
+            <div class="header">
+              <h1 class="biz-name">${(isTa && profile.nameTa) ? profile.nameTa : profile.name}</h1>
+              ${(isTa && profile.addressTa) ? `<p class="biz-addr">${profile.addressTa}</p>` : (profile.address ? `<p class="biz-addr">${profile.address}</p>` : '')}
+              ${profile.phone ? `<p class="biz-ph">Ph: ${profile.phone}</p>` : ''}
+            </div>
+            
             <div class="cust-row">
               <div class="cust-name">${data.customerName}</div>
             </div>
@@ -879,7 +969,7 @@ const App = (() => {
 
     render();
   }
-  return { init, i18n, printBill };
+  return { init, i18n, printBill, getProfile };
 })();
 
 document.addEventListener('DOMContentLoaded', () => App.init());

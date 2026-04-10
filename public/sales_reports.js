@@ -492,17 +492,23 @@ const CustomerReportModule = (() => {
               .reduce((s, r) => s + parseFloat(r.amount || 0), 0);
             
             const itemsTotal = allItems.reduce((s, i) => s + (parseFloat(i.total) || 0), 0);
-            
+            const profile = App.getProfile();
             const footer = "🌸 நன்றி 🌸";
 
+            const shopName = (isTa && profile.nameTa) ? profile.nameTa : profile.name;
+            const h = isTa ? "ID  வகை           எடை   விலை   தொகை" : "ID  VARIETY      QTY    RATE   TOTAL";
             let itemsText = allItems.map(i => {
                const f = flowersList.find(fl => fl.name === (i.name || i.flowerType));
-               const id = f ? f.id : '';
+               const id = (f ? f.id : '').padEnd(3);
                const name = isTa ? (App.i18n.strings.ta[(i.name || i.flowerType).toLowerCase()] || i.name || i.flowerType) : (i.name || i.flowerType);
-               return `${id} ${name} - ${i.weight || i.qty}kg @ ₹${i.price || i.rate} = *₹${(parseFloat(i.total) || 0).toFixed(0)}*`;
+               const namePad = name.padEnd(12).substring(0, 12);
+               const qty = ((i.weight || i.qty) + 'kg').padStart(6);
+               const rate = ((i.price || i.rate).toString()).padStart(6);
+               const total = ((parseFloat(i.total) || 0).toFixed(0)).padStart(7);
+               return `${id} ${namePad} ${qty} ${rate} ${total}`;
             }).join('%0A');
 
-            const text = `---------------------------%0A*CUST:* ${c.name}%0A*PERIOD:* ${reportState.start} to ${reportState.end}%0A---------------------------%0A${itemsText}%0A---------------------------%0Aஇன்றைய சரக்கு: *₹${itemsTotal.toLocaleString()}*%0Aமுன் பாக்கி: *₹${prevBalance.toLocaleString()}*%0Aமொத்தம்: *₹${(itemsTotal + prevBalance).toLocaleString()}*%0Aவரவு: *₹${paidInPeriod.toLocaleString()}*%0Aபாக்கி: *₹${c.currentDues.toLocaleString()}*%0A---------------------------%0A${footer}`;
+            const text = `*${shopName}*%0A${profile.phone ? 'Ph: ' + profile.phone + '%0A' : ''}---------------------------%0A*CUST:* ${c.name}%0A*PERIOD:* ${reportState.start} to ${reportState.end}%0A---------------------------%0A\`\`\`%0A${h}%0A${itemsText}%0A\`\`\`%0A---------------------------%0A${isTa ? 'இன்றைய சரக்கு' : "Today's Total"}: *₹${itemsTotal.toLocaleString()}*%0A${isTa ? 'முன் பாக்கி' : 'Prev Balance'}: *₹${prevBalance.toLocaleString()}*%0A${isTa ? 'மொத்தம்' : 'Grand Total'}: *₹${(itemsTotal + prevBalance).toLocaleString()}*%0A${isTa ? 'வரவு' : 'Received'}: *₹${paidInPeriod.toLocaleString()}*%0A${isTa ? 'பாக்கி' : 'Balance'}: *₹${c.currentDues.toLocaleString()}*%0A---------------------------%0ANandri / Thank You`;
             
             window.open(`https://wa.me/91${c.contact}?text=${text}`, '_blank');
          });

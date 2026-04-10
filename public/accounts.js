@@ -131,7 +131,7 @@ const AccountsModule = (() => {
         </div>
       </div>
 
-      <div class="fm-search-row print-hide">
+      <div class="fm-search-row print-hide" style="margin-bottom: 25px;">
         <input type="month" id="month-filter" class="fm-input" style="width: 200px" value="${monthYear}">
         <div class="fm-search-wrap" style="flex:1">
           <span class="fm-search-icon">🔍</span>
