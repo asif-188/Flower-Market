@@ -55,25 +55,22 @@ const PurchaseModule = (() => {
 
     _container.innerHTML = `
       <div class="fm-page-header">
-        <h1 class="fm-title">🛒 Intake</h1>
+        <h1 class="fm-title">🛒 ${App.i18n.t('intake')}</h1>
       </div>
 
       <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-8 animate-fade-in">
-        <div class="mb-8">
-            <h2 class="text-3xl font-bold text-emerald-600 mb-1">Intake Entry</h2>
-        </div>
 
         <!-- Top Form: Farmer & Date -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem;">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem; margin-bottom: 2.5rem;">
             <div style="position: relative;" id="farmer-search-container">
-                <label class="fm-label font-bold text-gray-700 uppercase tracking-wide">Farmer / விவசாயி</label>
-                <input type="text" id="p-farmer-search" class="fm-input" placeholder="Search and Select Farmer..." autocomplete="off" style="width: 100%; padding: 0.75rem; border: 2px solid #f1f5f9; border-radius: 0.75rem; background: #f8fafc; outline: none; cursor: text;">
+                <label class="fm-label font-bold text-gray-700 uppercase tracking-wide">Farmer</label>
+                <input type="text" id="p-farmer-search" class="fm-input" placeholder="Search and Select Farmer..." autocomplete="off" style="width: 100%; padding: 0.75rem; border: 2px solid #f1f5f9; border-radius: 0.75rem; background: #f8fafc; outline: none; cursor: text; margin-bottom: 10px;">
                 <input type="hidden" id="p-farmer" value="">
                 <div id="p-farmer-dropdown" style="display: none; position: absolute; z-index: 50; width: 100%; max-height: 200px; overflow-y: auto; background: #fff; border: 2px solid #f1f5f9; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-top: 5px;"></div>
             </div>
             <div>
-                <label class="fm-label font-bold text-gray-700 uppercase tracking-wide">விற்பனை தேதி</label>
-                <input type="date" id="p-date" class="fm-input" value="${new Date().toISOString().split('T')[0]}" style="width: 100%; padding: 0.75rem; border: 2px solid #f1f5f9; border-radius: 0.75rem; background: #f8fafc;">
+                <label class="fm-label font-bold text-gray-700 uppercase tracking-wide">Sales Date</label>
+                <input type="date" id="p-date" class="fm-input" value="${new Date().toISOString().split('T')[0]}" style="width: 100%; padding: 0.75rem; border: 2px solid #f1f5f9; border-radius: 0.75rem; background: #f8fafc; margin-bottom: 10px;">
             </div>
         </div>
 
@@ -203,38 +200,74 @@ const PurchaseModule = (() => {
     const flowerInput = _container.querySelector('#i-flower-input');
     const flowerDropdown = _container.querySelector('#i-flower-dropdown');
 
+    let flowerFocusIdx = -1;
     function renderFlowerDropdown(filterText = '') {
         flowerDropdown.innerHTML = '';
-        const filtered = flowers.filter(f => f.name.toLowerCase().includes(filterText.toLowerCase()));
+        const q = filterText.toLowerCase().trim();
+        const filtered = flowers.filter(f => 
+          f.name.toLowerCase().includes(q) || 
+          (f.id && f.id.toLowerCase().includes(q))
+        );
+        
         if (filtered.length === 0) {
             flowerDropdown.innerHTML = '<div style="padding: 0.75rem; color: #94a3b8; text-align: center;">No flowers found</div>';
             return;
         }
-        filtered.forEach(f => {
+        filtered.forEach((f, i) => {
             const div = document.createElement('div');
-            div.textContent = f.name;
-            div.style.cssText = 'padding: 0.75rem; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: background 0.2s; color: #334155; font-weight: 500; font-size: 0.875rem;';
-            div.addEventListener('mouseenter', () => div.style.background = '#f8fafc');
-            div.addEventListener('mouseleave', () => div.style.background = 'transparent');
+            div.className = `fm-dropdown-item ${i === flowerFocusIdx ? 'active' : ''}`;
+            div.style.cssText = `padding: 0.75rem; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: background 0.2s; color: #334155; font-weight: 500; font-size: 0.875rem; background: ${i === flowerFocusIdx ? '#f0fdf4' : 'transparent'};`;
+            div.innerHTML = `<span style="font-weight: 800; color: #1e8a4a; margin-right: 8px;">${f.id || ''}</span> <span>${f.name}</span>`;
+            
+            div.addEventListener('mouseenter', () => { flowerFocusIdx = i; div.style.background = '#f8fafc'; });
             div.addEventListener('mousedown', (e) => {
                 e.preventDefault();
                 flowerInput.value = f.name;
                 flowerDropdown.style.display = 'none';
+                flowerFocusIdx = -1;
+                iQty.focus();
             });
             flowerDropdown.appendChild(div);
         });
     }
 
+    flowerInput.addEventListener('keydown', (e) => {
+      const items = flowerDropdown.querySelectorAll('.fm-dropdown-item');
+      if (flowerDropdown.style.display === 'block' && items.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          flowerFocusIdx = (flowerFocusIdx + 1) % items.length;
+          renderFlowerDropdown(flowerInput.value);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          flowerFocusIdx = (flowerFocusIdx - 1 + items.length) % items.length;
+          renderFlowerDropdown(flowerInput.value);
+        } else if (e.key === 'Enter') {
+          if (flowerFocusIdx > -1) {
+            e.preventDefault();
+            const f = flowers.filter(f => 
+              f.name.toLowerCase().includes(flowerInput.value.toLowerCase()) || 
+              (f.id && f.id.toLowerCase().includes(flowerInput.value.toLowerCase()))
+            )[flowerFocusIdx];
+            flowerInput.value = f.name;
+            flowerDropdown.style.display = 'none';
+            flowerFocusIdx = -1;
+            iQty.focus();
+          }
+        }
+      }
+    });
+
     flowerInput.addEventListener('focus', () => {
+        flowerFocusIdx = -1;
         renderFlowerDropdown(flowerInput.value);
         flowerDropdown.style.display = 'block';
     });
-
     flowerInput.addEventListener('blur', () => {
         flowerDropdown.style.display = 'none';
     });
-
     flowerInput.addEventListener('input', (e) => {
+        flowerFocusIdx = -1;
         renderFlowerDropdown(e.target.value);
         flowerDropdown.style.display = 'block';
     });
@@ -343,11 +376,14 @@ const PurchaseModule = (() => {
       return;
     }
     list.innerHTML = '';
+    const flowers = getFlowers();
     currentItems.forEach((item, idx) => {
+      const flowerObj = flowers.find(f => f.name === item.flowerType);
+      const flowerIdText = flowerObj && flowerObj.id ? `<span class="fm-badge-id" style="margin-right:8px; background:#f0fdf4; border:1px solid #1e8a4a; color:#1e8a4a; padding:2px 6px; border-radius:4px; font-size:0.75rem;">${flowerObj.id}</span>` : '';
       const tr = document.createElement('tr');
       tr.style.borderBottom = '1px solid #f8fafc';
       tr.innerHTML = `
-        <td style="padding: 1rem; font-weight: bold; color: #334155;">${item.flowerType}</td>
+        <td style="padding: 1rem; font-weight: bold; color: #334155;">${flowerIdText}${item.flowerType}</td>
         <td style="padding: 1rem; color: #475569; text-align: center;">${item.qty}</td>
         <td style="padding: 1rem; color: #475569; text-align: right;">₹${item.rate}</td>
         <td style="padding: 1rem; font-weight: bold; color: #059669; text-align: right;">₹${item.total.toFixed(2)}</td>

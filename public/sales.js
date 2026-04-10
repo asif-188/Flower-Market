@@ -46,8 +46,8 @@ const SalesModule = (() => {
 
     _container.innerHTML = `
       <div class="fm-page-header" style="margin-bottom: 20px;">
-        <h1 class="fm-title" style="color: #1e8a4a; font-weight: 800; font-size: 1.8rem;">${App.i18n.t('directCustomer')}</h1>
-        <p style="color: #64748b; margin-top: -5px;">Log details of flowers sold to customers.</p>
+        <h1 class="fm-title" style="color: #1e8a4a; font-weight: 800; font-size: 1.8rem;">${App.i18n.t('sales')}</h1>
+        <p style="color: #64748b; margin-top: -5px;">${App.i18n.t('salesLogDesc')}</p>
       </div>
 
       <div class="fm-split-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; align-items: start;">
@@ -114,8 +114,8 @@ const SalesModule = (() => {
           <!-- Batch Table -->
           <div class="fm-card-simple" style="background: white; border-radius: 12px; border: 1px solid #f1f5f9; box-shadow: 0 4px 10px rgba(0,0,0,0.03); overflow: hidden; flex: 1;">
             <div style="padding: 15px 20px; background: #f8fafc; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
-               <h3 style="margin: 0; font-size: 0.9rem; font-weight: 800; color: #334155;">Current Batch Items</h3>
-               <span id="s-item-count" style="background: #1e8a4a; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; font-weight: bold;">0 Items</span>
+               <h3 style="margin: 0; font-size: 0.9rem; font-weight: 800; color: #334155;">${App.i18n.t('currentBatch')}</h3>
+               <span id="s-item-count" style="background: #1e8a4a; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; font-weight: bold;">0 ${App.i18n.t('items')}</span>
             </div>
             <div style="max-height: 300px; overflow-y: auto;">
               <table style="width: 100%; border-collapse: collapse; text-align: left;">
@@ -136,11 +136,11 @@ const SalesModule = (() => {
             <!-- Total Bar -->
             <div style="padding: 20px; background: #f1f5f9; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
                <div>
-                  <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 3px;">Total Quantity</div>
+                  <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 3px;">${App.i18n.t('totalQty')}</div>
                   <div id="s-total-qty" style="font-weight: 900; color: #334155; font-size: 1.1rem;">0.00</div>
                </div>
                <div style="text-align: right;">
-                  <div style="font-size: 0.7rem; color: #1e8a4a; text-transform: uppercase; font-weight: 800; margin-bottom: 3px;">Grand Total</div>
+                  <div style="font-size: 0.7rem; color: #1e8a4a; text-transform: uppercase; font-weight: 800; margin-bottom: 3px;">${App.i18n.t('grandTotal')}</div>
                   <div id="s-grand-total" style="font-weight: 900; color: #1e8a4a; font-size: 1.5rem;">₹0.00</div>
                </div>
             </div>
@@ -153,7 +153,9 @@ const SalesModule = (() => {
              </button>
              <div style="display: flex; gap: 8px;">
                <button id="s-print" title="Print Bill" style="width: 50px; height: 50px; border: 2px solid #3b82f6; border-radius: 12px; background: #f0f7ff; color: #3b82f6; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">🖨️</button>
-               <button id="s-whatsapp" title="Send via WhatsApp" style="width: 50px; height: 50px; border: 2px solid #22c55e; border-radius: 12px; background: #f0fdf4; color: #22c55e; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">🟢</button>
+               <button id="s-whatsapp" title="Send via WhatsApp" style="width: 50px; height: 50px; border: 2px solid #25D366; border-radius: 12px; background: #f0fdf4; color: #25D366; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                 <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+               </button>
              </div>
           </div>
 
@@ -183,50 +185,109 @@ const SalesModule = (() => {
     wInp.addEventListener('input', calcRowTotal);
     pInp.addEventListener('input', calcRowTotal);
 
-    // \u2500\u2500 Customer Search Logic \u2500\u2500
-    custInput.addEventListener('input', (e) => {
-      const q = e.target.value.toLowerCase().trim();
+    // ── Customer Search Logic ──
+    let custFocusIdx = -1;
+    const renderCustResults = (q) => {
       if (!q) { custResults.style.display = 'none'; return; }
-      
-      const filtered = custs.filter(c => c.name.toLowerCase().includes(q) || String(c.id).includes(q));
+      const filtered = custs.filter(c => c.name.toLowerCase().includes(q) || String(c.id).toLowerCase().includes(q));
       if (filtered.length) {
-        custResults.innerHTML = filtered.map(c => `<div class="fm-search-item" data-id="${c.id}" data-name="${c.name}" style="padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f1f5f9;">${c.name} (${c.id})</div>`).join('');
+        custResults.innerHTML = filtered.map((c, i) => `
+          <div class="fm-search-item ${i === custFocusIdx ? 'active' : ''}" data-id="${c.id}" data-name="${c.name}" 
+               style="padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f1f5f9; background: ${i === custFocusIdx ? '#f0fdf4' : 'transparent'};">
+            ${c.name} (${c.id})
+          </div>`).join('');
         custResults.style.display = 'block';
-        custResults.querySelectorAll('.fm-search-item').forEach(item => {
+        custResults.querySelectorAll('.fm-search-item').forEach((item, i) => {
            item.addEventListener('click', () => {
               custInput.value = item.dataset.name;
               custIdHidden.value = item.dataset.id;
               custResults.style.display = 'none';
-              updatePreview();
+              custFocusIdx = -1;
+              flowerInput.focus();
            });
         });
       } else {
         custResults.style.display = 'none';
       }
+    };
+
+    custInput.addEventListener('input', (e) => {
+      custFocusIdx = -1;
+      renderCustResults(e.target.value.toLowerCase().trim());
+    });
+
+    custInput.addEventListener('keydown', (e) => {
+      const items = custResults.querySelectorAll('.fm-search-item');
+      if (custResults.style.display === 'block' && items.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          custFocusIdx = (custFocusIdx + 1) % items.length;
+          renderCustResults(custInput.value.toLowerCase().trim());
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          custFocusIdx = (custFocusIdx - 1 + items.length) % items.length;
+          renderCustResults(custInput.value.toLowerCase().trim());
+        } else if (e.key === 'Enter' && custFocusIdx > -1) {
+          e.preventDefault();
+          items[custFocusIdx].click();
+        }
+      } else if (e.key === 'Enter') {
+         flowerInput.focus();
+      }
     });
 
     // ── Flower Search Logic ──
-    flowerInput.addEventListener('input', (e) => {
-      const q = e.target.value.toLowerCase().trim();
+    let flowerFocusIdx = -1;
+    const renderFlowerResults = (q) => {
       if (!q) { flowerResults.style.display = 'none'; return; }
+      const filtered = flowers.filter(f => 
+        f.name.toLowerCase().includes(q) || 
+        (f.id && f.id.toLowerCase().includes(q))
+      );
       
-      const filtered = flowers.filter(f => f.name.toLowerCase().includes(q));
       if (filtered.length) {
-        flowerResults.innerHTML = filtered.map(f => {
+        flowerResults.innerHTML = filtered.map((f, i) => {
           const translated = App.i18n.t(f.name.toLowerCase());
           const display = translated !== f.name.toLowerCase() ? translated : f.name;
-          return `<div class="fm-search-item" data-name="${f.name}" style="padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f1f5f9;">${display}</div>`;
+          return `<div class="fm-search-item ${i === flowerFocusIdx ? 'active' : ''}" data-name="${f.name}" style="padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f1f5f9; background: ${i === flowerFocusIdx ? '#f0fdf4' : 'transparent'};">
+            <span style="font-weight: 800; color: #1e8a4a; margin-right: 8px;">${f.id || ''}</span>
+            <span>${display}</span>
+          </div>`;
         }).join('');
         flowerResults.style.display = 'block';
-        flowerResults.querySelectorAll('.fm-search-item').forEach(item => {
+        flowerResults.querySelectorAll('.fm-search-item').forEach((item, i) => {
            item.addEventListener('click', () => {
               flowerInput.value = item.dataset.name;
               flowerResults.style.display = 'none';
-              updatePreview();
+              flowerFocusIdx = -1;
+              wInp.focus();
            });
         });
       } else {
         flowerResults.style.display = 'none';
+      }
+    };
+
+    flowerInput.addEventListener('input', (e) => {
+      flowerFocusIdx = -1;
+      renderFlowerResults(e.target.value.toLowerCase().trim());
+    });
+
+    flowerInput.addEventListener('keydown', (e) => {
+      const items = flowerResults.querySelectorAll('.fm-search-item');
+      if (flowerResults.style.display === 'block' && items.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          flowerFocusIdx = (flowerFocusIdx + 1) % items.length;
+          renderFlowerResults(flowerInput.value.toLowerCase().trim());
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          flowerFocusIdx = (flowerFocusIdx - 1 + items.length) % items.length;
+          renderFlowerResults(flowerInput.value.toLowerCase().trim());
+        } else if (e.key === 'Enter' && flowerFocusIdx > -1) {
+          e.preventDefault();
+          items[flowerFocusIdx].click();
+        }
       }
     });
 
@@ -235,7 +296,7 @@ const SalesModule = (() => {
       if (custInput && !custInput.contains(e.target) && !custResults.contains(e.target)) {
         custResults.style.display = 'none';
       }
-      if (flowerInput && !flowerInput.contains(e.target) && !flowerResults.contains(e.target)) {
+      if (flowerInput && !flowerInput.contains(e.target) && !flowerResults.style.display === 'none' && !flowerResults.contains(e.target)) {
         flowerResults.style.display = 'none';
       }
     });
@@ -305,17 +366,49 @@ const SalesModule = (() => {
     });
 
     _container.querySelector('#s-print').addEventListener('click', () => {
-       if (!currentBatch.length) return alert('Add items to print preview!');
-       // Quick Print Summary
-       window.print();
+       if (!custIdHidden.value || !currentBatch.length) return alert('Please select a customer and add items first!');
+       const cust = custs.find(c => c.id === custIdHidden.value);
+       const flowersList = getFlowers();
+       
+       // Calculate previous balance
+       const ledger = cust.ledger || [];
+       const prevBalance = ledger.reduce((s, row) => s + (parseFloat(row.debit) || 0) - (parseFloat(row.credit) || 0), 0);
+       const itemsTotal = currentBatch.reduce((s, i) => s + i.total, 0);
+
+       const billData = {
+         customerName: cust.name,
+         date: _container.querySelector('#s-date').value,
+         items: currentBatch.map(i => {
+           const f = flowersList.find(fl => fl.name === i.name);
+           return { ...i, flowerId: f ? f.id : '' };
+         }),
+         prevBalance: prevBalance,
+         received: 0, 
+         balance: prevBalance + itemsTotal
+       };
+       App.printBill(billData);
     });
 
     _container.querySelector('#s-whatsapp').addEventListener('click', () => {
        if (!custIdHidden.value || !currentBatch.length) return alert('Please select a customer and add items first!');
        const cust = custs.find(c => c.id === custIdHidden.value);
-       const total = currentBatch.reduce((s, i) => s + i.total, 0);
-       let itemsText = currentBatch.map(i => `${i.name} (${i.weight} @ ₹${i.price})`).join('%0A');
-       const text = `🌸 *New Sale - Bill Summary*%0A---------------------------%0AHello *${cust.name}*,%0AYour total bill is *₹${total.toFixed(2)}*%0A%0A*Items:*%0A${itemsText}%0A%0APowered by Sakura Market`;
+       const flowersList = getFlowers();
+       const ledger = cust.ledger || [];
+       const prevBalance = ledger.reduce((s, row) => s + (parseFloat(row.debit) || 0) - (parseFloat(row.credit) || 0), 0);
+       const itemsTotal = currentBatch.reduce((s, i) => s + i.total, 0);
+
+       const footer = "🌸 நன்றி 🌸";
+       const isTa = App.i18n.lang === 'ta';
+
+       let itemsText = currentBatch.map(i => {
+         const f = flowersList.find(fl => fl.name === i.name);
+         const id = f ? f.id : '';
+         const name = isTa ? (App.i18n.strings.ta[i.name.toLowerCase()] || i.name) : i.name;
+         return `${id} ${name} - ${i.weight}kg @ ₹${i.price} = *₹${i.total.toFixed(0)}*`;
+       }).join('%0A');
+
+       const text = `---------------------------%0A*CUST:* ${cust.name}%0A*DATE:* ${_container.querySelector('#s-date').value}%0A---------------------------%0A${itemsText}%0A---------------------------%0Aஇன்றைய சரக்கு: *₹${itemsTotal.toLocaleString()}*%0Aமுன் பாக்கி: *₹${prevBalance.toLocaleString()}*%0Aமொத்தம்: *₹${(itemsTotal + prevBalance).toLocaleString()}*%0Aவரவு: *₹0*%0Aபாக்கி: *₹${(itemsTotal + prevBalance).toLocaleString()}*%0A---------------------------%0A${footer}`;
+       
        window.open(`https://wa.me/91${cust.contact}?text=${text}`, '_blank');
     });
 
@@ -333,16 +426,21 @@ const SalesModule = (() => {
       return;
     }
 
-    body.innerHTML = currentBatch.map((i, idx) => `
-      <tr style="border-bottom: 1px solid #f1f5f9;">
-        <td style="padding: 12px 15px; font-weight: 600; color: #334155;">${App.i18n.t(i.name.toLowerCase()) || i.name}</td>
-        <td style="padding: 12px 15px; color: #475569; text-align: center;">${i.weight} <span style="font-size:0.75rem; color:#94a3b8;">@ ₹${i.price.toFixed(2)}</span></td>
-        <td style="padding: 12px 15px; font-weight: bold; color: #1e8a4a; text-align: right;">₹${i.total.toFixed(2)}</td>
-        <td style="padding: 12px 15px; text-align: right;">
-          <button class="s-del-row" data-idx="${idx}" style="background: none; border: none; cursor: pointer; font-size: 1.1rem; filter: grayscale(1);">🗑️</button>
-        </td>
-      </tr>
-    `).join('');
+    const flowers = getFlowers();
+    body.innerHTML = currentBatch.map((i, idx) => {
+      const flowerObj = flowers.find(f => f.name === i.name);
+      const flowerIdText = flowerObj && flowerObj.id ? `<span class="fm-badge-id" style="margin-right: 5px;">${flowerObj.id}</span>` : '';
+      return `
+        <tr style="border-bottom: 1px solid #f1f5f9;">
+          <td style="padding: 12px 15px; font-weight: 600; color: #334155;">${flowerIdText}${App.i18n.t(i.name.toLowerCase()) || i.name}</td>
+          <td style="padding: 12px 15px; color: #475569; text-align: center;">${i.weight} <span style="font-size:0.75rem; color:#94a3b8;">@ ₹${i.price.toFixed(2)}</span></td>
+          <td style="padding: 12px 15px; font-weight: bold; color: #1e8a4a; text-align: right;">₹${i.total.toFixed(2)}</td>
+          <td style="padding: 12px 15px; text-align: right;">
+            <button class="s-del-row" data-idx="${idx}" style="background: none; border: none; cursor: pointer; font-size: 1.1rem; filter: grayscale(1);">🗑️</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
 
     body.querySelectorAll('.s-del-row').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -355,7 +453,7 @@ const SalesModule = (() => {
     const weightSum = currentBatch.reduce((s, i) => s + i.weight, 0);
     totalQty.textContent = weightSum.toFixed(2);
     grandTotal.textContent = `₹${total.toFixed(2)}`;
-    _container.querySelector('#s-item-count').textContent = `${currentBatch.length} Items`;
+    _container.querySelector('#s-item-count').textContent = `${currentBatch.length} ${App.i18n.t('items')}`;
   }
 
   function downloadBatchCSV() {

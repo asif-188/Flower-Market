@@ -132,10 +132,7 @@ const AccountsModule = (() => {
       </div>
 
       <div class="fm-search-row print-hide">
-        <div class="fm-filter-group">
-          <label>${App.i18n.t('selectMonth')}:</label>
-          <input type="month" id="month-filter" class="fm-input" value="${monthYear}">
-        </div>
+        <input type="month" id="month-filter" class="fm-input" style="width: 200px" value="${monthYear}">
         <div class="fm-search-wrap" style="flex:1">
           <span class="fm-search-icon">🔍</span>
           <input id="month-search" class="fm-search-input" type="text" placeholder="${App.i18n.t('searchHint')}" />

@@ -96,7 +96,8 @@ const App = (() => {
         farmerNameReq: 'Farmer Name is required.',
         contactNumReq: 'Contact Number is required.',
         farmerIdReq: 'Farmer ID is required.',
-        farmerIdExists: 'Farmer ID already exists.',
+        farmerIdExists: 'Flower ID already exists.',
+        flowerIdExists: 'Flower ID already exists.',
         deleteConfirm: 'Are you sure you want to delete',
         deleteActionUndone: 'This action cannot be undone.',
         yesDelete: 'Yes, Delete', updateFarmer: 'Update Farmer', registerFarmer: 'Register Farmer',
@@ -113,6 +114,7 @@ const App = (() => {
         directCustomer: 'Direct Customer', saleDate: 'Sale Date', flowerVariety: 'Flower Variety', weightQty: 'Weight / Qty', submitSales: 'Submit Sales',
         noItemsAdded: 'No items added yet.', fillAllFields: 'Please fill all item fields!', fillRequiredFields: 'Please select a farmer and add at least one item.',
         noFlowers: "No flowers found. Click 'Add Flower' to start!", flowerExists: '⚠️ This flower name already exists!',
+        flowerId: 'Flower ID',
         allPresent: 'All farmers are present for this chosen range!', noAbsentFound: 'No absent farmers found to message.',
         addExpense: 'Add Expense', expenseType: 'Expense Type', amount: 'Amount', notes: 'Notes', recordExpense: 'Record Expense', noExpenses: 'No expenses recorded.',
         typeRent: 'Rent', typeElectricity: 'Electricity', typeTea: 'Tea/Snacks', typeTransport: 'Transport', typeLabour: 'Labour', typeStationary: 'Stationary', typeOther: 'Other',
@@ -124,7 +126,12 @@ const App = (() => {
         // Common Locations
         salem: 'Salem', villupuram: 'Villupuram', dharmapuri: 'Dharmapuri', krishnagiri: 'Krishnagiri', erode: 'Erode', namakkal: 'Namakkal', trichy: 'Trichy', madurai: 'Madurai', coimbatore: 'Coimbatore', chennai: 'Chennai',
         // Date Presets
-        today: 'Today', thisWeek: 'This Week', thisMonth: 'This Month', lastMonth: 'Last Month', thisYear: 'This Year', customDate: 'Custom Date'
+        today: 'Today', thisWeek: 'This Week', thisMonth: 'This Month', lastMonth: 'Last Month', thisYear: 'This Year', customDate: 'Custom Date',
+        intake: 'Intake', currentBatch: 'Current Batch Items', items: 'Items', totalQty: 'Total Quantity', grandTotal: 'Grand Total',
+        salesLogDesc: 'Log details of flowers sold to customers.',
+        billType: 'Variety', billWeight: 'Weight', billPrice: 'Price', billAmount: 'Amount',
+        todayGoods: "Today's Goods", prevBalance: 'Previous Balance', billTotal: 'Total',
+        received: 'Received', pendingBalance: 'Balance', thanks: 'Thank You'
       },
       ta: {
         login: 'உள்நுழை', username: 'பயனர்பெயர்', password: 'கடவுச்சொல்',
@@ -158,6 +165,7 @@ const App = (() => {
         contactNumReq: 'தொடர்பு எண் தேவை.',
         farmerIdReq: 'விவசாயி ஐடி தேவை.',
         farmerIdExists: 'விவசாயி ஐடி ஏற்கனவே உள்ளது.',
+        flowerIdExists: 'பூ ஐடி ஏற்கனவே உள்ளது.',
         deleteConfirm: 'நிச்சயமாக நீங்கள் அழிக்க விரும்புகிறீர்களா?',
         deleteActionUndone: 'இந்த செயலை மாற்ற முடியாது.',
         yesDelete: 'ஆம், அழி', updateFarmer: 'விவசாயியைப் புதுப்பி', registerFarmer: 'விவசாயியைப் பதிவு செய்',
@@ -174,6 +182,7 @@ const App = (() => {
         directCustomer: 'நேரடி வாடிக்கையாளர்', saleDate: 'விற்பனை தேதி', flowerVariety: 'மலர் வகை', weightQty: 'எடை / அளவு', submitSales: 'விற்பனையைச் சமர்ப்பிக்கவும்',
         noItemsAdded: 'இன்னும் உருப்படிகள் எதுவும் சேர்க்கப்படவில்லை.', fillAllFields: 'தயவுசெய்து அனைத்து பொருட்களையும் நிரப்பவும்!', fillRequiredFields: 'தயவுசெய்து ஒரு விவசாயியைத் தேர்ந்தெடுத்து குறைந்தபட்சம் ஒரு பொருளைச் சேர்க்கவும்.',
         noFlowers: 'பூக்கள் எதுவும் இல்லை. தொடங்க "புதியதைச் சேர்" என்பதைக் கிளிக் செய்யவும்!', flowerExists: '⚠️ இந்தப் பூ ஏற்கனவே உள்ளது!',
+        flowerId: 'பூ ஐடி',
         allPresent: 'தேர்ந்தெடுக்கப்பட்ட காலப்பகுதியில் அனைத்து விவசாயிகளும் வந்துள்ளனர்!', noAbsentFound: 'செய்தி அனுப்ப வராத விவசாயிகள் யாரும் இல்லை.',
         addExpense: 'செலவுச் சேர்', expenseType: 'செலவு வகை', amount: 'தொகை', notes: 'குறிப்புகள்', recordExpense: 'செலவைப் பதிவு செய்', noExpenses: 'செலவுகள் எதுவும் பதிவு செய்யப்படவில்லை.',
         typeRent: 'வாடகை', typeElectricity: 'மின்சாரம்', typeTea: 'தேநீர்/சிற்றுண்டி', typeTransport: 'போக்குவரத்து', typeLabour: 'கூலி', typeStationary: 'எழுதுபொருட்கள்', typeOther: 'மற்றவை',
@@ -185,7 +194,12 @@ const App = (() => {
         // Common Locations
         salem: 'சேலம்', villupuram: 'விழுப்புரம்', dharmapuri: 'தர்மபுரி', krishnagiri: 'கிருஷ்ணகிரி', erode: 'ஈரோடு', namakkal: 'நாமக்கல்', trichy: 'திருச்சி', madurai: 'மதுரை', coimbatore: 'கோயம்புத்தூர்', chennai: 'சென்னை',
         // Date Presets
-        today: 'இன்று', thisWeek: 'இந்த வாரம்', thisMonth: 'இந்த மாதம்', lastMonth: 'கடந்த மாதம்', thisYear: 'இந்த ஆண்டு', customDate: 'குறிப்பிட்ட தேதி'
+        today: 'இன்று', thisWeek: 'இந்த வாரம்', thisMonth: 'இந்த மாதம்', lastMonth: 'கடந்த மாதம்', thisYear: 'இந்த ஆண்டு', customDate: 'குறிப்பிட்ட தேதி',
+        intake: 'உள்வருதல்', currentBatch: 'தற்போதைய தொகுப்பு உருப்படிகள்', items: 'உருப்படிகள்', totalQty: 'மொத்த அளவு', grandTotal: 'மொத்தத் தொகை',
+        salesLogDesc: 'வாடிக்கையாளர்களுக்கு விற்கப்பட்ட பூக்களின் விவரங்களை பதிவு செய்யவும்.',
+        billType: 'வகை', billWeight: 'எடை', billPrice: 'விலை', billAmount: 'தொகை',
+        todayGoods: 'இன்றைய சரக்கு', prevBalance: 'முன் பாக்கி', billTotal: 'மொத்தம்',
+        received: 'வரவு', pendingBalance: 'பாக்கி', thanks: '🌸 நன்றி 🌸'
       }
     },
     t(key) { return this.strings[this.lang][key] || key; },
@@ -645,6 +659,186 @@ const App = (() => {
     return btn;
   }
 
+  // ── Print Helper ───────────────────────────────────────────────────────────
+  function printBill(data) {
+    const isTa = i18n.lang === 'ta';
+    const win = window.open('', '_blank');
+    const today = new Date().toLocaleDateString('en-GB'); // DD/MM/YYYY
+    
+    // Calculate totals
+    const itemsTotal = data.items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
+    const balance = parseFloat(data.balance) || 0;
+    const received = parseFloat(data.received) || 0;
+    const totalWithPrev = itemsTotal + (data.prevBalance || 0);
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Bill - ${data.customerName}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+          
+          /* Hide browser headers/footers */
+          @page { size: auto; margin: 0mm; }
+          
+          body { 
+            font-family: 'Nunito', sans-serif; 
+            padding: 0; 
+            margin: 0; 
+            color: #000; 
+            font-size: 14px; 
+            background: #fff; 
+            -webkit-print-color-adjust: exact;
+          }
+          
+          .print-area {
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px;
+          }
+
+          .bill-wrap { 
+            width: 400px; 
+            background: white;
+            padding: 20px;
+          }
+
+          @media screen {
+            body { background: #f1f5f9; }
+            .bill-wrap { 
+              margin-top: 20px;
+              box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+              border-radius: 8px;
+            }
+          }
+
+          .header { text-align: center; margin-bottom: 25px; }
+          .biz-name { font-size: 28px; font-weight: 900; margin: 0; letter-spacing: 0.5px; color: #000; }
+          .biz-sub { font-size: 16px; margin: 4px 0; color: #333; font-weight: 700; }
+          .biz-addr { font-size: 12px; margin: 5px 0; line-height: 1.5; color: #444; }
+          .biz-ph { font-size: 13px; font-weight: 800; margin-top: 10px; }
+          
+          .cust-row { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 30px; }
+          .cust-name { font-size: 22px; font-weight: 900; color: #000; }
+          .date { font-size: 14px; font-weight: 700; color: #333; margin-top: 5px; }
+          
+          .divider-dashed { border-top: 1.5px dashed #000; margin: 15px 0; }
+          .divider-solid { border-top: 2px solid #000; margin: 15px 0; }
+          
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; table-layout: fixed; }
+          th { border-bottom: 2.5px solid #000; padding: 10px 0; text-align: left; font-size: 13px; text-transform: uppercase; font-weight: 900; }
+          td { padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 700; font-size: 14px; word-wrap: break-word; }
+          
+          .col-variety { width: 40%; }
+          .col-qty { width: 20%; text-align: right; }
+          .col-rate { width: 20%; text-align: right; }
+          .col-total { width: 20%; text-align: right; }
+
+          .t-right { text-align: right; }
+          
+          .summary-section { margin-top: 15px; }
+          .summary-row { display: flex; justify-content: space-between; padding: 8px 0; font-weight: 800; font-size: 16px; }
+          .total-big { 
+            font-size: 19px; 
+            color: #000; 
+            border-top: 3px solid #000; 
+            padding-top: 12px; 
+            margin-top: 10px;
+            font-weight: 900;
+          }
+          
+          .footer { 
+            text-align: center; 
+            margin-top: 50px; 
+            font-size: 22px; 
+            font-weight: 900; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 12px; 
+          }
+          .petal-icon { color: #f472b6; }
+        </style>
+      </head>
+      <body>
+        <div class="print-area">
+          <div class="bill-wrap">
+            <div class="cust-row">
+              <div class="cust-name">${data.customerName}</div>
+            </div>
+            <div class="date">${isTa ? 'தேதி' : 'Date'} : ${data.date || today}</div>
+            
+            <div class="divider-dashed"></div>
+            
+            <table>
+              <thead>
+                <tr>
+                  <th class="col-variety">${isTa ? 'வகை' : 'Variety'}</th>
+                  <th class="col-qty t-right">${isTa ? 'எடை' : 'Weight'}</th>
+                  <th class="col-rate t-right">${isTa ? 'விலை' : 'Price'}</th>
+                  <th class="col-total t-right">${isTa ? 'தொகை' : 'Total'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${data.items.map(item => `
+                  <tr>
+                    <td>${item.flowerId || ''} ${isTa ? (i18n.strings.ta[item.name?.toLowerCase()] || item.name || item.flowerType) : (item.name || item.flowerType)}</td>
+                    <td class="t-right">${item.weight || item.qty} KG</td>
+                    <td class="t-right">₹${parseFloat(item.price || item.rate).toLocaleString()}</td>
+                    <td class="t-right">₹${(parseFloat(item.total)).toLocaleString()}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            
+            <div class="summary-section">
+              <div class="summary-row">
+                <span>${isTa ? 'இன்றைய சரக்கு' : "Today's Total"}</span>
+                <span>₹${itemsTotal.toLocaleString()}</span>
+              </div>
+              <div class="summary-row">
+                <span>${isTa ? 'முன் பாக்கி' : 'Prev Balance'}</span>
+                <span>₹${(data.prevBalance || 0).toLocaleString()}</span>
+              </div>
+              <div class="divider-solid"></div>
+              <div class="summary-row total-big">
+                <span>${isTa ? 'மொத்தம்' : 'Grand Total'}</span>
+                <span>₹${totalWithPrev.toLocaleString()}</span>
+              </div>
+              <div class="summary-row">
+                <span>${isTa ? 'வரவு' : 'Received'}</span>
+                <span>₹${received.toLocaleString()}</span>
+              </div>
+              <div class="summary-row" style="color: #000;">
+                <span>${isTa ? 'பாக்கி' : 'Balance'}</span>
+                <span>₹${balance.toLocaleString()}</span>
+              </div>
+            </div>
+            
+            <div class="footer">
+              <span class="petal-icon">🌸</span>
+              <span>${isTa ? 'நன்றி' : 'Thank You'}</span>
+              <span class="petal-icon">🌸</span>
+            </div>
+          </div>
+        </div>
+        <script>
+          window.onload = () => { 
+            setTimeout(() => {
+              window.print(); 
+              window.onafterprint = () => window.close();
+              setTimeout(() => window.close(), 2000);
+            }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+    win.document.write(html);
+    win.document.close();
+  }
+
   // Ripple effect
   document.addEventListener('click', e => {
     const btn = e.target.closest('.ripple');
@@ -685,7 +879,7 @@ const App = (() => {
 
     render();
   }
-  return { init, i18n };
+  return { init, i18n, printBill };
 })();
 
 document.addEventListener('DOMContentLoaded', () => App.init());
