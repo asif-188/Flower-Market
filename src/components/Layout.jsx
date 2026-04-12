@@ -1,76 +1,91 @@
 import React from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  ShoppingCart,
-  ShoppingBag,
-  Tags,
-  CreditCard,
-  User,
-  Users,
-  FileText,
-  LogOut
-} from 'lucide-react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { LogOut, ChevronLeft, Globe, User } from 'lucide-react';
+import { auth } from '../firebase';
+import Petals from './Petals';
 
-const Sidebar = () => {
+const Layout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isDashboard = location.pathname.includes('/dashboard');
 
-  const navItems = [
-    { to: "/app/dashboard", icon: <LayoutDashboard size={18} />, label: "Dashboard" },
-    { to: "/app/intake", icon: <ShoppingCart size={18} />, label: "Flower Intake" },
-    { to: "/app/sales", icon: <ShoppingBag size={18} />, label: "Sales" },
-    { to: "/app/direct-sales", icon: <Tags size={18} />, label: "Direct Sales" },
-    { to: "/app/payments", icon: <CreditCard size={18} />, label: "Payments" },
-    { to: "/app/farmer", icon: <User size={18} />, label: "Farmer" },
-    { to: "/app/buyer", icon: <Users size={18} />, label: "Buyer" },
-    { to: "/app/accounts", icon: <FileText size={18} />, label: "Accounts" },
-  ];
+  const handleLogout = async () => {
+    try {
+      if (window.confirm('Are you sure you want to log out?')) {
+        await auth.signOut();
+        navigate('/');
+      }
+    } catch (error) {
+      console.error("Logout Error:", error);
+    }
+  };
 
-  const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    navigate('/');
+  const getTitle = () => {
+    if (location.pathname.includes('/buyer')) return 'Sales — Customer';
+    if (location.pathname.includes('/sales')) return 'Sales';
+    if (location.pathname.includes('/products')) return 'Products';
+    if (location.pathname.includes('/payments')) return 'Sales — Cash Receive';
+    if (location.pathname.includes('/reports')) return 'Sales — Customer Report';
+    return '';
   };
 
   return (
-    <div className="w-64 bg-white h-screen shadow-lg flex flex-col fixed left-0 top-0 z-10 font-medium">
-      <div className="h-16 border-b flex items-center px-6 gap-3">
-        <h1 className="font-bold text-xl text-blue-900">BloomControl</h1>
+    <div className="page page-main bg-gray-50 flex flex-col min-h-screen">
+      <Petals />
+      
+      {/* ── Fixed Premium Top Bar ── */}
+      <div className="h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center px-6 sticky top-0 z-50">
+        
+        {/* Left: Back Action */}
+        <div className="w-48 flex items-center">
+            {!isDashboard && (
+                <button 
+                    onClick={() => navigate('/app/dashboard')}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-600 font-black text-sm hover:bg-gray-50 transition-all shadow-sm active:scale-95"
+                >
+                    <ChevronLeft size={18} /> Back
+                </button>
+            )}
+        </div>
+
+        {/* Center: Title */}
+        <div className="flex-1 flex justify-center">
+            {getTitle() && (
+                <div className="flex items-center gap-2.5 px-6 py-2 bg-emerald-50/50 rounded-full border border-emerald-100/50 shadow-inner">
+                    <span className="text-xl">☘️</span>
+                    <h1 className="text-xl font-black text-emerald-800 tracking-tight">{getTitle()}</h1>
+                </div>
+            )}
+        </div>
+        
+        {/* Right: User Actions */}
+        <div className="w-64 flex items-center justify-end gap-5">
+          <div className="text-[10px] font-black text-gray-300 uppercase tracking-widest hidden lg:block">v2.8</div>
+          
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200 cursor-help">
+            <User size={18} className="text-blue-500" />
+          </div>
+
+          <div className="flex items-center gap-2 px-4 py-1.5 bg-gray-50 rounded-lg border border-gray-200 text-xs font-bold text-gray-600">
+            <Globe size={14} className="text-blue-400" />
+            <span className="hidden sm:inline">Language:</span>
+            <select className="bg-transparent outline-none border-none pr-4 cursor-pointer">
+                <option>English</option>
+                <option>Tamil</option>
+            </select>
+          </div>
+
+          <button 
+            onClick={handleLogout}
+            className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm active:scale-95"
+            title="Logout"
+          >
+            <LogOut size={20} />
+          </button>
+        </div>
       </div>
 
-      <nav className="flex-1 py-4 space-y-1 overflow-y-auto">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-6 py-3 text-sm transition-all duration-200 border-l-4 ${isActive
-                ? 'bg-blue-50 text-blue-600 border-blue-600'
-                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800 border-transparent'
-              }`
-            }
-          >
-            {item.icon}
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
-
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-6 py-3 text-sm text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200 border-l-4 border-transparent mt-4"
-        >
-          <LogOut size={18} />
-          <span>Logout</span>
-        </button>
-      </nav>
-    </div>
-  );
-};
-
-const Layout = () => {
-  return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar />
-      <main className="flex-1 ml-64 p-8">
+      <main className="flex-1 p-8 relative z-10 bg-gray-50/30">
         <div className="max-w-7xl mx-auto">
           <Outlet />
         </div>
@@ -80,3 +95,4 @@ const Layout = () => {
 };
 
 export default Layout;
+

@@ -1,112 +1,113 @@
 
-// Simple data service to manage Products, Invoices, and Farmers in localStorage
+import { 
+  collection, 
+  getDocs, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  onSnapshot, 
+  query, 
+  orderBy,
+  setDoc,
+  serverTimestamp
+} from "firebase/firestore";
+import { db } from "../firebase";
 
-const STORAGE_KEYS = {
-  FARMERS: 'flower_market_farmers',
-  PRODUCTS: 'flower_market_products',
-  INTAKES: 'flower_market_intakes',
+export { db };
+
+const COLLECTIONS = {
+  FARMERS: 'farmers',
+  PRODUCTS: 'products',
+  INTAKES: 'intakes',
+  BUYERS: 'buyers',
+  SALES: 'sales',
 };
 
-// Initial Data
-const INITIAL_FARMERS = [
-  { id: '1', name: 'Hari', contact: '9876543210', location: 'Ooty', balance: -48700 },
-  { id: '2', name: 'Asif', contact: '8765432109', location: 'Hosur', balance: 19614 },
-  { id: '3', name: 'Ram', contact: '7654321098', location: 'Doddaballapur', balance: 5441 },
-  { id: '4', name: 'Vijay', contact: '9898989898', location: 'Salem', balance: 1635 },
-  { id: '5', name: 'Ajith', contact: '8787878787', location: 'Theni', balance: 78 },
-  { id: '6', name: 'Surya', contact: '7676767676', location: 'Madurai', balance: 92 },
-];
+// --- Real-time Listeners (Hooks style or Callback style) ---
+export const subscribeToCollection = (collectionName, callback) => {
+  const q = query(collection(db, collectionName));
+  return onSnapshot(q, (snapshot) => {
+    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    callback(data);
+  });
+};
 
 // --- FARMERS ---
-export const getFarmers = () => {
-  const stored = localStorage.getItem(STORAGE_KEYS.FARMERS);
-  if (!stored) {
-    localStorage.setItem(STORAGE_KEYS.FARMERS, JSON.stringify(INITIAL_FARMERS));
-    return INITIAL_FARMERS;
-  }
-  return JSON.parse(stored);
+export const getFarmers = async () => {
+  const querySnapshot = await getDocs(collection(db, COLLECTIONS.FARMERS));
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
-export const saveFarmer = (farmer) => {
-  const farmers = getFarmers();
-  const existingIndex = farmers.findIndex(f => f.id === farmer.id);
-
-  if (existingIndex >= 0) {
-    farmers[existingIndex] = { ...farmers[existingIndex], ...farmer };
+export const saveFarmer = async (farmer) => {
+  if (farmer.id) {
+    const farmerRef = doc(db, COLLECTIONS.FARMERS, farmer.id);
+    await updateDoc(farmerRef, { ...farmer, updatedAt: serverTimestamp() });
   } else {
-    farmers.push({ ...farmer, id: Date.now().toString(), balance: 0 });
+    await addDoc(collection(db, COLLECTIONS.FARMERS), { 
+      ...farmer, 
+      balance: farmer.balance || 0,
+      createdAt: serverTimestamp() 
+    });
   }
-
-  localStorage.setItem(STORAGE_KEYS.FARMERS, JSON.stringify(farmers));
-  return farmers;
 };
 
-export const deleteFarmer = (id) => {
-  const farmers = getFarmers().filter(f => f.id !== id);
-  localStorage.setItem(STORAGE_KEYS.FARMERS, JSON.stringify(farmers));
-  return farmers;
+export const deleteFarmer = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.FARMERS, id));
 };
 
-// --- PRODUCTS (Flowers) ---
-export const getProducts = () => {
-  const stored = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-  // Dummy products if empty logic preserved...
-  if (!stored) return [];
-  return JSON.parse(stored);
+// --- PRODUCTS ---
+export const getProducts = async () => {
+  const querySnapshot = await getDocs(collection(db, COLLECTIONS.PRODUCTS));
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 // --- INTAKE ---
-export const saveIntake = (intakeData) => {
-  const intakes = getIntakes();
-  const newIntake = { ...intakeData, id: Date.now().toString(), date: new Date().toISOString() };
-  // In a real app, this would likely update the farmer's balance too
-  intakes.push(newIntake);
-  localStorage.setItem(STORAGE_KEYS.INTAKES, JSON.stringify(intakes));
-  return newIntake;
+export const saveIntake = async (intakeData) => {
+  const docRef = await addDoc(collection(db, COLLECTIONS.INTAKES), {
+    ...intakeData,
+    timestamp: serverTimestamp(),
+    date: new Date().toISOString()
+  });
+  return { id: docRef.id, ...intakeData };
 };
 
-export const getIntakes = () => {
-  const stored = localStorage.getItem(STORAGE_KEYS.INTAKES);
-  return stored ? JSON.parse(stored) : [];
+export const getIntakes = async () => {
+  const q = query(collection(db, COLLECTIONS.INTAKES), orderBy('timestamp', 'desc'));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 // --- BUYERS ---
-const INITIAL_BUYERS = [
-  { id: '1', name: 'Fresh Flowers Co', contact: '9988776655', location: 'Chennai', balance: 0 },
-  { id: '2', name: 'Wedding Events', contact: '8877665544', location: 'Bangalore', balance: 0 },
-];
-
-export const getBuyers = () => {
-  const stored = localStorage.getItem('flower_market_buyers');
-  if (!stored) {
-    localStorage.setItem('flower_market_buyers', JSON.stringify(INITIAL_BUYERS));
-    return INITIAL_BUYERS;
-  }
-  return JSON.parse(stored);
+export const getBuyers = async () => {
+  const querySnapshot = await getDocs(collection(db, COLLECTIONS.BUYERS));
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
-export const saveBuyer = (buyer) => {
-  const buyers = getBuyers();
+export const saveBuyer = async (buyer) => {
   if (buyer.id) {
-    const index = buyers.findIndex(b => b.id === buyer.id);
-    buyers[index] = buyer;
+    const buyerRef = doc(db, COLLECTIONS.BUYERS, buyer.id);
+    await updateDoc(buyerRef, { ...buyer, updatedAt: serverTimestamp() });
   } else {
-    buyers.push({ ...buyer, id: Date.now().toString(), balance: 0 });
+    await addDoc(collection(db, COLLECTIONS.BUYERS), { 
+      ...buyer, 
+      balance: buyer.balance || 0,
+      createdAt: serverTimestamp() 
+    });
   }
-  localStorage.setItem('flower_market_buyers', JSON.stringify(buyers));
-  return buyers;
 };
 
 // --- SALES ---
-export const saveSale = (saleData) => {
-  const sales = getSales();
-  const newSale = { ...saleData, id: Date.now().toString(), timestamp: new Date().toISOString() };
-  sales.push(newSale);
-  localStorage.setItem('flower_market_sales', JSON.stringify(sales));
-  return newSale;
+export const saveSale = async (saleData) => {
+  const docRef = await addDoc(collection(db, COLLECTIONS.SALES), {
+    ...saleData,
+    timestamp: serverTimestamp()
+  });
+  return { id: docRef.id, ...saleData };
 };
 
-export const getSales = () => {
-  const stored = localStorage.getItem('flower_market_sales');
-  return stored ? JSON.parse(stored) : [];
+export const getSales = async () => {
+  const q = query(collection(db, COLLECTIONS.SALES), orderBy('timestamp', 'desc'));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };

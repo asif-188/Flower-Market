@@ -3,28 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Flower Market Billing — Anime-themed multi-tenant billing software for flower market businesses. Manage farmers, sales, purchases and more." />
-  <meta name="theme-color" content="#0f0a1e" />
+  <meta name="description" content="Flower Market Billing — Multi-tenant billing software for flower market businesses. Manage farmers, sales, purchases and more." />
+  <meta name="theme-color" content="#10b981" />
   <title>🌸 Flower Market Billing</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
 </head>
-<body>
-  <div id="app"></div>
-
-  <!-- Module scripts loaded in dependency order -->
-  <script src="/xlsx.min.js"></script>
-  <script src="/farmer.js"></script>
-  <script src="/absent_farmer.js"></script>
-  <script src="/flower.js"></script>
-  <script src="/purchase.js"></script>
-  <script src="/cash_pay.js"></script>
-  <script src="/expenses.js"></script>
-  <script src="/accounts.js"></script>
-  <script src="/customer.js"></script>
-  <script src="/sales.js"></script>
-  <script src="/sales_reports.js"></script>
-  <script src="/app.js"></script>
+<body class="bg-gray-50 antialiased">
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>
+
