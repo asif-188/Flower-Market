@@ -1,30 +1,31 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebase';
 import Petals from '../components/Petals';
+
+// Local tenant credentials (matches legacy app)
+const TENANTS = {
+  sakura:  { password: 'shop123',  name: 'Sakura Flower Market' },
+  pooja:   { password: 'pooja123', name: 'Pooja Flower Market' },
+  krishna: { password: 'kris123',  name: 'Krishna Flower Market' },
+};
 
 const Login = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [isSignUp, setIsSignUp] = useState(false);
+    const [error, setError]       = useState('');
     const navigate = useNavigate();
 
-    const handleLogin = async (e) => {
+    const handleLogin = (e) => {
         e.preventDefault();
-        try {
-            const email = username.includes('@') ? username : `${username}@poovanam.com`;
-            if (isSignUp) {
-                await createUserWithEmailAndPassword(auth, email, password);
-                alert("Account created! You can now log in.");
-                setIsSignUp(false);
-            } else {
-                await signInWithEmailAndPassword(auth, email, password);
-                navigate('/app');
-            }
-        } catch (error) {
-            console.error("Auth Error:", error.message);
-            alert(error.message);
+        setError('');
+        const tenant = TENANTS[username.toLowerCase()];
+        if (tenant && tenant.password === password) {
+            sessionStorage.setItem('fm_logged_in', 'true');
+            sessionStorage.setItem('fm_tenant',    username.toLowerCase());
+            sessionStorage.setItem('fm_tenant_name', tenant.name);
+            navigate('/app');
+        } else {
+            setError('Invalid username or password.');
         }
     };
 
@@ -39,47 +40,40 @@ const Login = () => {
                 </div>
 
                 <form onSubmit={handleLogin} className="login-form">
+                    {error && (
+                        <div style={{ background: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: '8px', fontSize: '0.875rem', fontWeight: '600', marginBottom: '12px', textAlign: 'center' }}>
+                            {error}
+                        </div>
+                    )}
                     <div className="field-group">
                         <span className="field-icon">👤</span>
-                        <input 
-                            type="text" 
-                            className="field-input" 
-                            placeholder="Username" 
+                        <input
+                            type="text"
+                            className="field-input"
+                            placeholder="Username"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            required 
+                            required
                         />
                     </div>
                     <div className="field-group">
                         <span className="field-icon">🔒</span>
-                        <input 
-                            type="password" 
-                            className="field-input" 
-                            placeholder="Password" 
+                        <input
+                            type="password"
+                            className="field-input"
+                            placeholder="Password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            required 
+                            required
                         />
                     </div>
                     <button type="submit" className="btn-primary btn-full ripple">
-                        <span className="btn-icon">✨</span> {isSignUp ? 'Register' : 'Login'}
+                        <span className="btn-icon">✨</span> Login
                     </button>
-                    
-                    <div className="text-center pt-4">
-                        <button 
-                            type="button" 
-                            onClick={() => setIsSignUp(!isSignUp)}
-                            className="hint-text hover:text-green-600 underline"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-                        >
-                            {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
-                        </button>
-                    </div>
                 </form>
             </div>
         </div>
     );
 };
-
 
 export default Login;

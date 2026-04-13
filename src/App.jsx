@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
@@ -14,25 +13,9 @@ import Payments from './pages/Payments';
 import Buyer from './pages/Buyer';
 import Reports from './pages/Reports';
 
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from './firebase';
-import { useState, useEffect } from 'react';
-
 const ProtectedRoute = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-
-  return user ? children : <Navigate to="/" replace />;
+  const isLoggedIn = sessionStorage.getItem('fm_logged_in') === 'true';
+  return isLoggedIn ? children : <Navigate to="/" replace />;
 };
 
 function App() {

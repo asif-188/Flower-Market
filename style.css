@@ -76,14 +76,7 @@ html, body {
 }
 
 /* Subtle dot grid */
-.page::before {
-  content: '';
-  position: absolute; inset: 0;
-  background-image: radial-gradient(circle, #c8dfd0 1px, transparent 1px);
-  background-size: 28px 28px;
-  opacity: 0.45;
-  pointer-events: none; z-index: 0;
-}
+
 
 /* Soft glow orb */
 .page-login::after {

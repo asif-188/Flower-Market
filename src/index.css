@@ -1,22 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Inter:wght@100..900&display=swap');
 @import "tailwindcss";
 
 :root {
   --primary: #10b981;
-  /* Emerald 500 */
   --primary-light: #ecfdf5;
-  /* Emerald 50 */
   --primary-dark: #059669;
-  /* Emerald 600 */
   --gray-50: #f9fafb;
   --gray-100: #f3f4f6;
   --gray-200: #e5e7eb;
+  --gray-600: #4b5563;
   --gray-800: #1f2937;
   --white: #ffffff;
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-premium: 0 20px 50px -15px rgba(0,0,0,0.1);
   --radius: 0.75rem;
+
+  --font-heading: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
 }
+
+body {
+  font-family: var(--font-body);
+  background-color: #fcfdfb;
+  color: var(--gray-800);
+}
+
+h1, h2, h3, h4, .font-heading {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+
 
 /* ... middle content ... */
 
@@ -136,7 +152,43 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-/* Input Styles */
+/* Input Styles *//* Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-20px) rotate(5deg); }
+}
+
+@keyframes drift {
+  0% { transform: translate(0, 0) rotate(0); }
+  50% { transform: translate(30px, 20px) rotate(10deg); }
+  100% { transform: translate(0, 0) rotate(0); }
+}
+
+@keyframes entry {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes bg-glow {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-drift { animation: drift 12s ease-in-out infinite; }
+.animate-entry { animation: entry 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+.bg-ethereal {
+  background: linear-gradient(-45deg, #fcfdfb, #f5fcf9, #fdfcf6, #f8fbfd);
+  background-size: 400% 400%;
+  animation: bg-glow 15s ease infinite;
+}
+
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+
 input,
 select {
   width: 100%;

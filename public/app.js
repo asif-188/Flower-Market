@@ -377,62 +377,87 @@ const App = (() => {
     const page = el('div', 'page page-main');
     addPetals(page);
 
-    // Top Bar
+    // Top bar (minimal — just right-side actions)
     const topBar = el('div', 'top-bar glass');
-    const tenantInfo = el('div', 'tenant-info');
-    tenantInfo.innerHTML = `<span class="tenant-logo">${DB.currentUser.logo}</span>
-      <div><div class="tenant-name">${DB.currentUser.tenantName}</div>
-      <div class="tenant-user">@${DB.currentUser.username}</div></div>`;
-    topBar.appendChild(tenantInfo);
+    topBar.style.cssText = 'background: transparent; border-bottom: none; box-shadow: none; position: absolute; top: 0; right: 0; left: 0;';
     const topRight = el('div', 'top-right');
     topRight.appendChild(renderProfileBtn());
     topRight.appendChild(renderLangSelector());
+
+    // Logout icon button
+    const logoutBtn = document.createElement('button');
+    logoutBtn.className = 'ripple';
+    logoutBtn.title = 'Logout';
+    logoutBtn.innerHTML = '🚪';
+    logoutBtn.style.cssText = 'background:#fee2e2; border:none; border-radius:10px; width:40px; height:40px; font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center;';
+    logoutBtn.addEventListener('click', () => { DB.logout(); navigate('login'); });
+    topRight.appendChild(logoutBtn);
+
     topBar.appendChild(topRight);
     page.appendChild(topBar);
 
-    // Center buttons
+    // Center content
     const center = el('div', 'main-center');
-    const welcomeTitle = el('div', 'main-welcome-title');
-    welcomeTitle.innerHTML = `<span class="welcome-emoji">🌿</span> ${i18n.t('welcome')}, ${DB.currentUser.tenantName}!`;
-    center.appendChild(welcomeTitle);
+    center.style.cssText = 'display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; gap:0; padding-top: 0;';
 
-    const mainBtns = el('div', 'main-buttons');
-    const farmerBtn = makeMenuBtn('👨‍🌾', i18n.t('farmer'), 'btn-farmer', 'main-btn-farmer', () => navigate('farmer'));
-    const salesBtn  = makeMenuBtn('🧾', i18n.t('sales'),  'btn-sales',  'main-btn-sales',  () => navigate('sales'));
+    // Title
+    const titleWrap = el('div', '');
+    titleWrap.style.cssText = 'text-align:center; margin-bottom: 40px;';
+    titleWrap.innerHTML = `
+      <h1 style="font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 900; color: #16a34a; font-style: italic; letter-spacing: -0.03em; margin: 0; display:flex; align-items:center; justify-content:center; gap:12px;">
+        <span style="font-style:normal;">🌿</span> ${DB.currentUser.tenantName || 'Sakura Market'}
+      </h1>
+      <p style="font-size: 0.7rem; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.3em; margin-top: 8px;">Premium Operating System</p>
+    `;
+    center.appendChild(titleWrap);
 
-    mainBtns.appendChild(farmerBtn);
-    mainBtns.appendChild(salesBtn);
-    center.appendChild(mainBtns);
+    // Buttons
+    const btnWrap = el('div', '');
+    btnWrap.style.cssText = 'display:flex; flex-direction:column; gap:20px; width:100%; max-width: 460px;';
+
+    const farmerBtn = document.createElement('button');
+    farmerBtn.id = 'main-btn-farmer';
+    farmerBtn.style.cssText = 'display:flex; align-items:center; justify-content:center; gap:20px; background:#ecfdf5; border:3px solid #bbf7d0; padding:28px 40px; border-radius:60px; cursor:pointer; transition:all 0.25s; box-shadow: 0 8px 25px rgba(16,185,129,0.15);';
+    farmerBtn.innerHTML = '<span style="font-size:2.5rem;">🤠</span><span style="font-size:2.8rem; font-weight:900; color:#166534; font-style:italic; letter-spacing:-0.03em;">Farmer</span>';
+    farmerBtn.addEventListener('click', () => navigate('farmer'));
+    farmerBtn.addEventListener('mouseover', () => { farmerBtn.style.borderColor='#4ade80'; farmerBtn.style.transform='translateY(-3px)'; });
+    farmerBtn.addEventListener('mouseout',  () => { farmerBtn.style.borderColor='#bbf7d0'; farmerBtn.style.transform='translateY(0)'; });
+
+    const salesBtn = document.createElement('button');
+    salesBtn.id = 'main-btn-sales';
+    salesBtn.style.cssText = 'display:flex; align-items:center; justify-content:center; gap:20px; background:#eef2ff; border:3px solid #c7d2fe; padding:28px 40px; border-radius:60px; cursor:pointer; transition:all 0.25s; box-shadow: 0 8px 25px rgba(99,102,241,0.1);';
+    salesBtn.innerHTML = '<span style="font-size:2.5rem;">🧾</span><span style="font-size:2.8rem; font-weight:900; color:#3730a3; font-style:italic; letter-spacing:-0.03em;">Sales</span>';
+    salesBtn.addEventListener('click', () => navigate('sales'));
+    salesBtn.addEventListener('mouseover', () => { salesBtn.style.borderColor='#818cf8'; salesBtn.style.transform='translateY(-3px)'; });
+    salesBtn.addEventListener('mouseout',  () => { salesBtn.style.borderColor='#c7d2fe'; salesBtn.style.transform='translateY(0)'; });
+
+    btnWrap.appendChild(farmerBtn);
+    btnWrap.appendChild(salesBtn);
+    center.appendChild(btnWrap);
+
+    // Footer ghost links
+    const footer = el('div', '');
+    footer.style.cssText = 'display:flex; gap:32px; margin-top:60px; opacity:0.35; transition:opacity 0.2s;';
+    footer.addEventListener('mouseover', () => footer.style.opacity='1');
+    footer.addEventListener('mouseout',  () => footer.style.opacity='0.35');
+
+    [['customer', 'Customer Directory'], ['cashReceive', 'Cash Accounts']].forEach(([key, label]) => {
+      const lnk = document.createElement('button');
+      lnk.style.cssText = 'background:none; border:none; cursor:pointer; font-size:0.6rem; font-weight:900; color:#94a3b8; text-transform:uppercase; letter-spacing:0.25em;';
+      lnk.textContent = label;
+      lnk.addEventListener('click', () => { navigate('sales'); });
+      footer.appendChild(lnk);
+    });
+    center.appendChild(footer);
+
     page.appendChild(center);
 
-    // Bottom row: Exit + key hint
-    const bottomBar = el('div', 'bottom-bar');
-    const exitBtn = document.createElement('button');
-    exitBtn.className = 'btn-exit ripple'; exitBtn.id = 'main-btn-exit';
-    exitBtn.innerHTML = `<span>🚪</span> ${i18n.t('exit')}`;
-    exitBtn.addEventListener('click', () => { DB.logout(); navigate('login'); });
-    bottomBar.appendChild(exitBtn);
-    page.appendChild(bottomBar);
-
-    // ── Main Menu Keyboard Nav ──
-    const btnIds = ['main-btn-farmer', 'main-btn-sales', 'main-btn-exit'];
+    // Keyboard nav
     setTimeout(() => {
-      document.getElementById(btnIds[focusIndex])?.focus();
+      document.getElementById('main-btn-farmer')?.focus();
       page.addEventListener('keydown', e => {
-        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
-          e.preventDefault();
-          focusIndex = (focusIndex + 1) % btnIds.length;
-          document.getElementById(btnIds[focusIndex])?.focus();
-        }
-        if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
-          e.preventDefault();
-          focusIndex = (focusIndex - 1 + btnIds.length) % btnIds.length;
-          document.getElementById(btnIds[focusIndex])?.focus();
-        }
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          document.getElementById(btnIds[focusIndex])?.click();
-        }
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); document.getElementById('main-btn-sales')?.focus(); }
+        if (e.key === 'ArrowUp'   || e.key === 'ArrowLeft')  { e.preventDefault(); document.getElementById('main-btn-farmer')?.focus(); }
         if (e.key === 'F' || e.key === 'f') navigate('farmer');
         if (e.key === 'S' || e.key === 's') navigate('sales');
       });

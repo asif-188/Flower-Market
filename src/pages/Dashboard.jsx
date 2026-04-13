@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LangContext } from '../components/Layout';
 
 const Dashboard = () => {
     const navigate = useNavigate();
+    const { t } = useContext(LangContext);
 
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] w-full animate-in fade-in zoom-in duration-500">
@@ -19,7 +21,7 @@ const Dashboard = () => {
                     className="group relative overflow-hidden bg-emerald-50 border-4 border-emerald-200 hover:border-emerald-400 p-10 rounded-[40px] shadow-2xl hover:shadow-emerald-200 transition-all transform hover:-translate-y-2 active:scale-95 flex items-center justify-center gap-8"
                 >
                     <div className="text-6xl group-hover:rotate-12 transition-transform">🤠</div>
-                    <span className="text-5xl font-black text-emerald-800 tracking-tighter italic">Farmer</span>
+                    <span className="text-5xl font-black text-emerald-800 tracking-tighter italic">{t('farmer')}</span>
                 </button>
 
                 <button 
@@ -27,7 +29,7 @@ const Dashboard = () => {
                     className="group relative overflow-hidden bg-indigo-50 border-4 border-indigo-100 hover:border-indigo-300 p-10 rounded-[40px] shadow-2xl hover:shadow-indigo-200 transition-all transform hover:-translate-y-2 active:scale-95 flex items-center justify-center gap-8"
                 >
                     <div className="text-6xl group-hover:rotate-12 transition-transform">🧾</div>
-                    <span className="text-5xl font-black text-indigo-700 tracking-tighter italic">Sales</span>
+                    <span className="text-5xl font-black text-indigo-700 tracking-tighter italic">{t('sales')}</span>
                 </button>
             </div>
 

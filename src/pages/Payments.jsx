@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, X, User, DollarSign, Calendar, FileText, ArrowRight, CheckCircle2, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useContext } from 'react';
+import { Plus, X, User, DollarSign, Calendar, FileText, ArrowRight, CheckCircle2, Trash2, Edit2 } from 'lucide-react';
 import { subscribeToCollection, db } from '../utils/storage';
 import { collection, addDoc, doc, updateDoc, increment, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { LangContext } from '../components/Layout';
 
 const Payments = () => {
+    const { t } = useContext(LangContext);
     const [payments, setPayments] = useState([]);
     const [buyers, setBuyers] = useState([]);
     const [farmers, setFarmers] = useState([]);
@@ -88,14 +90,32 @@ const Payments = () => {
         }
     };
 
+    const handleEditNote = async (p) => {
+        const newNote = window.prompt('Edit Short Note:', p.note || '');
+        if (newNote === null) return;
+        try {
+            const paymentRef = doc(db, 'payments', p.id);
+            await updateDoc(paymentRef, { note: newNote });
+        } catch (err) {
+            alert('❌ Update failed: ' + err.message);
+        }
+    };
+
     const getEntityName = (id, type) => {
         const list = type === 'farmer' ? farmers : buyers;
         return list.find(item => item.id === id)?.name || 'Unknown Entity';
     };
 
+    const getEntityDisplayId = (id, type) => {
+        const list = type === 'farmer' ? farmers : buyers;
+        return list.find(item => item.id === id)?.displayId || '---';
+    };
+
     const filteredPayments = payments.filter(p => {
         const name = getEntityName(p.entityId, p.type).toLowerCase();
-        return name.includes(searchTerm.toLowerCase()) || p.note?.toLowerCase().includes(searchTerm.toLowerCase());
+        const displayId = getEntityDisplayId(p.entityId, p.type).toString().toLowerCase();
+        const term = searchTerm.toLowerCase();
+        return name.includes(term) || displayId.includes(term) || p.note?.toLowerCase().includes(term);
     });
 
     const formatCurrency = (n) =>
@@ -120,7 +140,7 @@ const Payments = () => {
             <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3">
                     <div className="text-4xl text-emerald-600 font-bold">💰</div>
-                    <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Cash Receive</h2>
+                    <h2 className="text-2xl font-bold text-gray-800 tracking-tight">{t('cashReceive')}</h2>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -128,19 +148,18 @@ const Payments = () => {
                         onClick={handleOpenModal}
                         className="flex items-center gap-1.5 px-5 py-2 bg-white border-2 border-emerald-500 text-emerald-600 rounded-lg text-sm font-bold hover:bg-emerald-50 transition-colors shadow-sm"
                     >
-                        <Plus size={16} /> receivePayment
+                        <Plus size={16} /> {t('receivePayment')}
                     </button>
                 </div>
             </div>
 
-            {/* ── Pill Search ── */}
+            {/* ── Search (Symbol Removed) ── */}
             <div className="mb-6">
                 <div className="relative max-w-sm">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={16} />
                     <input
                         type="text"
-                        placeholder="Search payments by name or note..."
-                        className="w-full pl-10 pr-5 py-2.5 border-2 border-emerald-500 rounded-full text-sm font-medium text-gray-700 bg-white outline-none focus:ring-2 focus:ring-emerald-100 transition-all placeholder:text-gray-400"
+                        placeholder={t('search')}
+                        className="w-full px-6 py-2.5 border-2 border-emerald-500 rounded-full text-sm font-medium text-gray-700 bg-white outline-none focus:ring-2 focus:ring-emerald-100 transition-all placeholder:text-gray-400"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -152,18 +171,19 @@ const Payments = () => {
                 <table className="w-full text-left">
                     <thead>
                         <tr className="bg-emerald-50 text-emerald-800">
-                            <th className="px-5 py-3 text-xs font-black uppercase tracking-widest rounded-l-xl">Date</th>
-                            <th className="px-5 py-3 text-xs font-black uppercase tracking-widest">CustomerName</th>
-                            <th className="px-5 py-3 text-xs font-black uppercase tracking-widest">AmountReceived</th>
-                            <th className="px-5 py-3 text-xs font-black uppercase tracking-widest">Notes</th>
-                            <th className="px-5 py-3 text-xs font-black uppercase tracking-widest rounded-r-xl">Action</th>
+                            <th className="px-5 py-3 text-xs font-black uppercase tracking-widest rounded-l-xl">{t('date')}</th>
+                            <th className="px-5 py-3 text-xs font-black uppercase tracking-widest">{t('customerId')}</th>
+                            <th className="px-5 py-3 text-xs font-black uppercase tracking-widest">{t('customerName')}</th>
+                            <th className="px-5 py-3 text-xs font-black uppercase tracking-widest">{t('amountReceived')}</th>
+                            <th className="px-5 py-3 text-xs font-black uppercase tracking-widest">{t('notes')}</th>
+                            <th className="px-5 py-3 text-xs font-black uppercase tracking-widest rounded-r-xl">{t('action')}</th>
                         </tr>
                     </thead>
                     <tbody>
                         {filteredPayments.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="py-24 text-center text-gray-400 italic font-medium">
-                                    No records found.
+                                <td colSpan={6} className="py-24 text-center text-gray-400 italic font-medium">
+                                    {t('noRecords')}
                                 </td>
                             </tr>
                         ) : (
@@ -171,6 +191,11 @@ const Payments = () => {
                                 <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors group">
                                     <td className="px-5 py-4 text-xs font-bold text-gray-500">
                                         {formatDate(p.timestamp)}
+                                    </td>
+                                    <td className="px-5 py-4">
+                                        <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-[10px] font-black tracking-tighter">
+                                            #{getEntityDisplayId(p.entityId, p.type)}
+                                        </span>
                                     </td>
                                     <td className="px-5 py-4">
                                         <div className="flex flex-col">
@@ -185,7 +210,16 @@ const Payments = () => {
                                         <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{p.method}</div>
                                     </td>
                                     <td className="px-5 py-4 text-sm text-gray-500 max-w-xs truncate">
-                                        {p.note || '—'}
+                                        <div className="flex items-center gap-2">
+                                            <span>{p.note || '—'}</span>
+                                            <button 
+                                                onClick={() => handleEditNote(p)}
+                                                className="p-1 text-gray-300 hover:text-[#1e8a44] transition-colors"
+                                                title="Edit Note"
+                                            >
+                                                <Edit2 size={12} />
+                                            </button>
+                                        </div>
                                     </td>
                                     <td className="px-5 py-4">
                                         <button 
@@ -209,7 +243,7 @@ const Payments = () => {
                         
                         {/* Solid Green Header */}
                         <div className="px-6 py-4 bg-[#1e8a44] flex items-center justify-between">
-                            <h3 className="text-xl font-bold text-white">Cash Receive</h3>
+                            <h3 className="text-xl font-bold text-white">{t('cashReceive')}</h3>
                             <button onClick={() => setIsModalOpen(false)} className="text-white/80 hover:text-white transition-colors">
                                 <X size={20} strokeWidth={3} />
                             </button>
@@ -218,22 +252,10 @@ const Payments = () => {
                         {/* Modal Body */}
                         <form onSubmit={handleSave} className="p-8 space-y-8">
                             
-                            {/* Entity Type Toggle (Subtle) */}
-                            <div className="flex justify-end gap-4 mb-4">
-                                <label className="flex items-center gap-2 cursor-pointer group">
-                                    <input type="radio" checked={paymentType === 'buyer'} onChange={() => setPaymentType('buyer')} className="accent-[#1e8a44]" />
-                                    <span className={`text-sm font-bold ${paymentType === 'buyer' ? 'text-gray-800' : 'text-gray-400'}`}>Customer</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer group">
-                                    <input type="radio" checked={paymentType === 'farmer'} onChange={() => setPaymentType('farmer')} className="accent-blue-600" />
-                                    <span className={`text-sm font-bold ${paymentType === 'farmer' ? 'text-gray-800' : 'text-gray-400'}`}>Farmer</span>
-                                </label>
-                            </div>
-
                             <div className="space-y-6 max-w-lg mx-auto">
                                 {/* Customer Row */}
                                 <div className="flex items-center">
-                                    <label className="w-1/3 text-gray-700 font-bold">Customer</label>
+                                    <label className="w-1/3 text-gray-700 font-bold">{t('customer')}</label>
                                     <div className="w-2/3">
                                         <select 
                                             className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-white focus:border-[#1e8a44] outline-none font-medium text-gray-700 text-sm"
@@ -241,7 +263,7 @@ const Payments = () => {
                                             onChange={e => setFormData({ ...formData, entityId: e.target.value })}
                                             required
                                         >
-                                            <option value="">selectCustomer</option>
+                                            <option value="">{t('selectCustomer')}</option>
                                             {(paymentType === 'buyer' ? buyers : farmers).map(item => (
                                                 <option key={item.id} value={item.id}>{item.name}</option>
                                             ))}
@@ -251,7 +273,7 @@ const Payments = () => {
 
                                 {/* Opening Balance Row */}
                                 <div className="flex items-center">
-                                    <label className="w-1/3 text-gray-700 font-bold">Opening Balance</label>
+                                    <label className="w-1/3 text-gray-700 font-bold">{t('openingBalance')}</label>
                                     <div className="w-2/3 text-gray-800 font-black text-lg">
                                         {formatCurrency(openingBalance)}
                                     </div>
@@ -259,7 +281,7 @@ const Payments = () => {
 
                                 {/* givenAmount Row */}
                                 <div className="flex items-center">
-                                    <label className="w-1/3 text-gray-700 font-bold">givenAmount</label>
+                                    <label className="w-1/3 text-gray-700 font-bold">{t('givenAmount')}</label>
                                     <div className="w-2/3 flex items-center gap-4">
                                         <input 
                                             type="number" 
@@ -283,9 +305,23 @@ const Payments = () => {
 
                                 {/* closingBalance Row */}
                                 <div className="flex items-center">
-                                    <label className="w-1/3 text-gray-700 font-bold">closingBalance</label>
+                                    <label className="w-1/3 text-gray-700 font-bold">{t('closingBalance')}</label>
                                     <div className="w-2/3 text-[#1e8a44] font-black text-xl">
                                         {formatCurrency(closingBalance)}
+                                    </div>
+                                </div>
+
+                                {/* Short Note Row */}
+                                <div className="flex items-center">
+                                    <label className="w-1/3 text-gray-700 font-bold">{t('notes')}</label>
+                                    <div className="w-2/3">
+                                        <input 
+                                            type="text" 
+                                            className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:border-[#1e8a44] outline-none font-medium text-gray-700"
+                                            placeholder="..."
+                                            value={formData.note}
+                                            onChange={e => setFormData({ ...formData, note: e.target.value })}
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -308,7 +344,7 @@ const Payments = () => {
                                     onClick={() => setIsModalOpen(false)}
                                     className="px-6 h-11 bg-[#64748b] text-white rounded-lg font-bold text-sm shadow-md hover:bg-[#475569] transition-all"
                                 >
-                                    Close
+                                    {t('close')}
                                 </button>
                             </div>
                         </form>
