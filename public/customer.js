@@ -38,27 +38,32 @@ const CustomerModule = (() => {
 
   function renderPage() {
     _container.innerHTML = `
-      <div class="fm-page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h1 class="fm-title">👤 ${App.i18n.t('customerMaster')}</h1>
-        <div class="fm-header-actions" style="display: flex; gap: 16px; align-items: center;">
-          <button class="fm-tpl-btn ripple" id="c-tpl-btn" title="${App.i18n.t('template')}" style="background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; padding: 8px 16px; border-radius: 20px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 6px;">
-            📋 ${App.i18n.t('template')}
+      <div class="fm-page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div style="padding: 10px; background: #ede9fe; border-radius: 16px;">
+            <span style="font-size: 1.8rem; color: #7c3aed;">👤</span>
+          </div>
+          <h1 class="fm-title" style="font-size: 2rem; font-weight: 900; letter-spacing: -0.05em; color: #1e293b; margin: 0;">Customer Master</h1>
+        </div>
+        <div class="fm-header-actions" style="display: flex; gap: 12px; align-items: center;">
+          <button class="fm-tpl-btn" id="c-tpl-btn" style="background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; padding: 10px 20px; border-radius: 9999px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
+            📄 ${App.i18n.t('template')}
           </button>
-          <label class="fm-import-label ripple" title="${App.i18n.t('import')}" style="cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: bold; color: #334155;">
-            <span style="font-size: 1.2rem;">📥</span> <span style="padding-top: 2px;">${App.i18n.t('import')}</span>
+          <label class="fm-import-label" style="cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: bold; color: #475569; background: white; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 9999px; transition: all 0.2s;">
+            <span style="color: #3b82f6;">📥</span> ${App.i18n.t('import')}
             <input type="file" id="c-import-input" accept=".xlsx,.xls" style="display:none" />
           </label>
-          <button id="add-cust-btn" class="fm-btn-add ripple" style="background:#fff !important; color:#1e8a4a !important; border:2px solid #1e8a4a !important; font-weight:800 !important; cursor:pointer !important; min-width:130px !important; display:flex !important; align-items:center !important; justify-content:center !important; padding: 0.5rem 1rem; border-radius: 8px;">
+          <button id="add-cust-btn" style="background: #fff; color: #059669; border: 2px solid #10b981; font-weight: 900; cursor: pointer; padding: 10px 24px; border-radius: 9999px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.1);">
             ＋ ${App.i18n.t('addCustomer')}
           </button>
         </div>
       </div>
-      <div class="fm-search-row" style="margin-bottom: 24px; display: flex; align-items: center; gap: 15px;">
+      <div class="fm-search-row" style="margin-bottom: 60px; display: flex; align-items: center;">
         <div class="fm-search-wrap" style="position: relative; flex: 1; max-width: 500px;">
-          <span style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; color: #94a3b8;">🔍</span>
-          <input id="c-search" type="text" placeholder="${App.i18n.t('searchHint')}" style="width: 100%; padding: 12px 12px 12px 45px; border: 2px solid #22c55e; background: #fff; border-radius: 9999px; outline: none; font-size: 1rem; color: #334155; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.03);">
+          <input id="c-search" type="text" placeholder="Search by ID and Name..." style="width: 100%; padding: 14px 30px; border: 2px solid #10b981; background: #fff; border-radius: 9999px; outline: none; font-size: 1.1rem; font-weight: 700; color: #334155; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
         </div>
       </div>
+      <div style="height: 1px; background: #f1f5f9; margin: 40px 0;"></div>
       <div class="fm-card animate-fade-in" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
         <table class="fm-table" style="width: 100%; border-collapse: collapse; text-align: left;">
           <thead>
@@ -144,31 +149,38 @@ const CustomerModule = (() => {
     overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:99999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(5px);';
     
     overlay.innerHTML = `
-      <div class="fm-modal animate-pop fm-modal-show" style="background:#fff; border-radius:16px; width:90%; max-width:500px; box-shadow:0 10px 40px rgba(0,0,0,0.2); overflow:hidden;">
-        <div class="fm-modal-header" style="padding:20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; background:#f9fcfb;">
-          <h3 class="fm-modal-title" style="margin:0; color:#1e8a4a; font-size:1.4rem; font-weight:800;">${isEdit ? '✏️ ' + App.i18n.t('editCustomer') : '👤 ' + App.i18n.t('addCustomerModal')}</h3>
-          <button class="fm-close-btn" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#999;">✕</button>
+      <div class="fm-modal animate-pop fm-modal-show" style="background:#fff; border-radius:10px; width:95%; max-width:540px; box-shadow:0 10px 40px rgba(0,0,0,0.15); overflow:hidden; font-family: 'Inter', sans-serif;">
+        <div class="fm-modal-header" style="padding:24px 32px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#22c55e"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+            <h3 style="margin:0; color:#22c55e; font-size:1.6rem; font-weight:700; letter-spacing:-0.03em;">${isEdit ? App.i18n.t('editCustomer') : App.i18n.t('addCustomer')}</h3>
+          </div>
+          <button class="fm-close-btn" style="background:none; border:none; font-size:1.8rem; cursor:pointer; color:#cbd5e1;">✕</button>
         </div>
-        <form class="fm-form cust-form" style="padding:25px;">
-          <div class="fm-field" style="margin-bottom: 1rem;">
-            <label style="display:block; font-weight:bold; color:#64748b; margin-bottom:0.5rem; font-size:0.875rem;">${App.i18n.t('id')}</label>
-            <input type="text" id="c-id" value="${isEdit ? cust.id : generateId()}" disabled style="width: 100%; padding: 0.75rem; border: 2px solid #f1f5f9; border-radius: 0.75rem; background: #e2e8f0; color: #475569; font-weight:bold;">
+        <form class="fm-form cust-form">
+          <div style="padding:32px;">
+            <div class="fm-field" style="margin-bottom: 24px;">
+              <label style="display:block; font-weight:700; color:#64748b; margin-bottom:12px; font-size:0.95rem;">${App.i18n.t('id')}</label>
+              <input type="text" id="c-id" value="${isEdit ? cust.id : generateId()}" disabled style="width: 100%; padding: 14px 20px; border:none; border-radius:10px; background:#f1f5f9; color:#475569; font-weight:700; font-size:1rem;">
+            </div>
+            <div class="fm-field" style="margin-bottom: 24px;">
+              <label style="display:block; font-weight:700; color:#64748b; margin-bottom:12px; font-size:0.95rem;">${App.i18n.t('name')} *</label>
+              <input type="text" id="c-name" value="${isEdit ? cust.name : ''}" required style="width: 100%; padding: 14px 20px; border:1px solid #f1f5f9; border-radius: 10px; background: #f8fafc; outline:none; font-size:1rem; color:#1e293b;">
+            </div>
+            <div class="fm-field" style="margin-bottom: 24px;">
+              <label style="display:block; font-weight:700; color:#64748b; margin-bottom:12px; font-size:0.95rem;">${App.i18n.t('contact')} *</label>
+              <input type="tel" id="c-contact" value="${isEdit ? cust.contact : ''}" required style="width: 100%; padding: 14px 20px; border:1px solid #f1f5f9; border-radius: 10px; background: #f8fafc; outline:none; font-size:1rem; color:#1e293b;">
+            </div>
+            <div class="fm-field" style="margin-bottom: 24px;">
+              <label style="display:block; font-weight:700; color:#64748b; margin-bottom:12px; font-size:0.95rem;">${App.i18n.t('initialDues')}</label>
+              <input type="number" id="c-dues" value="${isEdit ? cust.initialDues : '0'}" step="0.01" style="width: 100%; padding: 14px 20px; border:1px solid #f1f5f9; border-radius: 10px; background: #f8fafc; outline:none; font-size:1rem; color:#1e293b;">
+            </div>
           </div>
-          <div class="fm-field" style="margin-bottom: 1rem;">
-            <label style="display:block; font-weight:bold; color:#64748b; margin-bottom:0.5rem; font-size:0.875rem;">${App.i18n.t('name')} *</label>
-            <input type="text" id="c-name" value="${isEdit ? cust.name : ''}" required style="width: 100%; padding: 0.75rem; border: 2px solid #f1f5f9; border-radius: 0.75rem; background: #f8fafc; outline:none;">
-          </div>
-          <div class="fm-field" style="margin-bottom: 1rem;">
-            <label style="display:block; font-weight:bold; color:#64748b; margin-bottom:0.5rem; font-size:0.875rem;">${App.i18n.t('contact')} *</label>
-            <input type="tel" id="c-contact" value="${isEdit ? cust.contact : ''}" required style="width: 100%; padding: 0.75rem; border: 2px solid #f1f5f9; border-radius: 0.75rem; background: #f8fafc; outline:none;">
-          </div>
-          <div class="fm-field" style="margin-bottom: 1rem;">
-            <label style="display:block; font-weight:bold; color:#64748b; margin-bottom:0.5rem; font-size:0.875rem;">${App.i18n.t('initialDues')}</label>
-            <input type="number" id="c-dues" value="${isEdit ? cust.initialDues : '0'}" step="0.01" style="width: 100%; padding: 0.75rem; border: 2px solid #f1f5f9; border-radius: 0.75rem; background: #f8fafc; outline:none;">
-          </div>
-          <div class="fm-modal-footer" style="padding-top:20px; border-top:1px solid #eee; display:flex; justify-content:flex-end; gap:12px; margin-top:20px;">
-            <button type="button" class="cancel-btn" style="padding:10px 20px; border-radius:8px; border:1px solid #ddd; background:#fff; cursor:pointer; color:#64748b; font-weight:bold;">${App.i18n.t('cancel')}</button>
-            <button type="submit" class="fm-btn-add" style="padding:10px 25px; border-radius:8px; border:none; background:#10b981; color:#fff; font-weight:800; cursor:pointer;">${isEdit ? App.i18n.t('update') : App.i18n.t('register')}</button>
+          <div class="fm-modal-footer" style="padding: 24px 32px; border-top:1px solid #f1f5f9; background: #f9fafb; display:flex; justify-content:flex-end; gap:16px;">
+              <button type="button" class="cancel-btn" style="padding:12px 32px; border-radius:10px; border:1px solid #d1d5db; background:#fff; cursor:pointer; color:#64748b; font-weight:700; font-size:1rem;">${App.i18n.t('cancel')}</button>
+              <button type="submit" class="fm-btn-add" style="padding:12px 36px; border-radius:10px; border:2px solid #22c55e; background:#fff; color:#22c55e; font-weight:800; font-size:1rem; cursor:pointer;">
+                ${isEdit ? App.i18n.t('update') : App.i18n.t('register')}
+              </button>
           </div>
         </form>
       </div>

@@ -3,28 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Flower Market Billing — Anime-themed multi-tenant billing software for flower market businesses. Manage farmers, sales, purchases and more." />
-  <meta name="theme-color" content="#0f0a1e" />
-  <title>🌸 Flower Market Billing</title>
+  <meta name="description" content="Poovanam Flower Market — Premium billing and management system for flower market businesses." />
+  <meta name="theme-color" content="#059669" />
+  <title>🌸 Poovanam Flower Market</title>
+
+  <!-- Preconnect for fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <div id="app"></div>
 
-  <!-- Module scripts loaded in dependency order -->
-  <script src="/xlsx.min.js"></script>
-  <script src="/farmer.js"></script>
-  <script src="/absent_farmer.js"></script>
-  <script src="/flower.js"></script>
-  <script src="/purchase.js"></script>
-  <script src="/cash_pay.js"></script>
-  <script src="/expenses.js"></script>
-  <script src="/accounts.js"></script>
-  <script src="/customer.js"></script>
-  <script src="/sales.js"></script>
-  <script src="/sales_reports.js"></script>
-  <script src="/app.js"></script>
+  <!-- Premium font stack -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=Sora:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+</head>
+<body class="antialiased">
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>
