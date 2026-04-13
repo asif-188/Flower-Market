@@ -16,7 +16,7 @@ const toDateStr = (d) => {
 };
 
 const DailyReport = () => {
-    const { t } = useContext(LangContext);
+    const { t, lang } = useContext(LangContext);
     const today = toDateStr(new Date());
 
     const [sales, setSales]       = useState([]);
@@ -53,6 +53,7 @@ const DailyReport = () => {
                 id: b.id,
                 displayId: b.displayId || '---',
                 name: b.name,
+                nameTa: b.nameTa,
                 contact: b.contact || '---',
                 balance: b.balance || 0,
                 received,
@@ -72,7 +73,6 @@ const DailyReport = () => {
         const p = reportData.reduce((acc, r) => acc + r.received, 0);
         const l = reportData.reduce((acc, r) => acc + r.less, 0);
         const b = reportData.reduce((acc, r) => acc + r.balance, 0);
-        // Opening = Current (End) - TodaySales + (Received + Less)
         const o = b - s + (p + l);
         return { sales: s, paid: p, less: l, end: b, open: o };
     }, [reportData]);
@@ -89,7 +89,6 @@ const DailyReport = () => {
                 const rec = Number(data.received || 0);
                 const les = Number(data.less || 0);
 
-                // 1. Add payment record
                 await addDoc(collection(db, 'payments'), {
                     entityId: bid,
                     type: 'buyer',
@@ -98,7 +97,6 @@ const DailyReport = () => {
                     notes: 'Sync from Daily Report',
                     timestamp: serverTimestamp()
                 });
-                // 2. Update buyer balance (decrement because both are credits)
                 const bRef = doc(db, 'buyers', bid);
                 await updateDoc(bRef, {
                     balance: increment(-(rec + les))
@@ -282,7 +280,7 @@ const DailyReport = () => {
                                 <td style={{ ...S.td, textAlign: 'center' }}><span style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 700 }}>#{row.displayId}</span></td>
                                 <td style={S.td}>
                                     <span style={{ fontWeight: 600 }}>
-                                        {t('lang') === 'ta' ? (row.nameTa || row.name) : row.name}
+                                        {lang === 'ta' ? (row.nameTa || row.name) : row.name}
                                     </span>
                                 </td>
                                 <td style={{ ...S.td, textAlign: 'center' }}>{row.contact}</td>
