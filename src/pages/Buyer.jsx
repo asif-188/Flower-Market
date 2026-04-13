@@ -164,7 +164,7 @@ const Buyer = () => {
     const handleOpenModal = (buyer = null) => {
         if (!buyer) {
             const nextId = buyers.length > 0 ? Math.max(...buyers.map(b => parseInt(b.displayId) || 0)) + 1 : 101;
-            setCurrentBuyer({ id: '', name: '', contact: '', balance: 0, displayId: nextId });
+            setCurrentBuyer({ id: '', name: '', nameTa: '', contact: '', balance: 0, displayId: nextId });
         } else {
             setCurrentBuyer({ ...buyer });
         }
@@ -176,11 +176,15 @@ const Buyer = () => {
         if (isSaving) return;
         setIsSaving(true);
         try {
-            const buyerToSave = { ...currentBuyer, balance: parseFloat(currentBuyer.balance) || 0 };
+            const buyerToSave = { 
+                ...currentBuyer, 
+                balance: parseFloat(currentBuyer.balance) || 0,
+                nameTa: currentBuyer.nameTa || currentBuyer.name
+            };
             if (!buyerToSave.id) delete buyerToSave.id;
             await saveBuyer(buyerToSave);
             setIsModalOpen(false);
-            setCurrentBuyer({ id: '', name: '', contact: '', balance: 0 });
+            setCurrentBuyer({ id: '', name: '', nameTa: '', contact: '', balance: 0 });
         } catch (err) {
             alert('❌ Failed to save: ' + err.message);
         } finally {
@@ -234,7 +238,7 @@ const Buyer = () => {
         const s = searchTerm.toLowerCase().trim();
         if (!s) return true;
         return (b.name || '').toLowerCase().includes(s) || (b.contact || '').includes(s) || String(b.displayId || '').includes(s);
-    });
+    }).sort((a, b) => (parseInt(a.displayId) || 0) - (parseInt(b.displayId) || 0));
 
     const fmt = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
 
@@ -311,7 +315,9 @@ const Buyer = () => {
                                     <td style={S.td}>
                                         <span style={S.idBadge}>#{buyer.displayId}</span>
                                     </td>
-                                    <td style={{...S.td, fontWeight:700, color:'#1e293b'}}>{buyer.name}</td>
+                                    <td style={{...S.td, fontWeight:700, color:'#1e293b'}}>
+                                        {t('lang') === 'ta' ? (buyer.nameTa || buyer.name) : buyer.name}
+                                    </td>
                                     <td style={{...S.td, color:'#6b7280'}}>{buyer.contact || '—'}</td>
                                     <td style={{...S.td, textAlign:'right', fontWeight:700, color: buyer.balance > 0 ? '#f43f5e' : '#16a34a'}}>
                                         {fmt(buyer.balance)}
@@ -364,7 +370,8 @@ const Buyer = () => {
                             <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:'14px'}}>
                                 {[
                                     {label:t('id'), key:'displayId', type:'text', disabled:true},
-                                    {label:`${t('name')} *`, key:'name', type:'text', required:true, autoFocus:true},
+                                    {label:`${t('name')} (English) *`, key:'name', type:'text', required:true, autoFocus:true},
+                                    {label:`பெயர் (தமிழ்) *`, key:'nameTa', type:'text', required:true},
                                     {label:`${t('contact')} *`, key:'contact', type:'text', required:true},
                                     {label:t('initialDues'), key:'balance', type:'number'},
                                 ].map(f => (

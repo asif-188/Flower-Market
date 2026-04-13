@@ -33,9 +33,15 @@ const MENU_ITEMS = [
         color: { border: '#db2777', text: '#db2777', bg: '#fdf2f8', glow: 'rgba(219,39,119,0.15)' },
         route: '/app/flowers',
     },
+    {
+        emoji: '📂',
+        labelKey: 'dailyReport',
+        color: { border: '#4f46e5', text: '#4f46e5', bg: '#f5f3ff', glow: 'rgba(79,70,229,0.15)' },
+        route: '/app/daily-report',
+    },
 ];
 
-const CARD_W = 260; // fixed card width in px
+const CARD_W = 280; // slightly wider to fit "Customer Report" on one line if possible
 
 const MenuCard = ({ emoji, label, color, onClick, delay }) => {
     const [hovered, setHovered] = React.useState(false);
@@ -47,8 +53,8 @@ const MenuCard = ({ emoji, label, color, onClick, delay }) => {
             style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '16px',
-                padding: '18px 24px',
+                gap: '12px', // slightly smaller gap to give more room to text
+                padding: '18px 20px', // slightly smaller horizontal padding
                 background: hovered ? color.bg : '#ffffff',
                 border: `2.5px solid ${color.border}`,
                 borderRadius: '18px',
@@ -67,7 +73,7 @@ const MenuCard = ({ emoji, label, color, onClick, delay }) => {
         >
             {/* Icon */}
             <div style={{
-                width: '60px', height: '60px', flexShrink: 0,
+                width: '54px', height: '54px', flexShrink: 0, // slightly smaller icon
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: hovered ? '#ffffff' : '#f8fafc',
                 border: '1px solid #e2e8f0', borderRadius: '12px',
@@ -75,17 +81,18 @@ const MenuCard = ({ emoji, label, color, onClick, delay }) => {
                 transform: hovered ? 'rotate(6deg) scale(1.08)' : 'none',
                 boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
             }}>
-                <span style={{ fontSize: '32px', lineHeight: 1 }}>{emoji}</span>
+                <span style={{ fontSize: '28px', lineHeight: 1 }}>{emoji}</span>
             </div>
 
-            {/* Label — nowrap prevents wrapping */}
+            {/* Label — removed nowrap to allow wrapping if needed */}
             <span style={{
-                fontSize: '20px',
+                fontSize: '19px', // slightly smaller font
                 fontWeight: 800,
                 color: color.text,
                 letterSpacing: '-0.02em',
-                lineHeight: 1.2,
-                whiteSpace: 'nowrap',
+                lineHeight: 1.1,
+                textAlign: 'left',
+                flex: 1,
             }}>
                 {label}
             </span>

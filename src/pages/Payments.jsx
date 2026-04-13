@@ -54,7 +54,7 @@ const Payments = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [paymentType] = useState('buyer');
 
-    const [formData, setFormData] = useState({ entityId: '', amount: '', method: 'Cash', note: '' });
+    const [formData, setFormData] = useState({ entityId: '', amount: '', cashLess: '', method: 'Cash', note: '' });
 
     useEffect(() => {
         const u1 = subscribeToCollection('payments', (data) =>
@@ -65,7 +65,7 @@ const Payments = () => {
     }, []);
 
     const handleOpenModal = () => {
-        setFormData({ entityId: '', amount: '', method: 'Cash', note: '' });
+        setFormData({ entityId: '', amount: '', cashLess: '', method: 'Cash', note: '' });
         setIsModalOpen(true);
     };
 
@@ -74,15 +74,16 @@ const Payments = () => {
         if (isSaving || !formData.entityId || !formData.amount) return;
         setIsSaving(true);
         try {
-            const amountNum = parseFloat(formData.amount);
+            const amountNum = parseFloat(formData.amount || 0);
+            const cashLessNum = parseFloat(formData.cashLess || 0);
             const entityRef = doc(db, paymentType === 'farmer' ? 'farmers' : 'buyers', formData.entityId);
             await addDoc(collection(db, 'payments'), {
-                ...formData, amount: amountNum, type: paymentType,
+                ...formData, amount: amountNum, cashLess: cashLessNum, type: paymentType,
                 timestamp: new Date().toISOString()
             });
-            await updateDoc(entityRef, { balance: increment(-amountNum) });
+            await updateDoc(entityRef, { balance: increment(-(amountNum + cashLessNum)) });
             setIsModalOpen(false);
-            setFormData({ entityId: '', amount: '', method: 'Cash', note: '' });
+            setFormData({ entityId: '', amount: '', cashLess: '', method: 'Cash', note: '' });
         } catch (err) {
             alert('❌ Failed to record payment: ' + err.message);
         } finally {
@@ -116,7 +117,7 @@ const Payments = () => {
 
     const selectedEntity = buyers.find(e => e.id === formData.entityId);
     const openingBalance = selectedEntity?.balance || 0;
-    const closingBalance = openingBalance - (parseFloat(formData.amount) || 0);
+    const closingBalance = openingBalance - (parseFloat(formData.amount) || 0) - (parseFloat(formData.cashLess) || 0);
 
     // Filter to show only buyer payments in this view
     const buyerPayments = payments.filter(p => p.type === 'buyer');
@@ -266,24 +267,24 @@ const Payments = () => {
                                 </div>
                             </div>
 
+                            {/* Cash Less */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <label style={{ width: '140px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#374151' }}>Cash Less</label>
+                                <input
+                                    type="number"
+                                    placeholder="0"
+                                    value={formData.cashLess}
+                                    onChange={e => setFormData({ ...formData, cashLess: e.target.value })}
+                                    style={{ flex: 1, padding: '9px 12px', borderRadius: '9px', border: '1.5px solid #e2e8f0', fontSize: '14px', fontWeight: 700, color: '#f43f5e', outline: 'none', fontFamily: 'var(--font-sans)', background: '#fff' }}
+                                    onFocus={e => e.target.style.borderColor = '#f43f5e'}
+                                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                                />
+                            </div>
+
                             {/* Closing Balance */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <label style={{ width: '140px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#374151' }}>{t('closingBalance')}</label>
                                 <span style={{ fontSize: '18px', fontWeight: 800, color: closingBalance < 0 ? '#f43f5e' : '#16a34a' }}>{fmt(closingBalance)}</span>
-                            </div>
-
-                            {/* Note */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <label style={{ width: '140px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#374151' }}>{t('notes')}</label>
-                                <input
-                                    type="text"
-                                    placeholder="..."
-                                    value={formData.note}
-                                    onChange={e => setFormData({ ...formData, note: e.target.value })}
-                                    style={{ flex: 1, padding: '9px 12px', borderRadius: '9px', border: '1.5px solid #e2e8f0', fontSize: '14px', color: '#374151', outline: 'none', fontFamily: 'var(--font-sans)' }}
-                                    onFocus={e => e.target.style.borderColor = '#16a34a'}
-                                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
-                                />
                             </div>
 
                             {/* Actions */}
