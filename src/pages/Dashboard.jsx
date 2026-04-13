@@ -10,13 +10,13 @@ const Dashboard = () => {
         <div className="flex flex-col items-center justify-center min-h-[80vh] w-full animate-in fade-in zoom-in duration-500">
             <div className="text-center mb-12">
                 <h1 className="text-5xl md:text-6xl font-black text-emerald-600 tracking-tighter italic flex items-center justify-center gap-3">
-                    <span className="text-5xl">🌿</span> Sakura Market
+                    <span className="text-5xl">🌿</span> Tindivanam Market
                 </h1>
                 <p className="text-gray-400 font-bold uppercase tracking-[0.3em] text-xs mt-2">Premium Operating System</p>
             </div>
 
             <div className="flex flex-col gap-8 w-full max-w-lg">
-                <button 
+                <button
                     onClick={() => navigate('/app/farmer')}
                     className="group relative overflow-hidden bg-emerald-50 border-4 border-emerald-200 hover:border-emerald-400 p-10 rounded-[40px] shadow-2xl hover:shadow-emerald-200 transition-all transform hover:-translate-y-2 active:scale-95 flex items-center justify-center gap-8"
                 >
@@ -24,7 +24,7 @@ const Dashboard = () => {
                     <span className="text-5xl font-black text-emerald-800 tracking-tighter italic">{t('farmer')}</span>
                 </button>
 
-                <button 
+                <button
                     onClick={() => navigate('/app/sales')}
                     className="group relative overflow-hidden bg-indigo-50 border-4 border-indigo-100 hover:border-indigo-300 p-10 rounded-[40px] shadow-2xl hover:shadow-indigo-200 transition-all transform hover:-translate-y-2 active:scale-95 flex items-center justify-center gap-8"
                 >

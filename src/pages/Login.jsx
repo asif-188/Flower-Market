@@ -1,31 +1,33 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../firebase';
 import Petals from '../components/Petals';
-
-// Local tenant credentials (matches legacy app)
-const TENANTS = {
-  sakura:  { password: 'shop123',  name: 'Sakura Flower Market' },
-  pooja:   { password: 'pooja123', name: 'Pooja Flower Market' },
-  krishna: { password: 'kris123',  name: 'Krishna Flower Market' },
-};
 
 const Login = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError]       = useState('');
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
     const navigate = useNavigate();
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
         setError('');
-        const tenant = TENANTS[username.toLowerCase()];
-        if (tenant && tenant.password === password) {
-            sessionStorage.setItem('fm_logged_in', 'true');
-            sessionStorage.setItem('fm_tenant',    username.toLowerCase());
-            sessionStorage.setItem('fm_tenant_name', tenant.name);
+        setIsLoggingIn(true);
+
+        // Map short username to email for Firebase Auth
+        const email = username.includes('@') ? username : `${username.toLowerCase()}@poovanam.com`;
+        
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            sessionStorage.setItem('fm_tenant', username.toLowerCase());
             navigate('/app');
-        } else {
+        } catch (err) {
+            console.error('Login error:', err);
             setError('Invalid username or password.');
+        } finally {
+            setIsLoggingIn(false);
         }
     };
 
@@ -67,8 +69,8 @@ const Login = () => {
                             required
                         />
                     </div>
-                    <button type="submit" className="btn-primary btn-full ripple">
-                        <span className="btn-icon">✨</span> Login
+                    <button type="submit" disabled={isLoggingIn} className={`btn-primary btn-full ripple ${isLoggingIn ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                        <span className="btn-icon">✨</span> {isLoggingIn ? 'Logging in...' : 'Login'}
                     </button>
                 </form>
             </div>
