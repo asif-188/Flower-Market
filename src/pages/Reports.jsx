@@ -17,7 +17,7 @@ const toDateStr = (d) => {
 };
 
 const Reports = () => {
-    const { t } = useContext(LangContext);
+    const { t, lang } = useContext(LangContext);
     const today = toDateStr(new Date());
 
     const [sales, setSales]       = useState([]);
@@ -214,7 +214,7 @@ const Reports = () => {
                     <div class="report-title">CUSTOMER TRANSACTION REPORT</div>
                     <div style="text-align: left; font-size: 16px; font-weight: 700;">
                         வாடிக்கையாளர் எண் : ${detailBuyer.displayId}<br/>
-                        பெயர் : ${detailBuyer.name}
+                        பெயர் : ${lang === 'ta' ? (detailBuyer.nameTa || detailBuyer.name) : detailBuyer.name}
                     </div>
                 </div>
 
@@ -530,7 +530,7 @@ const Reports = () => {
                                                 #{row.displayId}
                                             </span>
                                             <span style={{ fontWeight: 600, color: '#1e293b' }}>
-                                                {t('lang') === 'ta' ? (row.nameTa || row.name) : row.name}
+                                                {lang === 'ta' ? (row.nameTa || row.name) : row.name}
                                             </span>
                                         </div>
                                     </td>

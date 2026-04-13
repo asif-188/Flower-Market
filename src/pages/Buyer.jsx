@@ -116,7 +116,7 @@ const S = {
 };
 
 const Buyer = () => {
-    const { t } = useContext(LangContext);
+    const { t, lang } = useContext(LangContext);
     const [buyers, setBuyers] = useState([]);
     const [sales, setSales] = useState([]);
     const [payments, setPayments] = useState([]);
@@ -316,7 +316,7 @@ const Buyer = () => {
                                         <span style={S.idBadge}>#{buyer.displayId}</span>
                                     </td>
                                     <td style={{...S.td, fontWeight:700, color:'#1e293b'}}>
-                                        {t('lang') === 'ta' ? (buyer.nameTa || buyer.name) : buyer.name}
+                                        {lang === 'ta' ? (buyer.nameTa || buyer.name) : buyer.name}
                                     </td>
                                     <td style={{...S.td, color:'#6b7280'}}>{buyer.contact || '—'}</td>
                                     <td style={{...S.td, textAlign:'right', fontWeight:700, color: buyer.balance > 0 ? '#f43f5e' : '#16a34a'}}>
