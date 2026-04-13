@@ -20,27 +20,26 @@ export async function generateBuyerReceiptCanvas({
     salesItems    = [],
     salesTotal    = 0,
     paymentsTotal = 0,
+    cashLess      = 0,
     prevBalance   = 0,
-    fromDate      = '',
-    toDate        = '',
+    dateLabel     = '',
     bizInfo       = {},
 }) {
-    const W       = 750;
-    const PAD     = 40;
-    const LINE_H  = 46;
-    const GAP     = 14;
-
+    const W       = 800;
+    const PAD     = 50;
+    const LINE_H  = 40;
+    
     const {
-        motto   = '',
-        name    = 'Poovanam Market',
-        type    = 'Flower Merchant',
-        address = '',
-        phone1  = '',
-        phone2  = '',
+        motto   = 'SRI RAMA JAYAM',
+        name    = 'S.V.M',
+        type    = 'SRI VALLI FLOWER MERCHANT',
+        address = 'B-7, FLOWER MARKET, TINDIVANAM.',
+        phone1  = '9443247771',
+        phone2  = '9952535057',
     } = bizInfo;
 
-    const fmtNum = (n) =>
-        new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(n || 0);
+    const fmtNum = (n, dec = 0) =>
+        new Intl.NumberFormat('en-IN', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n || 0);
 
     const displayDate = (iso) => {
         if (!iso) return '';
@@ -48,27 +47,13 @@ export async function generateBuyerReceiptCanvas({
         return `${d}/${m}/${y}`;
     };
 
-    const dateLabel = fromDate === toDate
-        ? displayDate(fromDate)
-        : `${displayDate(fromDate)} - ${displayDate(toDate)}`;
+    const runningBalance = prevBalance - paymentsTotal - cashLess;
+    const absGrandTotal  = runningBalance + salesTotal;
 
-    // ── Estimate total canvas height ──
-    const headerRows = 4 + (address ? 1 : 0);
-    const tableRows  = Math.max(salesItems.length, 1);
-    const H = PAD * 2
-        + headerRows  * (LINE_H - 4)
-        + GAP * 3
-        + LINE_H * 2           // customer + date
-        + GAP * 2
-        + LINE_H               // table header
-        + tableRows * LINE_H
-        + GAP * 2
-        + LINE_H * 5           // summary rows
-        + GAP * 4
-        + LINE_H               // footer
-        + PAD;
+    // ── Calculate Height ──
+    const rowsCount = Math.max(salesItems.length, 12);
+    const H = 1000 + (rowsCount * LINE_H); // Increased for extra info row
 
-    // ── Create canvas ──
     const canvas  = document.createElement('canvas');
     canvas.width  = W;
     canvas.height = H;
@@ -77,138 +62,135 @@ export async function generateBuyerReceiptCanvas({
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, W, H);
 
-    // ── Helpers ──
-    const RIGHT  = W - PAD;
-    const CENTER = W / 2;
-    const LEFT   = PAD;
-
-    const drawText = (str, x, y, { size = 26, weight = 'normal', align = 'left', color = '#111827' } = {}) => {
-        ctx.font         = `${weight} ${size}px 'Noto Sans Tamil', 'Noto Sans', Arial, sans-serif`;
+    const drawText = (str, x, y, { size = 22, weight = 'normal', align = 'left', color = '#000' } = {}) => {
+        ctx.font         = `${weight} ${size}px serif`;
         ctx.fillStyle    = color;
         ctx.textAlign    = align;
         ctx.textBaseline = 'middle';
         ctx.fillText(str || '', x, y);
     };
 
-    const hline = (y, { dash = false } = {}) => {
-        ctx.beginPath();
-        if (dash) ctx.setLineDash([6, 4]); else ctx.setLineDash([]);
-        ctx.moveTo(LEFT, y);
-        ctx.lineTo(RIGHT, y);
-        ctx.strokeStyle = '#9ca3af';
-        ctx.lineWidth   = 1.2;
-        ctx.stroke();
-        ctx.setLineDash([]);
+    const rect = (x, y, w, h) => {
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth   = 1.5;
+        ctx.strokeRect(x, y, w, h);
     };
 
     let y = PAD;
 
-    // ══════════════════════════════════════════
-    // HEADER — matches letterhead in screenshot
-    // ══════════════════════════════════════════
+    // 1. Mottos
+    drawText(motto, W/2, y, { size: 24, weight: '600', align: 'center' });
+    y += 30;
+    drawText('SRI PERIYANDAVAR THUNAI', W/2, y, { size: 24, weight: '600', align: 'center' });
+    y += 40;
 
-    // Row 1: CELL left | motto center | CELL right
-    const row1Y = y + LINE_H / 2;
-    if (phone1) drawText(`CELL : ${phone1}`, LEFT,   row1Y, { size: 22, weight: 'normal', align: 'left',   color: '#374151' });
-    if (motto)  drawText(motto,              CENTER,  row1Y, { size: 22, weight: 'normal', align: 'center', color: '#374151' });
-    if (phone2) drawText(`CELL : ${phone2}`, RIGHT,   row1Y, { size: 22, weight: 'normal', align: 'right',  color: '#374151' });
-    y += LINE_H;
+    // 2. Shop Info Box
+    const boxY = y;
+    rect(PAD, boxY, W - PAD*2, 160);
+    drawText(name, W/2, boxY + 50, { size: 52, weight: '900', align: 'center' });
+    drawText(type, W/2, boxY + 95, { size: 24, weight: '700', align: 'center' });
+    drawText(address, W/2, boxY + 125, { size: 20, align: 'center' });
+    
+    // Phones at bottom of box
+    ctx.beginPath();
+    ctx.moveTo(PAD, boxY + 135); ctx.lineTo(W - PAD, boxY + 135); ctx.stroke();
+    drawText(`CELL : ${phone1}`, PAD + 10, boxY + 152, { size: 20, weight: '700' });
+    drawText(`CELL : ${phone2}`, W - PAD - 10, boxY + 152, { size: 20, weight: '700', align: 'right' });
+    y += 160;
 
-    // Row 2: Large bold shop name
-    drawText(name, CENTER, y + (LINE_H + 10) / 2, { size: 52, weight: 'bold', align: 'center', color: '#111827' });
-    y += LINE_H + 10;
+    // 3. Sales | Date Row
+    rect(PAD, y, W - PAD*2, 45);
+    drawText('SALES', PAD + 10, y + 22, { size: 22, weight: '800' });
+    drawText(`தேதி : ${dateLabel}`, W - PAD - 10, y + 22, { size: 22, weight: '800', align: 'right' });
+    y += 45;
 
-    // Row 3: Shop type
-    drawText(type, CENTER, y + LINE_H / 2, { size: 26, weight: 'normal', align: 'center', color: '#374151' });
-    y += LINE_H - 4;
-
-    // Row 4: Address
-    if (address) {
-        drawText(address, CENTER, y + LINE_H / 2, { size: 24, weight: 'normal', align: 'center', color: '#374151' });
-        y += LINE_H - 6;
-    }
-
-    y += GAP;
-    hline(y);
-    y += GAP;
-
-    // ══════════════════════════════════════════
-    // CUSTOMER & DATE
-    // ══════════════════════════════════════════
-    drawText(buyer.name, LEFT, y + LINE_H / 2, { size: 32, weight: 'bold', align: 'left', color: '#111827' });
-    y += LINE_H;
-    drawText(`தேதி : ${dateLabel}`, LEFT, y + LINE_H / 2, { size: 24, align: 'left', color: '#374151' });
-    y += LINE_H;
-
-    y += GAP;
-    hline(y);
-    y += GAP;
-
-    // ══════════════════════════════════════════
-    // ITEMS TABLE
-    // ══════════════════════════════════════════
-    const COL_VARIETY = LEFT;
-    const COL_RATE    = LEFT + 280;
-    const COL_TOTAL   = RIGHT;
-
-    // Table header
-    drawText('வகை',       COL_VARIETY, y + LINE_H / 2, { size: 25, weight: 'bold', align: 'left'  });
-    drawText('எவிவிலை',  COL_RATE,    y + LINE_H / 2, { size: 25, weight: 'bold', align: 'left'  });
-    drawText('தொகை',     COL_TOTAL,   y + LINE_H / 2, { size: 25, weight: 'bold', align: 'right' });
-    y += LINE_H;
-    hline(y, { dash: true });
-    y += 8;
-
-    // Table rows
-    if (salesItems.length === 0) {
-        drawText('பதிவுகள் இல்லை', CENTER, y + LINE_H / 2, { size: 22, align: 'center', color: '#9ca3af' });
-        y += LINE_H;
-    } else {
-        for (const item of salesItems) {
-            const rowY = y + LINE_H / 2;
-            drawText(item.flowerType || '—',                         COL_VARIETY, rowY, { size: 25, align: 'left',  color: '#111827' });
-            drawText(`${item.quantity} KG    ${fmtNum(item.price)}`, COL_RATE,    rowY, { size: 23, align: 'left',  color: '#374151' });
-            drawText(fmtNum(item.total),                             COL_TOTAL,   rowY, { size: 25, align: 'right', color: '#111827' });
-            y += LINE_H;
-        }
-    }
-
-    y += GAP;
-    hline(y);
-    y += GAP;
-
-    // ══════════════════════════════════════════
-    // SUMMARY
-    // ══════════════════════════════════════════
-    const sumRow = (label, value, { bold = false, color = '#111827' } = {}) => {
-        const rowY = y + LINE_H / 2;
-        drawText(label,          LEFT,      rowY, { size: 25, weight: bold ? 'bold' : 'normal', align: 'left',  color });
-        drawText(fmtNum(value),  COL_TOTAL, rowY, { size: 25, weight: bold ? 'bold' : 'normal', align: 'right', color });
-        y += LINE_H;
+    // 4. Customer & Balance Box
+    const infoH = 160; // Increased for 4 rows
+    rect(PAD, y, W - PAD*2, infoH);
+    // Left: Code / Name
+    drawText(`CODE : ${buyer.displayId || '---'}`, PAD + 10, y + 60, { size: 22, weight: '700' });
+    drawText(`பெயர் : ${buyer.name?.toUpperCase() || '---'}`, PAD + 10, y + 105, { size: 22, weight: '700' });
+    
+    // Right: Balance Grid (4 Rows)
+    const balW = 280;
+    const balX = W - PAD - balW;
+    const labelW = 160; // Internal split
+    
+    // Outer Border Line
+    ctx.beginPath(); ctx.moveTo(balX, y); ctx.lineTo(balX, y + infoH); ctx.stroke();
+    // Inner Vertical Line
+    ctx.beginPath(); ctx.moveTo(balX + labelW, y); ctx.lineTo(balX + labelW, y + infoH); ctx.stroke();
+    
+    const drawBalRow = (ly, label, value, isLast = false) => {
+        drawText(label, balX + 10, ly + 20, { size: 18, align: 'left' });
+        drawText(fmtNum(value), W - PAD - 10, ly + 20, { size: 20, weight: '800', align: 'right' });
+        if (!isLast) { ctx.beginPath(); ctx.moveTo(balX, ly + 40); ctx.lineTo(W - PAD, ly + 40); ctx.stroke(); }
     };
+    drawBalRow(y,       'முன் பாக்கி', prevBalance);
+    drawBalRow(y + 40,  'வரவு',          paymentsTotal);
+    drawBalRow(y + 80,  'கழி',           cashLess);
+    drawBalRow(y + 120, 'பாக்கி',        (prevBalance - paymentsTotal - cashLess), true);
+    y += infoH;
 
-    const totalDue     = salesTotal + prevBalance;
-    const finalBalance = totalDue - paymentsTotal;
+    // 5. Items Table
+    const colW = [300, 110, 130, 160];
+    const cols = [PAD, PAD + colW[0], PAD + colW[0] + colW[1], PAD + colW[0] + colW[1] + colW[2]];
+    
+    // Header
+    rect(PAD, y, W - PAD*2, 45);
+    const headerLabels = ['விபரம்', 'எடை', 'விலை', 'தொகை'];
+    headerLabels.forEach((lab, i) => {
+        let textX = cols[i];
+        let align = 'center';
+        
+        if (i === 0) { textX = cols[i] + 10; align = 'left'; }
+        else if (i === 1) { textX = cols[i] + colW[1]/2; }
+        else if (i === 2) { textX = cols[i] + colW[2]/2; }
+        else if (i === 3) { textX = W - PAD - 10; align = 'right'; }
+        
+        drawText(lab, textX, y + 22, { size: 20, weight: '800', align });
+        if (i > 0) { ctx.beginPath(); ctx.moveTo(cols[i], y); ctx.lineTo(cols[i], y + 45); ctx.stroke(); }
+    });
+    y += 45;
 
-    sumRow('இன்றைய சரக்கு',  salesTotal);
-    sumRow('முன் பாக்கி',    prevBalance);
+    // Data Rows
+    const tableStartY = y;
+    for (let i = 0; i < rowsCount; i++) {
+        const item = salesItems[i];
+        const rowY = y + 20;
+        if (item) {
+            drawText(item.flowerType, cols[0] + 10, rowY, { size: 22, weight: '600' });
+            drawText(parseFloat(item.quantity).toFixed(3), cols[1] + colW[1]/2, rowY, { size: 20, align: 'center' });
+            drawText(fmtNum(item.price), cols[2] + colW[2]/2, rowY, { size: 20, align: 'center' });
+            drawText(fmtNum(item.total), W - PAD - 10, rowY, { size: 22, weight: '800', align: 'right' });
+        }
+        y += LINE_H;
+        
+        // Horizontal line for each flower row
+        ctx.beginPath();
+        ctx.setLineDash([]);
+        ctx.moveTo(PAD, y);
+        ctx.lineTo(W - PAD, y);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 0.5; // Thin line for rows
+        ctx.stroke();
+    }
 
-    hline(y, { dash: true }); y += GAP;
+    // Main vertical grid lines (Restore full borders)
+    ctx.lineWidth = 1.5;
+    [1, 2, 3].forEach(i => {
+        ctx.beginPath(); ctx.moveTo(cols[i], tableStartY); ctx.lineTo(cols[i], y); ctx.stroke();
+    });
+    rect(PAD, tableStartY, W - PAD*2, y - tableStartY);
 
-    sumRow('மொத்தம்',        totalDue,      { bold: true });
-    sumRow('வரவு',           paymentsTotal, { color: '#16a34a' });
-    sumRow('பாக்கி',         finalBalance,  { bold: true, color: finalBalance > 0 ? '#dc2626' : '#16a34a' });
+    // 6. Grand Total
+    rect(PAD, y, W - PAD*2, 60);
+    drawText('மொத்த பாக்கி', PAD + 20, y + 30, { size: 28, weight: '900' });
+    drawText(fmtNum(absGrandTotal, 2), W - PAD - 20, y + 30, { size: 32, weight: '900', align: 'right' });
+    y += 100;
 
-    y += GAP;
-    hline(y);
-    y += GAP + 10;
+    drawText('🌹 நன்றி (Thank You) 🌹', W/2, y, { size: 28, align: 'center' });
 
-    // ══════════════════════════════════════════
-    // FOOTER
-    // ══════════════════════════════════════════
-    drawText('🌹 நன்றி (Thank You) 🌹', CENTER, y + LINE_H / 2, { size: 26, align: 'center', color: '#374151' });
-
-    // ── Export as PNG blob ──
     return new Promise((resolve) => {
         canvas.toBlob((blob) => {
             resolve({ blob, url: URL.createObjectURL(blob) });
