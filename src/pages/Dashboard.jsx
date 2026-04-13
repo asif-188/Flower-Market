@@ -10,7 +10,7 @@ const Dashboard = () => {
         <div className="flex flex-col items-center justify-center min-h-[80vh] w-full animate-in fade-in zoom-in duration-500">
             <div className="text-center mb-12">
                 <h1 className="text-5xl md:text-6xl font-black text-emerald-600 tracking-tighter italic flex items-center justify-center gap-3">
-                    <span className="text-5xl">🌿</span> Tindivanam Market
+                    <span className="text-5xl">🌿</span> SVM Flowers
                 </h1>
                 <p className="text-gray-400 font-bold uppercase tracking-[0.3em] text-xs mt-2">Premium Operating System</p>
             </div>
