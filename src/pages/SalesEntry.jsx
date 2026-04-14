@@ -239,9 +239,20 @@ const SalesEntry = () => {
                 buyer: {
                     id: buyer.id,
                     displayId: buyer.displayId,
-                    name: (lang === 'ta' && buyer.taName) ? buyer.taName : buyer.name,
+                    name: lang === 'ta' ? (buyer.nameTa || buyer.taName || buyer.name) : buyer.name,
                 },
-                salesItems: cart,
+                salesItems: cart.map(item => {
+                    const masterFlower = flowers.find(f => f.name === item.flowerType);
+                    return {
+                        ...item,
+                        flowerType: lang === 'ta' 
+                            ? (item.flowerTypeTa || masterFlower?.taName || item.flowerType)
+                            : (masterFlower?.name || item.flowerType),
+                        flowerTypeTa: lang === 'ta'
+                            ? (item.flowerTypeTa || masterFlower?.taName || item.flowerType)
+                            : (masterFlower?.name || item.flowerType)
+                    };
+                }),
                 salesTotal: grandTotal,
                 paymentsTotal: cashRec,
                 cashLess: cashLess,
@@ -260,6 +271,7 @@ const SalesEntry = () => {
                     rate: t('rate'),
                     total: t('total'),
                     grandTotalLabel: t('grandTotal'),
+                    sNo: t('sNo'),
                 }
             });
 
@@ -749,16 +761,16 @@ const SalesEntry = () => {
             </div>
 
             {/* Sub-header row */}
-            <div style={{ display: 'flex', border: '1px solid #000', borderTop: 'none', padding: '4px 10px' }}>
-                <div style={{ flex: 1, fontWeight: 700 }}>{t('sales').toUpperCase()}</div>
-                <div style={{ flex: 1, textAlign: 'right', fontWeight: 700 }}>{t('date')} : {billDetails.date}</div>
+            <div style={{ display: 'flex', border: '1px solid #000', borderTop: 'none', padding: '4px 10px', justifyContent: 'space-between' }}>
+                <div style={{ flex: 1, fontWeight: 700 }}>{t('date')} : {billDetails.date.split('-').reverse().join('/')}</div>
+                <div style={{ flex: 1, textAlign: 'right', fontWeight: 700 }}>{t('sales').toUpperCase()}</div>
             </div>
 
             {/* Customer & Mini Financials Merged Container */}
             <div style={{ display: 'flex', border: '1px solid #000', borderTop: 'none', minHeight: '80px' }}>
                 <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '5px 10px' }}>
                     <div style={{ fontSize: '14px', marginBottom: '8px' }}>CODE : <strong style={{ marginLeft: '10px' }}>{selectedBuyer?.displayId || '---'}</strong></div>
-                    <div style={{ fontSize: '14px' }}>{t('customerName')} : <strong style={{ marginLeft: '10px' }}>{selectedBuyer?.name?.toUpperCase() || '---'}</strong></div>
+                    <div style={{ fontSize: '14px' }}>{t('customerName')} : <strong style={{ marginLeft: '10px' }}>{(lang === 'ta' ? (selectedBuyer?.nameTa || selectedBuyer?.taName || selectedBuyer?.name) : selectedBuyer?.name)?.toUpperCase() || '---'}</strong></div>
                 </div>
                 <div style={{ flex: 1, borderLeft: '1px solid #000' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', height: '100%' }}>
@@ -788,6 +800,7 @@ const SalesEntry = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', borderTop: 'none' }}>
                 <thead>
                     <tr style={{ borderBottom: '1px solid #000' }}>
+                        <th style={{ borderRight: '1px solid #000', padding: '6px', textAlign: 'center', fontSize: '13px', width: '80px' }}>{t('sNo')}</th>
                         <th style={{ borderRight: '1px solid #000', padding: '6px', textAlign: 'center', fontSize: '13px' }}>{t('flower')}</th>
                         <th style={{ borderRight: '1px solid #000', padding: '6px', textAlign: 'center', fontSize: '13px' }}>{t('qty')}</th>
                         <th style={{ borderRight: '1px solid #000', padding: '6px', textAlign: 'center', fontSize: '13px' }}>{t('rate')}</th>
@@ -797,17 +810,21 @@ const SalesEntry = () => {
                 <tbody>
                     {cart.map((item, idx) => (
                         <tr key={idx}>
-                            <td style={{ borderRight: '1px solid #000', padding: '4px 8px', fontSize: '14px', fontWeight: 600 }}>{item.flowerType}</td>
+                            <td style={{ borderRight: '1px solid #000', padding: '4px 8px', fontSize: '14px', textAlign: 'center' }}>{idx + 1}</td>
+                            <td style={{ borderRight: '1px solid #000', padding: '4px 8px', fontSize: '14px', fontWeight: 600 }}>
+                                {lang === 'ta' ? (item.flowerTypeTa || item.flowerType) : item.flowerType}
+                            </td>
                             <td style={{ borderRight: '1px solid #000', padding: '4px 8px', textAlign: 'right', fontSize: '14px' }}>{parseFloat(item.quantity).toFixed(3)}</td>
                             <td style={{ borderRight: '1px solid #000', padding: '4px 8px', textAlign: 'right', fontSize: '14px' }}>{parseFloat(item.price).toFixed(0)}</td>
                             <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '14px', fontWeight: 700 }}>{parseFloat(item.total).toFixed(0)}</td>
                         </tr>
                     ))}
                     {[...Array(Math.max(0, 12 - cart.length))].map((_, i) => (
-                        <tr key={'f' + i} style={{ height: '24px' }}>
+                        <tr key={'f' + i} style={{ height: '28px' }}>
                             <td style={{ borderRight: '1px solid #000' }} />
                             <td style={{ borderRight: '1px solid #000' }} />
-                            <td style={{ borderRight: '1.5px solid #000', borderRightStyle: 'solid', borderRightColor: '#000' }} />
+                            <td style={{ borderRight: '1px solid #000' }} />
+                            <td style={{ borderRight: '1px solid #000' }} />
                             <td />
                         </tr>
                     ))}

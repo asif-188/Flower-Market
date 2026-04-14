@@ -16,6 +16,13 @@ const toDateStr = (d) => {
     return `${y}-${m}-${dd}`;
 };
 
+const displayDate = (iso) => {
+    if (!iso) return '';
+    const parts = iso.split('-');
+    if (parts.length !== 3) return iso;
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+};
+
 const Reports = () => {
     const { t, lang } = useContext(LangContext);
     const today = toDateStr(new Date());
@@ -178,7 +185,7 @@ const Reports = () => {
         });
         const periodPayments = payments.filter(p => {
             if (p.entityId !== detailBuyer.id || p.type !== 'buyer') return false;
-            const d = p.timestamp ? (p.timestamp.substring ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+            const d = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
             return d && d >= appliedFrom && d <= appliedTo;
         });
 
@@ -209,7 +216,7 @@ const Reports = () => {
 
         // 3. Render and Print (Uses a temporary frame or hidden div)
         const printWindow = window.open('', '_blank');
-        const displayDate = d => d ? d.split('-').reverse().join('/') : '';
+        const rangeText = appliedFrom === appliedTo ? displayDate(appliedFrom) : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`;
         
         const content = `
             <html>
@@ -239,16 +246,21 @@ const Reports = () => {
                         <span>CELL : ${bizInfo.phone2 || ''}</span>
                     </div>
                     <div class="report-title">${t('statementTitle')}</div>
-                    <div style="text-align: left; font-size: 16px; font-weight: 700;">
-                        ${t('customerNo')} : ${detailBuyer.displayId}<br/>
-                        ${t('name')} : ${lang === 'ta' ? (detailBuyer.taName || detailBuyer.name) : detailBuyer.name}
+                    <div style="text-align: left; font-size: 16px; font-weight: 700; display: flex; justify-content: space-between;">
+                        <div>
+                            ${t('customerNo')} : ${detailBuyer.displayId}<br/>
+                            ${t('name')} : ${lang === 'ta' ? (detailBuyer.nameTa || detailBuyer.name) : detailBuyer.name}
+                        </div>
+                        <div style="text-align: right;">
+                            ${t('date')} : ${rangeText}
+                        </div>
                     </div>
                 </div>
 
                 <table>
                     <thead>
                         <tr>
-                            <th>${t('date')}</th>
+                            <th style="width: 80px;">${t('sNo')}</th>
                             <th>${t('particulars')}</th>
                             <th style="text-align: center">${t('weight')}</th>
                             <th style="text-align: center">${t('rate')}</th>
@@ -259,7 +271,7 @@ const Reports = () => {
                     </thead>
                     <tbody>
                         <tr>
-                            <td>Opening</td>
+                            <td align="center"></td>
                             <td style="font-weight: 700">${t('openingBalance')}</td>
                             <td align="center">0.000</td>
                             <td align="center">0</td>
@@ -274,7 +286,7 @@ const Reports = () => {
                                 const showDate = i === 0 || item.date !== arr[i-1].date;
                                 return `
                                     <tr>
-                                        <td>${showDate ? displayDate(item.date) : ''}</td>
+                                        <td align="center">${i + 1}</td>
                                         <td>${item.desc}</td>
                                         <td align="center">${item.type === 'SALE' ? parseFloat(item.qty).toFixed(3) : '0.000'}</td>
                                         <td align="center">${item.type === 'SALE' ? item.price : '0'}</td>
@@ -394,6 +406,8 @@ const Reports = () => {
                     cashLessLabel: t('cashLess') + ' :',
                     finalBalLabel: t('finalBalance') + ' :',
                     thankYou: '🌹 ' + t('thankYou') + ' 🌹',
+                    sNoLabel: t('sNo'),
+                    dateLabel: appliedFrom === appliedTo ? displayDate(appliedFrom) : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`,
                 }
             });
 
@@ -436,11 +450,11 @@ const Reports = () => {
                 return d && d >= appliedFrom && d <= appliedTo;
             });
             const flatItems = buyerSales.flatMap(s => (s.items || []).map(item => {
-                if (lang === 'ta') {
-                    const foundFlower = products.find(f => f.name?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase());
-                    return { ...item, flowerTypeTa: item.flowerTypeTa || foundFlower?.taName || item.flowerType };
-                }
-                return item;
+                const masterFlower = products.find(f => f.name?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase());
+                const localizedName = lang === 'ta'
+                    ? (item.flowerTypeTa || masterFlower?.taName || item.flowerType)
+                    : (masterFlower?.name || item.flowerType);
+                return { ...item, flowerTypeTa: localizedName, flowerType: localizedName };
             }));
 
             // Payments in period
@@ -459,17 +473,15 @@ const Reports = () => {
             const buyer = buyers.find(b => b.id === row.id);
             const prevBalance = (buyer?.balance || 0) - row.sales + paymentsTotal + cashLessTotal;
 
-            const displayDate = (iso) => {
-                if (!iso) return '';
-                const [y, m, d] = iso.split('-');
-                return `${d}/${m}/${y}`;
-            };
             const dateLabel = appliedFrom === appliedTo 
                 ? displayDate(appliedFrom)
-                : `${displayDate(appliedFrom)} - ${displayDate(toDate)}`;
+                : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`;
 
             const { blob, url } = await generateBuyerReceiptCanvas({
-                buyer:         row,
+                buyer: {
+                    ...row,
+                    name: lang === 'ta' ? (row.nameTa || row.taName || row.name) : row.name
+                },
                 salesItems:    flatItems,
                 salesTotal:    row.sales,
                 paymentsTotal,
@@ -489,6 +501,7 @@ const Reports = () => {
                     rate: t('rate'),
                     total: t('total'),
                     grandTotalLabel: t('finalBalance'),
+                    sNo: t('sNo'),
                 }
             });
 
