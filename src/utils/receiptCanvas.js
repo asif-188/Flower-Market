@@ -38,6 +38,7 @@ export async function generateBuyerReceiptCanvas({
         rate = 'விலை',
         total = 'தொகை',
         grandTotalLabel = 'மொத்த பாக்கி',
+        sNo = 'வ.எண்',
     } = labels;
 
     const W       = 800;
@@ -115,8 +116,8 @@ export async function generateBuyerReceiptCanvas({
 
     // 3. Sales | Date Row
     rect(PAD, y, W - PAD*2, 45);
-    drawText('SALES', PAD + 10, y + 22, { size: 22, weight: '800' });
-    drawText(`${date} : ${dateLabel}`, W - PAD - 10, y + 22, { size: 22, weight: '800', align: 'right' });
+    drawText(`${date} : ${dateLabel}`, PAD + 10, y + 22, { size: 22, weight: '800' });
+    drawText('SALES', W - PAD - 10, y + 22, { size: 22, weight: '800', align: 'right' });
     y += 45;
 
     // 4. Customer & Balance Box
@@ -124,8 +125,7 @@ export async function generateBuyerReceiptCanvas({
     rect(PAD, y, W - PAD*2, infoH);
     // Left: Code / Name
     drawText(`CODE : ${buyer.displayId || '---'}`, PAD + 10, y + 60, { size: 22, weight: '700' });
-    const bName = buyer.taName || buyer.nameTa || buyer.name || '---';
-    drawText(`${nameLabel} : ${bName.toUpperCase()}`, PAD + 10, y + 105, { size: 22, weight: '700' });
+    drawText(`${nameLabel} : ${(buyer.name || '---').toUpperCase()}`, PAD + 10, y + 105, { size: 22, weight: '700' });
     
     // Right: Balance Grid (4 Rows)
     const balW = 280;
@@ -149,20 +149,21 @@ export async function generateBuyerReceiptCanvas({
     y += infoH;
 
     // 5. Items Table
-    const colW = [300, 110, 130, 160];
-    const cols = [PAD, PAD + colW[0], PAD + colW[0] + colW[1], PAD + colW[0] + colW[1] + colW[2]];
+    const colW = [80, 220, 110, 130, 160];
+    const cols = [PAD, PAD + colW[0], PAD + colW[0] + colW[1], PAD + colW[0] + colW[1] + colW[2], PAD + colW[0] + colW[1] + colW[2] + colW[3]];
     
     // Header
     rect(PAD, y, W - PAD*2, 45);
-    const headerLabels = [particulars, weight, rate, total];
+    const headerLabels = [sNo, particulars, weight, rate, total];
     headerLabels.forEach((lab, i) => {
         let textX = cols[i];
         let align = 'center';
         
-        if (i === 0) { textX = cols[i] + 10; align = 'left'; }
-        else if (i === 1) { textX = cols[i] + colW[1]/2; }
-        else if (i === 2) { textX = cols[i] + colW[2]/2; }
-        else if (i === 3) { textX = W - PAD - 10; align = 'right'; }
+        if (i === 1) { textX = cols[i] + 10; align = 'left'; }
+        else if (i === 0) { textX = cols[0] + colW[0]/2; }
+        else if (i === 2) { textX = cols[2] + colW[2]/2; }
+        else if (i === 3) { textX = cols[3] + colW[3]/2; }
+        else if (i === 4) { textX = W - PAD - 10; align = 'right'; }
         
         drawText(lab, textX, y + 22, { size: 20, weight: '800', align });
         if (i > 0) { ctx.beginPath(); ctx.moveTo(cols[i], y); ctx.lineTo(cols[i], y + 45); ctx.stroke(); }
@@ -176,9 +177,10 @@ export async function generateBuyerReceiptCanvas({
         const rowY = y + 20;
         if (item) {
             const fName = item.flowerTypeTa || item.flowerType || '';
-            drawText(fName, cols[0] + 10, rowY, { size: 22, weight: '600' });
-            drawText(parseFloat(item.quantity).toFixed(3), cols[1] + colW[1]/2, rowY, { size: 20, align: 'center' });
-            drawText(fmtNum(item.price), cols[2] + colW[2]/2, rowY, { size: 20, align: 'center' });
+            drawText(String(i + 1), cols[0] + colW[0]/2, rowY, { size: 20, align: 'center' });
+            drawText(fName, cols[1] + 10, rowY, { size: 22, weight: '600' });
+            drawText(parseFloat(item.quantity).toFixed(3), cols[2] + colW[2]/2, rowY, { size: 20, align: 'center' });
+            drawText(fmtNum(item.price), cols[3] + colW[3]/2, rowY, { size: 20, align: 'center' });
             drawText(fmtNum(item.total), W - PAD - 10, rowY, { size: 22, weight: '800', align: 'right' });
         }
         y += LINE_H;
@@ -193,11 +195,18 @@ export async function generateBuyerReceiptCanvas({
         ctx.stroke();
     }
 
-    // Main vertical grid lines (Restore full borders)
-    ctx.lineWidth = 1.5;
-    [1, 2, 3].forEach(i => {
-        ctx.beginPath(); ctx.moveTo(cols[i], tableStartY); ctx.lineTo(cols[i], y); ctx.stroke();
+    // Draw vertical grid lines for the full table height
+    ctx.lineWidth = 1.0;
+    ctx.setLineDash([]);
+    ctx.strokeStyle = '#000';
+    [cols[1], cols[2], cols[3], cols[4]].forEach(x => {
+        ctx.beginPath();
+        ctx.moveTo(x, tableStartY - 45); // Start from header top
+        ctx.lineTo(x, y);
+        ctx.stroke();
     });
+
+    // Outer border for the entire data area
     rect(PAD, tableStartY, W - PAD*2, y - tableStartY);
 
     // 6. Grand Total
@@ -245,6 +254,8 @@ export async function generateLedgerCanvas({
         cashLessLabel   = 'Cash Less :',
         finalBalLabel   = 'Final Balance :',
         thankYou   = '🌹 Thank you! 🌹',
+        sNoLabel   = 'S.No',
+        dateLabel  = '',
     } = labels;
 
     const W      = 800;
@@ -310,9 +321,9 @@ export async function generateLedgerCanvas({
 
     // Customer Info
     drawText(`${customerNoLabel} : ${buyer.displayId || '---'}`, PAD + 10, y, { size: 20, weight: '700' });
+    drawText(`${date} : ${dateLabel}`, W - PAD - 10, y, { size: 20, weight: '700', align: 'right' });
     y += 25;
-    const bNameLedger = buyer.taName || buyer.nameTa || buyer.name || '---';
-    drawText(`${nameLabel} : ${bNameLedger}`, PAD + 10, y, { size: 20, weight: '700' });
+    drawText(`${nameLabel} : ${buyer.name || '---'}`, PAD + 10, y, { size: 20, weight: '700' });
     y += 30;
     
     // Double Border before table
@@ -322,9 +333,9 @@ export async function generateLedgerCanvas({
     y += 2;
 
     // Table Setup
-    const colStarts = [PAD, PAD+75, PAD+265, PAD+345, PAD+425, PAD+515, PAD+615];
-    const colWidths = [75, 190, 80, 80, 90, 100, 85];
-    const colHeaders = [date, particulars, weight, rate, total, cashRec, cashLess];
+    const colStarts = [PAD, PAD+80, PAD+285, PAD+365, PAD+445, PAD+535, PAD+635];
+    const colWidths = [80, 205, 80, 80, 90, 100, 85];
+    const colHeaders = [sNoLabel, particulars, weight, rate, total, cashRec, cashLess];
 
     // Header Row
     rect(PAD, y, W - PAD*2, 40);
@@ -348,18 +359,19 @@ export async function generateLedgerCanvas({
             if (i === 1) { x = colStarts[i] + 10; }
             if (i === 0 || i === 2 || i === 3) { x = colStarts[i] + colWidths[i]/2; align = 'center'; }
 
-            drawText(String(v || (i >= 2 && !isOpening ? '0' : '')), x, rowY + LINE_H/2, { size: 16, align, weight: isOpening ? '700' : 'normal' });
+            const displayVal = (i === 0 && isOpening) ? '' : String(v || (i >= 2 && !isOpening ? '0' : ''));
+            drawText(displayVal, x, rowY + LINE_H/2, { size: 16, align, weight: isOpening ? '700' : 'normal' });
             if (i > 0) { ctx.beginPath(); ctx.moveTo(colStarts[i], rowY); ctx.lineTo(colStarts[i], rowY + LINE_H); ctx.stroke(); }
         });
         ctx.beginPath(); ctx.moveTo(PAD, rowY + LINE_H); ctx.lineTo(W - PAD, rowY + LINE_H); ctx.stroke();
     };
 
-    drawRow(y, { date: 'Opening', particulars: openingBalLabel, weight: '0.000', rate: '0', total: fmtNum(openingBalance), cashRec: '0', cashLess: '0' }, true);
+    drawRow(y, { date: '', particulars: openingBalLabel, weight: '0.000', rate: '0', total: fmtNum(openingBalance), cashRec: '0', cashLess: '0' }, true);
     y += LINE_H;
 
     // Data Rows
-    ledgerRows.forEach(row => {
-        drawRow(y, row);
+    ledgerRows.forEach((row, idx) => {
+        drawRow(y, { ...row, date: String(idx + 1) });
         y += LINE_H;
     });
 
