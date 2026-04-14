@@ -4,11 +4,9 @@ import './index.css'
 import '../style.css'
 import App from './App.jsx'
 
-console.log("main.jsx executing");
-
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />
-  </StrictMode>,
+  </StrictMode>
 )
 

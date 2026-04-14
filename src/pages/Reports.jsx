@@ -132,21 +132,20 @@ const Reports = () => {
     const handlePrintDetailedReport = () => {
         if (!detailBuyer) return;
 
-        // 1. Calculate Opening Balance (Everything before appliedFrom)
-        const earlySales = sales.filter(s => {
+        // 1. Calculate Opening Balance (Backward from current balance)
+        const futureSales = sales.filter(s => {
             if (s.buyerId !== detailBuyer.id) return false;
-            const d = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-            return d && d < appliedFrom;
+            const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+            return dt && dt >= appliedFrom;
         });
-        const earlyPayments = payments.filter(p => {
+        const futurePayments = payments.filter(p => {
             if (p.entityId !== detailBuyer.id || p.type !== 'buyer') return false;
-            const d = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
-            return d && d < appliedFrom;
+            const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+            return dt && dt >= appliedFrom;
         });
-
-        const openSales = earlySales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
-        const openPay   = earlyPayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
-        const openingBalance = openSales - openPay;
+        const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+        const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
+        const openingBalance = (detailBuyer.balance || 0) - futureSalesAmt + futurePayAmt;
 
         // 2. Prepare Detailed Entries for period
         const periodSales = sales.filter(s => {
@@ -265,6 +264,12 @@ const Reports = () => {
                     <div class="summary-row"><span>${t('totalSales')} :</span> <span>${totalSales.toFixed(2)}</span></div>
                     <div class="summary-row"><span>${t('cashRec')} :</span> <span>${totalReceived.toFixed(2)}</span></div>
                     <div class="summary-row"><span>${t('cashLess')} :</span> <span>${totalLess.toFixed(2)}</span></div>
+                    <div class="summary-row" style="border-top: 1px solid #000; margin-top: 5px; padding-top: 5px; font-weight: 900; font-size: 18px;">
+                        <span>${t('finalBalance')} :</span> <span>${closingBalance.toFixed(2)}</span>
+                    </div>
+                    <div style="font-size: 11px; text-align: center; margin-top: 10px; color: #666; font-weight: 700;">
+                        [ ${t('openingBalance')} + ${t('totalSales')} - ${t('cashRec')} - ${t('cashLess')} ]
+                    </div>
                 </div>
                 <div style="text-align: center; margin-top: 30px; font-size: 18px;">🌹 ${t('thankYou')} 🌹</div>
             </body>
@@ -279,20 +284,20 @@ const Reports = () => {
         setSharingRowId(buyerRow.id);
         const buyer = buyers.find(b => b.id === buyerRow.id) || buyerRow;
         try {
-            // 1. Calculate Opening Balance
-            const earlySales = sales.filter(s => {
+            // 1. Calculate Opening Balance (Backward from current balance)
+            const futureSales = sales.filter(s => {
                 if (s.buyerId !== buyer.id) return false;
-                const d = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-                return d && d < appliedFrom;
+                const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+                return dt && dt >= appliedFrom;
             });
-            const earlyPayments = payments.filter(p => {
+            const futurePayments = payments.filter(p => {
                 if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
-                const d = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
-                return d && d < appliedFrom;
+                const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+                return dt && dt >= appliedFrom;
             });
-            const openSales = earlySales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
-            const openPay   = earlyPayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
-            const openingBalance = openSales - openPay;
+            const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+            const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
+            const openingBalance = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
 
             // 2. Period Rows
             const periodSales = sales.filter(s => {
@@ -354,6 +359,7 @@ const Reports = () => {
                     totalSalesLabel: t('totalSales') + ' :',
                     cashRecLabel: t('cashRec') + ' :',
                     cashLessLabel: t('cashLess') + ' :',
+                    finalBalLabel: t('finalBalance') + ' :',
                     thankYou: '🌹 ' + t('thankYou') + ' 🌹',
                 }
             });
@@ -762,19 +768,19 @@ const Reports = () => {
                                             {(() => {
                                                 // Pre-calculate ledger logic for system view
                                                 const d = detailBuyer;
-                                                const earlySales = sales.filter(s => {
+                                                const futureSales = sales.filter(s => {
                                                     if (s.buyerId !== d.id) return false;
                                                     const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-                                                    return dt && dt < appliedFrom;
+                                                    return dt && dt >= appliedFrom;
                                                 });
-                                                const earlyPayments = payments.filter(p => {
+                                                const futurePayments = payments.filter(p => {
                                                     if (p.entityId !== d.id || p.type !== 'buyer') return false;
                                                     const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
-                                                    return dt && dt < appliedFrom;
+                                                    return dt && dt >= appliedFrom;
                                                 });
-                                                const openSales = earlySales.reduce((s, x) => s + (x.grandTotal || 0), 0);
-                                                const openPay   = earlyPayments.reduce((s, x) => s + (x.amount || 0) + (x.cashLess || 0), 0);
-                                                let runningBal = openSales - openPay;
+                                                const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+                                                const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
+                                                let runningBal = (d.balance || 0) - futureSalesAmt + futurePayAmt;
 
                                                 // Interleave sales items and payments
                                                 const periodSales = sales.filter(s => s.buyerId === d.id && (s.date || toDateStr(s.timestamp?.toDate ? s.timestamp.toDate() : new Date())) >= appliedFrom && (s.date || toDateStr(s.timestamp?.toDate ? s.timestamp.toDate() : new Date())) <= appliedTo);

@@ -241,6 +241,7 @@ export async function generateLedgerCanvas({
         totalSalesLabel = 'Total Sales :',
         cashRecLabel    = 'Cash Rec :',
         cashLessLabel   = 'Cash Less :',
+        finalBalLabel   = 'Final Balance :',
         thankYou   = '🌹 Thank you! 🌹',
     } = labels;
 
@@ -350,7 +351,7 @@ export async function generateLedgerCanvas({
         ctx.beginPath(); ctx.moveTo(PAD, rowY + LINE_H); ctx.lineTo(W - PAD, rowY + LINE_H); ctx.stroke();
     };
 
-    drawRow(y, { date: 'Opening', particulars: openingBalLabel, weight: '0.000', rate: '0', total: '0', cashRec: '0', cashLess: '0' }, true);
+    drawRow(y, { date: 'Opening', particulars: openingBalLabel, weight: '0.000', rate: '0', total: fmtNum(openingBalance), cashRec: '0', cashLess: '0' }, true);
     y += LINE_H;
 
     // Data Rows
@@ -387,7 +388,20 @@ export async function generateLedgerCanvas({
     drawSumRow(y,      totalSalesLabel, summary.sales);
     drawSumRow(y + 35, cashRecLabel,    summary.paid);
     drawSumRow(y + 70, cashLessLabel,   summary.less);
-    y += 150;
+    
+    // Final Balance Row (with different styling to stand out)
+    const finalBal = openingBalance + summary.sales - summary.paid - summary.less;
+    y += 105;
+    ctx.beginPath(); ctx.moveTo(PAD + 10, y); ctx.lineTo(W - PAD - 10, y); ctx.stroke();
+    drawText(finalBalLabel, PAD + 15, y + 18, { size: 20, weight: '800' });
+    drawText(fmtNum(finalBal), W - PAD - 15, y + 18, { size: 20, weight: '900', align: 'right' });
+    
+    // Explicit Formula Line
+    y += 40;
+    const formulaText = `[ ${openingBalLabel.replace(':','')} + ${totalSalesLabel.replace(':','')} - ${cashRecLabel.replace(':','')} - ${cashLessLabel.replace(':','')} ]`;
+    drawText(formulaText, W/2, y, { size: 14, align: 'center', color: '#64748b', weight: '600' });
+    
+    y += 40;
 
     // Footer
     drawText(thankYou, W/2, y, { size: 24, align: 'center' });
