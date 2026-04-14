@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import { subscribeToCollection, db } from '../utils/storage';
 import { doc, getDoc } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
-import { generateBuyerReceiptCanvas } from '../utils/receiptCanvas';
+import { generateBuyerReceiptCanvas, generateLedgerCanvas } from '../utils/receiptCanvas';
 
 const fmt = (n) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n || 0);
@@ -211,10 +211,10 @@ const Reports = () => {
                         <span>CELL : ${bizInfo.phone1 || ''}</span>
                         <span>CELL : ${bizInfo.phone2 || ''}</span>
                     </div>
-                    <div class="report-title">CUSTOMER TRANSACTION REPORT</div>
+                    <div class="report-title">${t('statementTitle')}</div>
                     <div style="text-align: left; font-size: 16px; font-weight: 700;">
-                        வாடிக்கையாளர் எண் : ${detailBuyer.displayId}<br/>
-                        பெயர் : ${lang === 'ta' ? (detailBuyer.nameTa || detailBuyer.name) : detailBuyer.name}
+                        ${t('customerNo')} : ${detailBuyer.displayId}<br/>
+                        ${t('name')} : ${lang === 'ta' ? (detailBuyer.nameTa || detailBuyer.name) : detailBuyer.name}
                     </div>
                 </div>
 
@@ -228,7 +228,6 @@ const Reports = () => {
                             <th style="text-align: right">${t('total')}</th>
                             <th style="text-align: right">${t('cashRec')}</th>
                             <th style="text-align: right">${t('cashLess')}</th>
-                            <th style="text-align: right; background: #fef3c7;">${t('balance')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -240,7 +239,6 @@ const Reports = () => {
                             <td align="right" style="font-weight: 700">${openingBalance.toFixed(0)}</td>
                             <td align="right">0</td>
                             <td align="right">0</td>
-                            <td align="right" style="font-weight: 800; background: #fef3c7;">${openingBalance.toFixed(0)}</td>
                         </tr>
                         ${(() => {
                             let rBal = openingBalance;
@@ -256,7 +254,6 @@ const Reports = () => {
                                         <td align="right" style="font-weight: 700">${item.total > 0 ? item.total.toFixed(0) : '0'}</td>
                                         <td align="right" style="font-weight: 700; color: #16a34a">${item.type === 'PAY' ? item.credit.toFixed(0) : '0'}</td>
                                         <td align="right" style="font-weight: 700; color: #f59e0b">${item.type === 'LESS' ? item.credit.toFixed(0) : '0'}</td>
-                                        <td align="right" style="font-weight: 800; background: #fffbeb;">${rBal.toFixed(0)}</td>
                                     </tr>
                                 `;
                             }).join('');
@@ -265,20 +262,129 @@ const Reports = () => {
                 </table>
 
                 <div class="summary">
-                    <div class="summary-row"><span>மொத்த தொகை (Sales) :</span> <span>${totalSales.toFixed(2)}</span></div>
-                    <div class="summary-row"><span>வரவு (Cash) :</span> <span>${totalReceived.toFixed(2)}</span></div>
-                    <div class="summary-row"><span>கழி (Deduction) :</span> <span>${totalLess.toFixed(2)}</span></div>
-                    <div style="border-top: 2px solid #000; margin-top: 5px; padding-top: 5px;" class="summary-row">
-                        <span>பாக்கி (Closing Balance) :</span> <span>${closingBalance.toFixed(2)}</span>
-                    </div>
+                    <div class="summary-row"><span>${t('totalSales')} :</span> <span>${totalSales.toFixed(2)}</span></div>
+                    <div class="summary-row"><span>${t('cashRec')} :</span> <span>${totalReceived.toFixed(2)}</span></div>
+                    <div class="summary-row"><span>${t('cashLess')} :</span> <span>${totalLess.toFixed(2)}</span></div>
                 </div>
-                <div style="text-align: center; margin-top: 30px; font-size: 18px;">🌹 நன்றி (Thank You) 🌹</div>
+                <div style="text-align: center; margin-top: 30px; font-size: 18px;">🌹 ${t('thankYou')} 🌹</div>
             </body>
             </html>
         `;
 
         printWindow.document.write(content);
         printWindow.document.close();
+    };
+
+    const handleShareLedger = async (buyerRow) => {
+        setSharingRowId(buyerRow.id);
+        const buyer = buyers.find(b => b.id === buyerRow.id) || buyerRow;
+        try {
+            // 1. Calculate Opening Balance
+            const earlySales = sales.filter(s => {
+                if (s.buyerId !== buyer.id) return false;
+                const d = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+                return d && d < appliedFrom;
+            });
+            const earlyPayments = payments.filter(p => {
+                if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
+                const d = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+                return d && d < appliedFrom;
+            });
+            const openSales = earlySales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+            const openPay   = earlyPayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
+            const openingBalance = openSales - openPay;
+
+            // 2. Period Rows
+            const periodSales = sales.filter(s => {
+                if (s.buyerId !== buyer.id) return false;
+                const d = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+                return d && d >= appliedFrom && d <= appliedTo;
+            });
+            const periodPayments = payments.filter(p => {
+                if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
+                const d = p.timestamp ? (p.timestamp.substring ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+                return d && d >= appliedFrom && d <= appliedTo;
+            });
+
+            const ledgerRows = [];
+            const displayDate = d => d ? d.split('-').reverse().join('/') : '';
+
+            // Map and then sort properly by ISO date
+            const items = [];
+            periodSales.forEach(s => {
+                const dateIso = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : '');
+                (s.items || []).forEach(item => {
+                    items.push({ dateIso, date: displayDate(dateIso), particulars: item.flowerType, weight: parseFloat(item.quantity).toFixed(3), rate: item.price, total: item.total, cashRec: 0, cashLess: 0 });
+                });
+            });
+            periodPayments.forEach(p => {
+                const dateIso = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : '';
+                if (p.amount > 0) items.push({ dateIso, date: displayDate(dateIso), particulars: 'CASH', weight: '0.000', rate: 0, total: 0, cashRec: p.amount, cashLess: 0 });
+                if (p.cashLess > 0) items.push({ dateIso, date: displayDate(dateIso), particulars: 'DEDUCTION', weight: '0.000', rate: 0, total: 0, cashRec: 0, cashLess: p.cashLess });
+            });
+            items.sort((a, b) => a.dateIso.localeCompare(b.dateIso));
+            
+            // Clean up rows for canvas
+            const finalLedgerRows = items.map(({ dateIso, ...rest }) => rest);
+
+            const summary = {
+                sales: periodSales.reduce((s, x) => s + (x.grandTotal || 0), 0),
+                paid:  periodPayments.reduce((s, x) => s + (x.amount || 0), 0),
+                less:  periodPayments.reduce((s, x) => s + (x.cashLess || 0), 0)
+            };
+
+            const { blob, url } = await generateLedgerCanvas({
+                buyer: { ...buyer, name: lang === 'ta' ? (buyer.nameTa || buyer.name) : buyer.name },
+                ledgerRows: finalLedgerRows,
+                summary,
+                openingBalance,
+                bizInfo,
+                labels: {
+                    date: t('date'),
+                    particulars: t('particulars'),
+                    weight: t('weight'),
+                    rate: t('rate'),
+                    total: t('total'),
+                    cashRec: t('cashRec'),
+                    cashLess: t('cashLess'),
+                    openingBalLabel: t('openingBalance'),
+                    statementTitle: t('statementTitle'),
+                    customerNoLabel: t('customerNo'),
+                    nameLabel: t('name'),
+                    totalSalesLabel: t('totalSales') + ' :',
+                    cashRecLabel: t('cashRec') + ' :',
+                    cashLessLabel: t('cashLess') + ' :',
+                    thankYou: '🌹 ' + t('thankYou') + ' 🌹',
+                }
+            });
+
+            const buyerContact = (buyer?.contact || '').replace(/\D/g, '');
+            const whatsappNumber = buyerContact.length === 10 ? '91' + buyerContact : buyerContact;
+
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], 'statement.png', { type: 'image/png' })] })) {
+                await navigator.share({
+                    files: [new File([blob], 'statement.png', { type: 'image/png' })],
+                    title: `${buyer.name} - Statement`,
+                });
+            } else {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `statement_${buyer.name.replace(/\s+/g,'_')}.png`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 30000);
+
+                if (whatsappNumber) {
+                    setTimeout(() => {
+                        window.open(`https://wa.me/${whatsappNumber}`, '_blank');
+                    }, 500);
+                }
+            }
+        } catch (err) {
+            console.error('Ledger Share Error:', err);
+            alert('❌ Failed to share statement: ' + err.message);
+        } finally {
+            setSharingRowId(null);
+        }
     };
 
     const handleShareRow = async (row) => {
@@ -326,6 +432,19 @@ const Reports = () => {
                 prevBalance,
                 dateLabel,
                 bizInfo,
+                labels: {
+                    date: t('date'),
+                    nameLabel: t('name'),
+                    oldBalance: t('oldBalance'),
+                    cashRec: t('cashRec'),
+                    cashLess: t('cashLess'),
+                    balance: t('balance'),
+                    particulars: t('particulars'),
+                    weight: t('weight'),
+                    rate: t('rate'),
+                    total: t('total'),
+                    grandTotalLabel: t('finalBalance'),
+                }
             });
 
             // Try native share (mobile) first, else open image
@@ -583,7 +702,7 @@ const Reports = () => {
             {/* ── Detail Modal ── */}
             {detailBuyer && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '16px' }}>
-                    <div style={{ background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '560px', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden', fontFamily: 'var(--font-sans)' }}>
+                    <div style={{ background: '#fff', borderRadius: '16px', width: '100%', maxWidth: showFullLedger ? '1200px' : '560px', transition: 'all 0.3s ease', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden', fontFamily: 'var(--font-sans)' }}>
                         <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div>
                                 <div style={{ fontSize: '16px', fontWeight: 800, color: '#1e293b', fontFamily: 'var(--font-display)' }}>{detailBuyer.name}</div>
@@ -604,25 +723,23 @@ const Reports = () => {
 
                         <div style={{ padding: '16px 24px', maxHeight: '50vh', overflowY: 'auto' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                                <div style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Transaction History</div>
+                                <div style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{t('transactionHistory')}</div>
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                     <button onClick={() => setShowFullLedger(!showFullLedger)}
                                         style={{ padding: '5px 12px', borderRadius: '7px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8', fontSize: '11px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                        {showFullLedger ? '✖️ Close View' : '👁️ View Ledger'}
+                                        {showFullLedger ? `✖️ ${t('closeView')}` : `👁️ ${t('viewLedger')}`}
                                     </button>
-                                    <button onClick={() => {
-                                        // Simple summary share
-                                        const range = appliedFrom === appliedTo ? appliedFrom : `${appliedFrom} to ${appliedTo}`;
-                                        const msg = `*${t('statementTitle')} - ${detailBuyer.name}*\n${t('date')}: ${range}\n\n${t('totalSales')}: ${fmt(detailBuyer.sales)}\n${t('cashRec')}: ${fmt(detailBuyer.paid)}\n${t('cashLess')}: ${fmt(detailBuyer.less)}\n*${t('finalBalance')}: ${fmt(detailBuyer.balance)}*\n\n${t('thankYou')}`;
-                                        const phone = (buyers.find(b => b.id === detailBuyer.id)?.contact || '').replace(/\D/g, '');
-                                        window.open(`https://wa.me/${phone.length === 10 ? '91'+phone : phone}?text=${encodeURIComponent(msg)}`, '_blank');
-                                    }}
+                                    <button onClick={() => handleShareLedger(detailBuyer)}
+                                        disabled={sharingRowId === detailBuyer.id}
                                         style={{ padding: '5px 12px', borderRadius: '7px', background: '#22c55e', border: 'none', color: '#fff', fontSize: '11px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                        <MessageCircle size={14} /> WhatsApp
+                                        {sharingRowId === detailBuyer.id
+                                            ? <div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                                            : <><MessageCircle size={14} /> WhatsApp</>
+                                        }
                                     </button>
                                     <button onClick={handlePrintDetailedReport}
                                         style={{ padding: '5px 12px', borderRadius: '7px', background: '#1e293b', border: 'none', color: '#fff', fontSize: '11px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                        🖨️ Print Ledger
+                                        🖨️ {t('printLedger')}
                                     </button>
                                 </div>
                             </div>
@@ -631,14 +748,14 @@ const Reports = () => {
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                                         <thead>
                                             <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                                                <th style={{ padding: '10px', textAlign: 'left' }}>தேதி</th>
-                                                <th style={{ padding: '10px', textAlign: 'left' }}>விபரம்</th>
-                                                <th style={{ padding: '10px', textAlign: 'right' }}>எடை</th>
-                                                <th style={{ padding: '10px', textAlign: 'right' }}>விலை</th>
-                                                <th style={{ padding: '10px', textAlign: 'right' }}>தொகை</th>
-                                                <th style={{ padding: '10px', textAlign: 'right' }}>வரவு</th>
-                                                <th style={{ padding: '10px', textAlign: 'right' }}>கழி</th>
-                                                <th style={{ padding: '10px', textAlign: 'right', background: '#fffbeb' }}>பாக்கி</th>
+                                                <th style={{ padding: '10px', textAlign: 'left' }}>{t('date')}</th>
+                                                <th style={{ padding: '10px', textAlign: 'left' }}>{t('particulars')}</th>
+                                                <th style={{ padding: '10px', textAlign: 'right' }}>{t('weight')}</th>
+                                                <th style={{ padding: '10px', textAlign: 'right' }}>{t('rate')}</th>
+                                                <th style={{ padding: '10px', textAlign: 'right' }}>{t('total')}</th>
+                                                <th style={{ padding: '10px', textAlign: 'right' }}>{t('cashRec')}</th>
+                                                <th style={{ padding: '10px', textAlign: 'right' }}>{t('cashLess')}</th>
+                                                <th style={{ padding: '10px', textAlign: 'right', background: '#fffbeb' }}>{t('balance')}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -681,7 +798,7 @@ const Reports = () => {
                                                     <>
                                                         <tr style={{ background: '#fef3c7', fontWeight: 700 }}>
                                                             <td style={{ padding: '8px' }}>—</td>
-                                                            <td style={{ padding: '8px' }}>OPENING BALANCE</td>
+                                                            <td style={{ padding: '8px' }}>{t('openingBalance')}</td>
                                                             <td colSpan={5}></td>
                                                             <td style={{ padding: '8px', textAlign: 'right' }}>{fmt(runningBal)}</td>
                                                         </tr>

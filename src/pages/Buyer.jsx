@@ -134,6 +134,43 @@ const Buyer = () => {
         return () => { u1(); u2(); u3(); };
     }, []);
 
+    const [isTranslating, setIsTranslating] = useState(false);
+    const transTimeout = useRef(null);
+
+    // Track if user has manually edited the "other" field
+    const [touched, setTouched] = useState({ name: false, nameTa: false });
+
+    const translate = async (text, from, to) => {
+        if (!text || text.length < 2) return '';
+        try {
+            const resp = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodeURIComponent(text)}`);
+            const data = await resp.json();
+            return data[0][0][0];
+        } catch { return ''; }
+    };
+
+    const handleAutoTranslate = (val, source) => {
+        const target = source === 'name' ? 'nameTa' : 'name';
+        const fromLang = source === 'name' ? 'en' : 'ta';
+        const toLang = source === 'name' ? 'ta' : 'en';
+
+        // Update the field being typed in normally
+        setCurrentBuyer(prev => ({ ...prev, [source]: val }));
+
+        // If the other field hasn't been manually touched, translate into it
+        if (!touched[target] && val.trim().length > 2) {
+            if (transTimeout.current) clearTimeout(transTimeout.current);
+            transTimeout.current = setTimeout(async () => {
+                setIsTranslating(true);
+                const translated = await translate(val, fromLang, toLang);
+                if (translated && !touched[target]) {
+                    setCurrentBuyer(prev => ({ ...prev, [target]: translated }));
+                }
+                setIsTranslating(false);
+            }, 800);
+        }
+    };
+
     const toDateStr = (d) => {
         const y = d.getFullYear();
         const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -162,6 +199,7 @@ const Buyer = () => {
     }, [viewingBuyer, sales, payments]);
 
     const handleOpenModal = (buyer = null) => {
+        setTouched({ name: false, nameTa: false });
         if (!buyer) {
             const nextId = buyers.length > 0 ? Math.max(...buyers.map(b => parseInt(b.displayId) || 0)) + 1 : 101;
             setCurrentBuyer({ id: '', name: '', nameTa: '', contact: '', balance: 0, displayId: nextId });
@@ -372,7 +410,7 @@ const Buyer = () => {
                                     {label:t('id'), key:'displayId', type:'text', disabled:true},
                                     {label:`${t('name')} (English) *`, key:'name', type:'text', required:true, autoFocus:true},
                                     {label:`பெயர் (தமிழ்) *`, key:'nameTa', type:'text', required:true},
-                                    {label:`${t('contact')} *`, key:'contact', type:'text', required:true},
+                                    {label:`WhatsApp Number / வாட்ஸ்அப் *`, key:'contact', type:'tel', required:true, maxLength: 10, pattern: '[0-9]{10}'},
                                     {label:t('initialDues'), key:'balance', type:'number'},
                                 ].map(f => (
                                     <div key={f.key}>
@@ -382,8 +420,22 @@ const Buyer = () => {
                                             disabled={f.disabled}
                                             required={f.required}
                                             autoFocus={f.autoFocus}
+                                            maxLength={f.maxLength}
+                                            pattern={f.pattern}
                                             value={currentBuyer[f.key] ?? ''}
-                                            onChange={e => setCurrentBuyer({...currentBuyer,[f.key]:e.target.value})}
+                                            onChange={e => {
+                                                let val = e.target.value;
+                                                if (f.key === 'contact') {
+                                                    val = val.replace(/\D/g, '').slice(0, 10);
+                                                    setCurrentBuyer({...currentBuyer, [f.key]: val});
+                                                } else if (f.key === 'name' || f.key === 'nameTa') {
+                                                    // Mark as touched so auto-translate doesn't overwrite manual edits later
+                                                    setTouched(prev => ({ ...prev, [f.key]: true }));
+                                                    handleAutoTranslate(val, f.key);
+                                                } else {
+                                                    setCurrentBuyer({...currentBuyer, [f.key]: val});
+                                                }
+                                            }}
                                             min={f.type==='number' ? '0' : undefined}
                                             style={{
                                                 width:'100%',padding:'10px 12px',borderRadius:'10px',

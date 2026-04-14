@@ -88,6 +88,10 @@ const strings = {
     totalSales: 'Total Sales',
     finalBalance: 'Final Balance',
     thankYou: 'Thank you!',
+    transactionHistory: 'Transaction History',
+    viewLedger: 'View Ledger',
+    printLedger: 'Print Ledger',
+    closeView: 'Close View',
   },
   ta: {
     back: 'பின்',
@@ -162,10 +166,6 @@ const strings = {
     cashRec: 'வரவு',
     cashLess: 'கழி',
     todayTotal: 'இன்றைய மொத்தம்',
-    qty: 'எடை',
-    rate: 'விலை',
-    total: 'தொகை',
-    grandTotal: 'மொத்த பாக்கி',
     dailyReport: 'தினசரி அறிக்கை',
     customerNo: 'வாடிக்கையாளர் எண்',
     particulars: 'விபரம்',
@@ -174,6 +174,10 @@ const strings = {
     totalSales: 'மொத்த விற்பனை',
     finalBalance: 'இறுதி மீதி',
     thankYou: 'நன்றி!',
+    transactionHistory: 'பரிவர்த்தனை வரலாறு',
+    viewLedger: 'பேரேட்டைப் பார்க்க',
+    printLedger: 'பேரேடு அச்சிடு',
+    closeView: 'பார்வையை மூடு',
   },
 };
 

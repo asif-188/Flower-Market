@@ -3,6 +3,7 @@ import { Plus, Trash2, Printer, MessageCircle, Pencil } from 'lucide-react';
 import { saveSale, subscribeToCollection, db } from '../utils/storage';
 import { doc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
+import { generateBuyerReceiptCanvas } from '../utils/receiptCanvas';
 
 /* ── Keyboard-navigable Searchable Customer Dropdown ── */
 const CustomerSearch = ({ buyers, value, onChange, onKeyDown, inputRef }) => {
@@ -105,7 +106,7 @@ const LABEL_S = {
 };
 
 const SalesEntry = () => {
-    const { t } = useContext(LangContext);
+    const { t, lang } = useContext(LangContext);
     const [flowers, setFlowers]   = useState([]);
     const [buyers, setBuyers]     = useState([]);
     const [cart, setCart]         = useState([]);
@@ -219,7 +220,7 @@ const SalesEntry = () => {
         }
     };
 
-    const handleShareWhatsApp = () => {
+    const handleShareWhatsApp = async () => {
         if (!billDetails.buyerId || cart.length === 0) return alert('Please select a customer and add items first.');
         const buyer = buyers.find(b => b.id === billDetails.buyerId);
         
@@ -229,39 +230,61 @@ const SalesEntry = () => {
             return `${d}/${m}/${y}`;
         };
 
-        const dateStr = displayDate(billDetails.date);
-        
-        let msg = `*${settings.motto || 'SRI RAMA JAYAM'}*\n`;
-        msg += `*${settings.name || 'S.V.M'}*\n`;
-        msg += `${settings.type || 'SRI VALLI FLOWER MERCHANT'}\n`;
-        msg += `--------------------------------\n`;
-        msg += `*SALES*      Date: ${dateStr}\n`;
-        msg += `CODE : *${buyer?.displayId || '---'}*\n`;
-        msg += `${t('name')} : *${buyer?.name?.toUpperCase() || '---'}*\n`;
-        msg += `--------------------------------\n`;
-        
-        // 1. Balance Box Breakdown (Matches top right of physical bill)
-        msg += `*${t('oldBalance')} :  ${oldBalance.toFixed(0)}*\n`;
-        msg += `*${t('cashLess')} :  ${cashLess.toFixed(0)}*\n`;
-        msg += `*${t('cashRec')} :  ${cashRec.toFixed(0)}*\n`;
-        msg += `*${t('balance')} :  ${runningBalance.toFixed(0)}*\n`;
-        msg += `--------------------------------\n`;
-        
-        // 2. Today's Items
-        msg += `*${t('flower').toUpperCase()} | ${t('qty').toUpperCase()} | ${t('rate').toUpperCase()} | ${t('total').toUpperCase()}*\n`;
-        cart.forEach(item => {
-            msg += `${item.flowerType} | ${parseFloat(item.quantity).toFixed(0)} x ${parseFloat(item.price).toFixed(0)} = *${item.total.toFixed(0)}*\n`;
-        });
-        
-        // 3. Totals
-        msg += `--------------------------------\n`;
-        msg += `${t('todayTotal')} : *${grandTotal.toFixed(0)}*\n`;
-        msg += `*${t('grandTotal').toUpperCase()} : ₹${absoluteGrandTotal.toFixed(0)}*\n`;
-        msg += `--------------------------------\n`;
-        msg += `నன்றி (Thank You) - ${settings.name}`;
+        const dateLabel = displayDate(billDetails.date);
+        const buyerContact = (buyer?.contact || '').replace(/\D/g, '');
+        const whatsappNumber = buyerContact.length === 10 ? '91' + buyerContact : buyerContact;
 
-        const phone = (buyer?.contact || '').replace(/\D/g, '');
-        window.open(`https://wa.me/${phone.length === 10 ? '91' + phone : phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        try {
+            const { blob, url } = await generateBuyerReceiptCanvas({
+                buyer: {
+                    id: buyer.id,
+                    displayId: buyer.displayId,
+                    name: (lang === 'ta' && buyer.nameTa) ? buyer.nameTa : buyer.name,
+                },
+                salesItems: cart,
+                salesTotal: grandTotal,
+                paymentsTotal: cashRec,
+                cashLess: cashLess,
+                prevBalance: oldBalance,
+                dateLabel,
+                bizInfo: settings,
+                labels: {
+                    date: t('date'),
+                    nameLabel: t('name'),
+                    oldBalance: t('oldBalance'),
+                    cashRec: t('cashRec'),
+                    cashLess: t('cashLess'),
+                    balance: t('balance'),
+                    particulars: t('particulars'),
+                    weight: t('weight'),
+                    rate: t('rate'),
+                    total: t('total'),
+                    grandTotalLabel: t('grandTotal'),
+                }
+            });
+
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], 'bill.png', { type: 'image/png' })] })) {
+                await navigator.share({
+                    files: [new File([blob], 'bill.png', { type: 'image/png' })],
+                    title: `Bill – ${buyer.name}`,
+                });
+            } else {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `bill_${buyer.name.replace(/\s+/g,'_')}.png`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 30000);
+
+                if (whatsappNumber) {
+                    setTimeout(() => {
+                        window.open(`https://wa.me/${whatsappNumber}`, '_blank');
+                    }, 500);
+                }
+            }
+        } catch (err) {
+            console.error('WhatsApp share error:', err);
+            alert('❌ Failed to share bill: ' + err.message);
+        }
     };
 
     // ── Keyboard navigation helpers ──
