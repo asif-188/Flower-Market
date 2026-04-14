@@ -23,6 +23,7 @@ const Reports = () => {
     const [sales, setSales]       = useState([]);
     const [buyers, setBuyers]     = useState([]);
     const [payments, setPayments] = useState([]);
+    const [products, setProducts] = useState([]);
 
     const [fromDate, setFromDate]         = useState(today);
     const [toDate, setToDate]             = useState(today);
@@ -47,7 +48,8 @@ const Reports = () => {
         const u1 = subscribeToCollection('sales',    setSales);
         const u2 = subscribeToCollection('buyers',   setBuyers);
         const u3 = subscribeToCollection('payments', setPayments);
-        return () => { u1(); u2(); u3(); };
+        const u4 = subscribeToCollection('products', setProducts);
+        return () => { u1(); u2(); u3(); u4(); };
     }, []);
 
     const applyPreset = (preset) => {
@@ -69,41 +71,62 @@ const Reports = () => {
     const handleApply = () => { setAppliedFrom(fromDate); setAppliedTo(toDate); };
 
     const report = useMemo(() => {
-        const filteredSales = sales.filter(s => {
-            const d = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-            return d && d >= appliedFrom && d <= appliedTo;
-        });
-        const filteredPayments = payments.filter(p => {
-            const d = p.timestamp
-                ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10)
-                    : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp)))
-                : null;
-            return d && d >= appliedFrom && d <= appliedTo && p.type === 'buyer';
+        // 1. Calculate Opening Balance (Backward from current balance) for each buyer
+        const rows = buyers.map(buyer => {
+            // Future Transactions (from appliedFrom onwards)
+            const futureSales = sales.filter(s => {
+                if (s.buyerId !== buyer.id) return false;
+                const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+                return dt && dt >= appliedFrom;
+            });
+            const futurePayments = payments.filter(p => {
+                if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
+                const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+                return dt && dt >= appliedFrom;
+            });
+            const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+            const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
+            const openingBal     = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
+
+            // Period Transactions (within [appliedFrom, appliedTo])
+            const periodSales = sales.filter(s => {
+                if (s.buyerId !== buyer.id) return false;
+                const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+                return dt && dt >= appliedFrom && dt <= appliedTo;
+            });
+            const periodPayments = payments.filter(p => {
+                if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
+                const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+                return dt && dt >= appliedFrom && dt <= appliedTo;
+            });
+
+            const salesAmt = periodSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+            const paidAmt  = periodPayments.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+            const lessAmt  = periodPayments.reduce((s, x) => s + (Number(x.cashLess) || 0), 0);
+
+            return {
+                id: buyer.id,
+                name: buyer.name || 'Unknown',
+                taName: buyer.taName || buyer.nameTa || buyer.name || 'Unknown',
+                displayId: buyer.displayId || '---',
+                opening: openingBal,
+                sales: salesAmt,
+                paid: paidAmt,
+                less: lessAmt,
+                balance: buyer.balance || 0
+            };
         });
 
-        const salesByBuyer = {}, paidByBuyer = {}, lessByBuyer = {};
-        filteredSales.forEach(s => { salesByBuyer[s.buyerId] = (salesByBuyer[s.buyerId] || 0) + (s.grandTotal || 0); });
-        filteredPayments.forEach(p => { 
-            paidByBuyer[p.entityId] = (paidByBuyer[p.entityId] || 0) + (p.amount || 0);
-            lessByBuyer[p.entityId] = (lessByBuyer[p.entityId] || 0) + (p.cashLess || 0);
-        });
-
-        const allIds = new Set([...Object.keys(salesByBuyer), ...Object.keys(paidByBuyer), ...Object.keys(lessByBuyer)]);
-        const rows = [];
-        allIds.forEach(id => {
-            const buyer = buyers.find(b => b.id === id);
-            const salesAmt = salesByBuyer[id] || 0;
-            const paidAmt  = paidByBuyer[id]  || 0;
-            const lessAmt  = lessByBuyer[id]  || 0;
-            rows.push({ id, name: buyer?.name || 'Unknown', displayId: buyer?.displayId || '---', sales: salesAmt, paid: paidAmt, less: lessAmt, balance: buyer?.balance ?? (salesAmt - paidAmt - lessAmt) });
-        });
-        return rows.sort((a, b) => b.sales - a.sales);
+        // Only show buyers who have activity in the period OR a non-zero opening balance OR non-zero current balance
+        return rows.filter(r => r.sales > 0 || r.paid > 0 || r.less > 0 || r.opening !== 0 || r.balance !== 0)
+                   .sort((a, b) => b.sales - a.sales);
     }, [sales, payments, buyers, appliedFrom, appliedTo]);
 
-    const totalSales = report.reduce((s, r) => s + r.sales, 0);
-    const totalPaid  = report.reduce((s, r) => s + r.paid, 0);
-    const totalNet   = totalSales - totalPaid;
-    const totalDues  = report.reduce((s, r) => s + Math.max(0, r.balance), 0);
+    const totalOpening = report.reduce((s, r) => s + r.opening, 0);
+    const totalSales   = report.reduce((s, r) => s + r.sales, 0);
+    const totalPaid    = report.reduce((s, r) => s + r.paid, 0);
+    const totalLess    = report.reduce((s, r) => s + r.less, 0);
+    const totalDues    = report.reduce((s, r) => s + Math.max(0, r.balance), 0);
 
     const filtered = report.filter(r =>
         r.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -163,13 +186,18 @@ const Reports = () => {
         periodSales.forEach(s => {
             const date = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : '');
             (s.items || []).forEach(item => {
-                ledgerItems.push({ date, type: 'SALE', desc: item.flowerType, qty: item.quantity, price: item.price, total: item.total, credit: 0 });
+                let descLocalized = item.flowerType;
+                if (lang === 'ta') {
+                    const foundFlower = products.find(f => f.name?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase());
+                    descLocalized = item.flowerTypeTa || foundFlower?.taName || item.flowerType;
+                }
+                ledgerItems.push({ date, type: 'SALE', desc: descLocalized, qty: item.quantity, price: item.price, total: item.total, credit: 0 });
             });
         });
         periodPayments.forEach(p => {
             const date = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : '';
-            if (p.amount > 0) ledgerItems.push({ date, type: 'PAY', desc: 'CASH', qty: 0, price: 0, total: 0, credit: p.amount });
-            if (p.cashLess > 0) ledgerItems.push({ date, type: 'LESS', desc: 'DEDUCTION', qty: 0, price: 0, total: 0, credit: p.cashLess });
+            if (p.amount > 0) ledgerItems.push({ date, type: 'PAY', desc: t('cashRec'), qty: 0, price: 0, total: 0, credit: p.amount });
+            if (p.cashLess > 0) ledgerItems.push({ date, type: 'LESS', desc: t('cashLess'), qty: 0, price: 0, total: 0, credit: p.cashLess });
         });
 
         ledgerItems.sort((a, b) => a.date.localeCompare(b.date));
@@ -213,7 +241,7 @@ const Reports = () => {
                     <div class="report-title">${t('statementTitle')}</div>
                     <div style="text-align: left; font-size: 16px; font-weight: 700;">
                         ${t('customerNo')} : ${detailBuyer.displayId}<br/>
-                        ${t('name')} : ${lang === 'ta' ? (detailBuyer.nameTa || detailBuyer.name) : detailBuyer.name}
+                        ${t('name')} : ${lang === 'ta' ? (detailBuyer.taName || detailBuyer.name) : detailBuyer.name}
                     </div>
                 </div>
 
@@ -319,13 +347,18 @@ const Reports = () => {
             periodSales.forEach(s => {
                 const dateIso = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : '');
                 (s.items || []).forEach(item => {
-                    items.push({ dateIso, date: displayDate(dateIso), particulars: item.flowerType, weight: parseFloat(item.quantity).toFixed(3), rate: item.price, total: item.total, cashRec: 0, cashLess: 0 });
+                    let descLocalized = item.flowerType;
+                    if (lang === 'ta') {
+                        const foundFlower = products.find(f => f.name?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase());
+                        descLocalized = item.flowerTypeTa || foundFlower?.taName || item.flowerType;
+                    }
+                    items.push({ dateIso, date: displayDate(dateIso), particulars: descLocalized, weight: parseFloat(item.quantity).toFixed(3), rate: item.price, total: item.total, cashRec: 0, cashLess: 0 });
                 });
             });
             periodPayments.forEach(p => {
                 const dateIso = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : '';
-                if (p.amount > 0) items.push({ dateIso, date: displayDate(dateIso), particulars: 'CASH', weight: '0.000', rate: 0, total: 0, cashRec: p.amount, cashLess: 0 });
-                if (p.cashLess > 0) items.push({ dateIso, date: displayDate(dateIso), particulars: 'DEDUCTION', weight: '0.000', rate: 0, total: 0, cashRec: 0, cashLess: p.cashLess });
+                if (p.amount > 0) items.push({ dateIso, date: displayDate(dateIso), particulars: t('cashRec'), weight: '0.000', rate: 0, total: 0, cashRec: p.amount, cashLess: 0 });
+                if (p.cashLess > 0) items.push({ dateIso, date: displayDate(dateIso), particulars: t('cashLess'), weight: '0.000', rate: 0, total: 0, cashRec: 0, cashLess: p.cashLess });
             });
             items.sort((a, b) => a.dateIso.localeCompare(b.dateIso));
             
@@ -402,7 +435,13 @@ const Reports = () => {
                 const d = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
                 return d && d >= appliedFrom && d <= appliedTo;
             });
-            const flatItems = buyerSales.flatMap(s => s.items || []);
+            const flatItems = buyerSales.flatMap(s => (s.items || []).map(item => {
+                if (lang === 'ta') {
+                    const foundFlower = products.find(f => f.name?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase());
+                    return { ...item, flowerTypeTa: item.flowerTypeTa || foundFlower?.taName || item.flowerType };
+                }
+                return item;
+            }));
 
             // Payments in period
             const buyerPayments = payments.filter(p => {
@@ -478,7 +517,7 @@ const Reports = () => {
     const handleWhatsAppShare = () => {
         if (report.length === 0) return;
         const rangeText = appliedFrom === appliedTo ? appliedFrom : `${appliedFrom} to ${appliedTo}`;
-        let msg = `*CUSTOMER REPORT*\nPeriod: ${rangeText}\n\nSales: ${fmt(totalSales)}\nPaid: ${fmt(totalPaid)}\nDues: ${fmt(totalDues)}`;
+        let msg = `*CUSTOMER REPORT*\nPeriod: ${rangeText}\n\nOpening Balance: ${fmt(totalOpening)}\nSales: ${fmt(totalSales)}\nPaid: ${fmt(totalPaid)}\nCash Less: ${fmt(totalLess)}\nDues: ${fmt(totalDues)}`;
         window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
@@ -486,7 +525,15 @@ const Reports = () => {
         if (report.length === 0) return alert('No data to download.');
         setIsDownloading(true);
         try {
-            const data = report.map(r => ({ ID: r.displayId, Customer: r.name, Sales: r.sales, Paid: r.paid, Balance: r.balance }));
+            const data = report.map(r => ({ 
+                ID: r.displayId, 
+                Customer: r.name, 
+                'Opening Balance': r.opening,
+                Sales: r.sales, 
+                Paid: r.paid, 
+                'Cash Less': r.less,
+                Balance: r.balance 
+            }));
             const ws = XLSX.utils.json_to_sheet(data);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Report');
@@ -503,14 +550,15 @@ const Reports = () => {
     const S = {
         page: { background: '#fff', borderRadius: '16px', border: '1px solid #e5e7eb', boxShadow: '0 2px 16px rgba(0,0,0,0.06)', padding: '24px 28px', minHeight: '70vh', fontFamily: 'var(--font-sans)' },
         toolbar: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '18px' },
-        th: { padding: '10px 14px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1.5px solid #e5e7eb', whiteSpace: 'nowrap', background: '#fff' },
+        th: { padding: '10px 14px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1.5px solid #e5e7eb', whiteSpace: 'nowrap', background: '#fff' },
         td: { padding: '12px 14px', fontSize: '14px', color: '#374151', borderBottom: '1px solid #f3f4f6', verticalAlign: 'middle' },
     };
 
     const STAT_CARDS = [
+        { label: t('openingBalance'), value: totalOpening, accent: '#6366f1', textColor: '#4338ca', bg: '#eef2ff' },
         { label: t('sales'), value: totalSales, accent: '#3b82f6', textColor: '#1d4ed8', bg: '#eff6ff' },
         { label: t('paid'), value: totalPaid, accent: '#10b981', textColor: '#15803d', bg: '#f0fdf4' },
-        { label: t('net'), value: totalNet, accent: '#f59e0b', textColor: '#9a3412', bg: '#fff7ed' },
+        { label: t('cashLess'), value: totalLess, accent: '#f59e0b', textColor: '#9a3412', bg: '#fff7ed' },
         { label: t('dues'), value: totalDues, accent: '#ef4444', textColor: '#991b1b', bg: '#fef2f2' },
     ];
 
@@ -628,6 +676,7 @@ const Reports = () => {
                     <thead>
                         <tr>
                             <th style={S.th}>{t('customerName')}</th>
+                            <th style={{ ...S.th, textAlign: 'right' }}>{t('openingBalance')}</th>
                             <th style={{ ...S.th, textAlign: 'right' }}>{t('sales')}</th>
                             <th style={{ ...S.th, textAlign: 'right' }}>{t('paid')}</th>
                             <th style={{ ...S.th, textAlign: 'right' }}>{t('cashLess')}</th>
@@ -638,7 +687,7 @@ const Reports = () => {
                     <tbody>
                         {filtered.length === 0 ? (
                             <tr>
-                                <td colSpan={6} style={{ padding: '60px 16px', textAlign: 'center', color: '#9ca3af', fontStyle: 'italic', fontSize: '14px' }}>
+                                <td colSpan={7} style={{ padding: '60px 16px', textAlign: 'center', color: '#9ca3af', fontStyle: 'italic', fontSize: '14px' }}>
                                     {t('noRecords')}
                                 </td>
                             </tr>
@@ -655,10 +704,11 @@ const Reports = () => {
                                                 #{row.displayId}
                                             </span>
                                             <span style={{ fontWeight: 600, color: '#1e293b' }}>
-                                                {lang === 'ta' ? (row.nameTa || row.name) : row.name}
+                                                {lang === 'ta' ? (row.taName || row.name) : row.name}
                                             </span>
                                         </div>
                                     </td>
+                                    <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: '#6366f1' }}>{fmt(row.opening)}</td>
                                     <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: '#1d4ed8' }}>{fmt(row.sales)}</td>
                                     <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: '#15803d' }}>{fmt(row.paid)}</td>
                                     <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: '#f97316' }}>{fmt(row.less)}</td>
@@ -718,11 +768,17 @@ const Reports = () => {
                         </div>
 
                         {/* Mini summary */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', padding: '16px 24px 0' }}>
-                            {[{ l: t('sales'), v: detailBuyer.sales, c: '#1d4ed8', bg: '#eff6ff' }, { l: t('paid'), v: detailBuyer.paid, c: '#15803d', bg: '#f0fdf4' }, { l: t('balance'), v: detailBuyer.balance, c: '#dc2626', bg: '#fef2f2' }].map(x => (
-                                <div key={x.l} style={{ background: x.bg, borderRadius: '10px', padding: '10px 12px' }}>
-                                    <div style={{ fontSize: '10px', fontWeight: 700, color: x.c, textTransform: 'uppercase', marginBottom: '3px' }}>{x.l}</div>
-                                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>{fmt(x.v)}</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '8px', padding: '16px 24px 0' }}>
+                            {[
+                                { l: t('openingBalance'), v: detailBuyer.opening, c: '#6366f1', bg: '#eef2ff' },
+                                { l: t('sales'), v: detailBuyer.sales, c: '#1d4ed8', bg: '#eff6ff' },
+                                { l: t('paid'), v: detailBuyer.paid, c: '#15803d', bg: '#f0fdf4' },
+                                { l: t('cashLess'), v: detailBuyer.less, c: '#f97316', bg: '#fff7ed' },
+                                { l: t('balance'), v: detailBuyer.balance, c: '#dc2626', bg: '#fef2f2' }
+                            ].map(x => (
+                                <div key={x.l} style={{ background: x.bg, borderRadius: '10px', padding: '10px 12px', border: `1px solid ${x.c}22` }}>
+                                    <div style={{ fontSize: '9px', fontWeight: 700, color: x.c, textTransform: 'uppercase', marginBottom: '3px', whiteSpace: 'nowrap' }}>{x.l}</div>
+                                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b' }}>{fmt(x.v)}</div>
                                 </div>
                             ))}
                         </div>
@@ -790,13 +846,18 @@ const Reports = () => {
                                                 periodSales.forEach(s => {
                                                     const date = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : '');
                                                     (s.items || []).forEach(item => {
-                                                        sysItems.push({ date, desc: item.flowerType, qty: item.quantity, price: item.price, total: item.total, credit: 0, less: 0 });
+                                                        let descLocalized = item.flowerType;
+                                                        if (lang === 'ta') {
+                                                            const foundFlower = products.find(f => f.name?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase());
+                                                            descLocalized = item.flowerTypeTa || foundFlower?.taName || item.flowerType;
+                                                        }
+                                                        sysItems.push({ date, desc: descLocalized, qty: item.quantity, price: item.price, total: item.total, credit: 0, less: 0 });
                                                     });
                                                 });
                                                 periodPayments.forEach(p => {
                                                     const date = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : '';
-                                                    if (p.amount > 0) sysItems.push({ date, desc: 'CASH', qty: 0, price: 0, total: 0, credit: p.amount, less: 0 });
-                                                    if (p.cashLess > 0) sysItems.push({ date, desc: 'DEDUCTION', qty: 0, price: 0, total: 0, credit: 0, less: p.cashLess });
+                                                    if (p.amount > 0) sysItems.push({ date, desc: t('cashRec'), qty: 0, price: 0, total: 0, credit: p.amount, less: 0 });
+                                                    if (p.cashLess > 0) sysItems.push({ date, desc: t('cashLess'), qty: 0, price: 0, total: 0, credit: 0, less: p.cashLess });
                                                 });
                                                 sysItems.sort((a,b) => a.date.localeCompare(b.date));
 

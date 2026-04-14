@@ -124,7 +124,8 @@ export async function generateBuyerReceiptCanvas({
     rect(PAD, y, W - PAD*2, infoH);
     // Left: Code / Name
     drawText(`CODE : ${buyer.displayId || '---'}`, PAD + 10, y + 60, { size: 22, weight: '700' });
-    drawText(`${nameLabel} : ${buyer.name?.toUpperCase() || '---'}`, PAD + 10, y + 105, { size: 22, weight: '700' });
+    const bName = buyer.taName || buyer.nameTa || buyer.name || '---';
+    drawText(`${nameLabel} : ${bName.toUpperCase()}`, PAD + 10, y + 105, { size: 22, weight: '700' });
     
     // Right: Balance Grid (4 Rows)
     const balW = 280;
@@ -174,7 +175,8 @@ export async function generateBuyerReceiptCanvas({
         const item = salesItems[i];
         const rowY = y + 20;
         if (item) {
-            drawText(item.flowerType, cols[0] + 10, rowY, { size: 22, weight: '600' });
+            const fName = item.flowerTypeTa || item.flowerType || '';
+            drawText(fName, cols[0] + 10, rowY, { size: 22, weight: '600' });
             drawText(parseFloat(item.quantity).toFixed(3), cols[1] + colW[1]/2, rowY, { size: 20, align: 'center' });
             drawText(fmtNum(item.price), cols[2] + colW[2]/2, rowY, { size: 20, align: 'center' });
             drawText(fmtNum(item.total), W - PAD - 10, rowY, { size: 22, weight: '800', align: 'right' });
@@ -309,7 +311,8 @@ export async function generateLedgerCanvas({
     // Customer Info
     drawText(`${customerNoLabel} : ${buyer.displayId || '---'}`, PAD + 10, y, { size: 20, weight: '700' });
     y += 25;
-    drawText(`${nameLabel} : ${buyer.name || '---'}`, PAD + 10, y, { size: 20, weight: '700' });
+    const bNameLedger = buyer.taName || buyer.nameTa || buyer.name || '---';
+    drawText(`${nameLabel} : ${bNameLedger}`, PAD + 10, y, { size: 20, weight: '700' });
     y += 30;
     
     // Double Border before table

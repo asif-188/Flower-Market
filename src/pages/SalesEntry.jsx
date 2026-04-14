@@ -114,7 +114,7 @@ const SalesEntry = () => {
     const [billDetails, setBillDetails] = useState({
         buyerId: '', date: new Date().toLocaleDateString('en-CA'),
     });
-    const [currentItem, setCurrentItem] = useState({ flowerType: '', quantity: '', price: '' });
+    const [currentItem, setCurrentItem] = useState({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
     const [selectedRowIdx, setSelectedRowIdx] = useState(-1);
     const [selectedColIdx, setSelectedColIdx] = useState(-1); // 0=Qty, 1=Rate, 2=Total
     const [allPayments, setAllPayments] = useState([]);
@@ -143,8 +143,8 @@ const SalesEntry = () => {
     useEffect(() => {
         const u1 = subscribeToCollection('products', (data) => {
             setFlowers(data.length === 0
-                ? ['Rose', 'Jasmine', 'Marigold', 'Crossandra', 'Lotus', 'Mullai']
-                : data.map(f => f.name));
+                ? [{ name: 'Rose', taName: 'ரோஜா' }, { name: 'Jasmine', taName: 'மல்லிகை' }, { name: 'Marigold', taName: 'சாமந்தி' }, { name: 'Crossandra', taName: 'கனகாம்பரம்' }, { name: 'Lotus', taName: 'தாமரை' }, { name: 'Mullai', taName: 'முல்லை' }]
+                : data.map(f => ({ name: f.name, taName: f.taName })));
         });
         const u2 = subscribeToCollection('buyers', setBuyers);
         const u3 = subscribeToCollection('payments', setAllPayments);
@@ -163,7 +163,7 @@ const SalesEntry = () => {
         const rate = parseFloat(currentItem.price);
         if (isNaN(qty) || isNaN(rate)) return;
         setCart(prev => [...prev, { ...currentItem, id: Date.now(), total: qty * rate }]);
-        setCurrentItem({ flowerType: '', quantity: '', price: '' });
+        setCurrentItem({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
         setSelectedRowIdx(-1);
         setSelectedColIdx(-1);
         // Return focus to flower for fast entry of next item
@@ -173,7 +173,7 @@ const SalesEntry = () => {
     const removeItem = (id) => setCart(prev => prev.filter(i => i.id !== id));
 
     const editItem = (item) => {
-        setCurrentItem({ flowerType: item.flowerType, quantity: item.quantity, price: item.price });
+        setCurrentItem({ flowerType: item.flowerType, flowerTypeTa: item.flowerTypeTa || '', quantity: item.quantity, price: item.price });
         removeItem(item.id);
         setTimeout(() => refFlower.current?.focus(), 50);
     };
@@ -239,7 +239,7 @@ const SalesEntry = () => {
                 buyer: {
                     id: buyer.id,
                     displayId: buyer.displayId,
-                    name: (lang === 'ta' && buyer.nameTa) ? buyer.nameTa : buyer.name,
+                    name: (lang === 'ta' && buyer.taName) ? buyer.taName : buyer.name,
                 },
                 salesItems: cart,
                 salesTotal: grandTotal,
@@ -493,14 +493,17 @@ const SalesEntry = () => {
                                 <select
                                     ref={refFlower}
                                     value={currentItem.flowerType}
-                                    onChange={e => setCurrentItem(prev => ({ ...prev, flowerType: e.target.value }))}
+                                    onChange={e => {
+                                        const selected = flowers.find(f => f.name === e.target.value);
+                                        setCurrentItem(prev => ({ ...prev, flowerType: e.target.value, flowerTypeTa: selected?.taName || '' }));
+                                    }}
                                     onKeyDown={onFlowerKey}
                                     style={{ ...INPUT_S, padding: '7px 10px' }}
                                     onFocus={e => e.target.style.borderColor = '#16a34a'}
                                     onBlur={e => e.target.style.borderColor = '#e2e8f0'}
                                 >
                                     <option value="">Flower</option>
-                                    {flowers.map(f => <option key={f} value={f}>{f}</option>)}
+                                    {flowers.map(f => <option key={f.name} value={f.name}>{lang === 'ta' ? (f.nameTa || f.name) : f.name}</option>)}
                                 </select>
                             </div>
                             <div>
