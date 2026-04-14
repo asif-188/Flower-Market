@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Plus, Edit2, Trash2, X, Flower2 } from 'lucide-react';
 import { subscribeToCollection, db } from '../utils/storage';
+import { LangContext } from '../components/Layout';
 import { collection, addDoc, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 const S = {
@@ -31,11 +32,15 @@ const S = {
 };
 
 const Flowers = () => {
+    const { t, lang } = useContext(LangContext);
     const [flowers, setFlowers]       = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editing, setEditing]        = useState(null);   // null = add, else flower object
     const [form, setForm]              = useState({ name: '', taName: '', unit: 'kg' });
     const [isSaving, setIsSaving]      = useState(false);
+    const [isTranslating, setIsTranslating] = useState(false);
+    const transTimeout = useRef(null);
+    const [touched, setTouched] = useState({ name: false, taName: false });
     const nameRef = useRef(null);
 
     useEffect(() => {
@@ -43,7 +48,37 @@ const Flowers = () => {
         return () => unsub();
     }, []);
 
+    const translate = async (text, from, to) => {
+        if (!text || text.length < 2) return '';
+        try {
+            const resp = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodeURIComponent(text)}`);
+            const data = await resp.json();
+            return data[0][0][0];
+        } catch { return ''; }
+    };
+
+    const handleAutoTranslate = (val, source) => {
+        const target = source === 'name' ? 'taName' : 'name';
+        const fromLang = source === 'name' ? 'en' : 'ta';
+        const toLang = source === 'name' ? 'ta' : 'en';
+
+        setForm(prev => ({ ...prev, [source]: val }));
+
+        if (!touched[target] && val.trim().length > 2) {
+            if (transTimeout.current) clearTimeout(transTimeout.current);
+            transTimeout.current = setTimeout(async () => {
+                setIsTranslating(true);
+                const translated = await translate(val, fromLang, toLang);
+                if (translated && !touched[target]) {
+                    setForm(prev => ({ ...prev, [target]: translated }));
+                }
+                setIsTranslating(false);
+            }, 800);
+        }
+    };
+
     const openModal = (flower = null) => {
+        setTouched({ name: false, taName: false });
         if (flower) {
             setEditing(flower);
             setForm({ name: flower.name || '', taName: flower.taName || '', unit: flower.unit || 'kg' });
@@ -94,13 +129,13 @@ const Flowers = () => {
             <div style={S.header}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ fontSize: '22px' }}>🌸</span>
-                    <h2 style={S.title}>Flower Master</h2>
+                    <h2 style={S.title}>{lang === 'ta' ? 'பூக்கள் மாஸ்டர்' : 'Flower Master'}</h2>
                 </div>
                 <button style={S.btnAdd} onClick={() => openModal()}
                     onMouseEnter={e => { e.currentTarget.style.background = '#16a34a'; e.currentTarget.style.color = '#fff'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#16a34a'; }}
                 >
-                    <Plus size={14} /> Add Flower
+                    <Plus size={14} /> {lang === 'ta' ? 'பூச் சேர்க்க' : 'Add Flower'}
                 </button>
             </div>
 
@@ -110,10 +145,10 @@ const Flowers = () => {
                     <thead>
                         <tr>
                             <th style={S.th}>#</th>
-                            <th style={S.th}>Flower Name</th>
-                            <th style={S.th}>Tamil Name</th>
-                            <th style={S.th}>Unit</th>
-                            <th style={{ ...S.th, textAlign: 'center' }}>Actions</th>
+                            <th style={S.th}>{lang === 'ta' ? 'பூவின் பெயர்' : 'Flower Name'}</th>
+                            <th style={S.th}>{lang === 'ta' ? 'தமிழ் பெயர்' : 'Tamil Name'}</th>
+                            <th style={S.th}>{lang === 'ta' ? 'அலகு' : 'Unit'}</th>
+                            <th style={{ ...S.th, textAlign: 'center' }}>{t('actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -180,7 +215,7 @@ const Flowers = () => {
                                     <span style={{ fontSize: '18px' }}>🌸</span>
                                 </div>
                                 <span style={{ fontSize: '16px', fontWeight: 800, color: '#1e293b', fontFamily: 'var(--font-display)' }}>
-                                    {editing ? 'Edit Flower' : 'Add Flower'}
+                                    {editing ? (lang === 'ta' ? 'பூவைத் திருத்து' : 'Edit Flower') : (lang === 'ta' ? 'பூச் சேர்க்க' : 'Add Flower')}
                                 </span>
                             </div>
                             <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', display: 'flex' }}><X size={20} /></button>
@@ -189,14 +224,19 @@ const Flowers = () => {
                         <form onSubmit={handleSave} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                             {/* Name */}
                             <div>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>Flower Name (English) *</label>
+                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>
+                                    {lang === 'ta' ? 'பூவின் பெயர் (ஆங்கிலத்தில்) *' : 'Flower Name (English) *'}
+                                </label>
                                 <input
                                     ref={nameRef}
                                     type="text"
                                     required
-                                    placeholder="e.g. Rose, Jasmine..."
+                                    placeholder={lang === 'ta' ? 'எ.கா. ரோஜா, மல்லி...' : 'e.g. Rose, Jasmine...'}
                                     value={form.name}
-                                    onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                                    onChange={e => {
+                                        setTouched(p => ({ ...p, name: true }));
+                                        handleAutoTranslate(e.target.value, 'name');
+                                    }}
                                     onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
                                     style={S.input}
                                     onFocus={e => e.target.style.borderColor = '#16a34a'}
@@ -206,12 +246,17 @@ const Flowers = () => {
 
                             {/* Tamil Name */}
                             <div>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>Tamil Name (optional)</label>
+                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>
+                                    {lang === 'ta' ? 'தமிழ் பெயர் (விருப்பமானது)' : 'Tamil Name (optional)'}
+                                </label>
                                 <input
                                     type="text"
-                                    placeholder="e.g. ரோஜா, மல்லி..."
+                                    placeholder={lang === 'ta' ? 'எ.கா. ரோஜா, மல்லி...' : 'e.g. ரோஜா, மல்லி...'}
                                     value={form.taName}
-                                    onChange={e => setForm(p => ({ ...p, taName: e.target.value }))}
+                                    onChange={e => {
+                                        setTouched(p => ({ ...p, taName: true }));
+                                        handleAutoTranslate(e.target.value, 'taName');
+                                    }}
                                     onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
                                     style={S.input}
                                     onFocus={e => e.target.style.borderColor = '#16a34a'}
@@ -221,7 +266,9 @@ const Flowers = () => {
 
                             {/* Unit */}
                             <div>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>Unit of Measurement</label>
+                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>
+                                    {lang === 'ta' ? 'அளவீட்டு அலகு' : 'Unit of Measurement'}
+                                </label>
                                 <select
                                     value={form.unit}
                                     onChange={e => setForm(p => ({ ...p, unit: e.target.value }))}
@@ -229,23 +276,23 @@ const Flowers = () => {
                                     onFocus={e => e.target.style.borderColor = '#16a34a'}
                                     onBlur={e => e.target.style.borderColor = '#e2e8f0'}
                                 >
-                                    <option value="kg">kg</option>
-                                    <option value="g">grams</option>
-                                    <option value="bunch">bunch</option>
-                                    <option value="piece">piece</option>
-                                    <option value="dozen">dozen</option>
-                                    <option value="meter">meter</option>
+                                    <option value="kg">{lang === 'ta' ? 'கிலோ (kg)' : 'kg'}</option>
+                                    <option value="g">{lang === 'ta' ? 'கிராம் (g)' : 'grams'}</option>
+                                    <option value="bunch">{lang === 'ta' ? 'கட்டு' : 'bunch'}</option>
+                                    <option value="piece">{lang === 'ta' ? 'பீஸ்' : 'piece'}</option>
+                                    <option value="dozen">{lang === 'ta' ? 'டஜன்' : 'dozen'}</option>
+                                    <option value="meter">{lang === 'ta' ? 'மீட்டர்' : 'meter'}</option>
                                 </select>
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '4px' }}>
                                 <button type="button" onClick={() => setIsModalOpen(false)}
                                     style={{ padding: '9px 20px', borderRadius: '9px', border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontWeight: 600, fontSize: '13px', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-                                    Cancel
+                                    {t('cancel')}
                                 </button>
                                 <button type="submit" disabled={isSaving}
                                     style={{ padding: '9px 22px', borderRadius: '9px', border: '1.5px solid #16a34a', background: '#fff', color: '#16a34a', fontWeight: 700, fontSize: '13px', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.6 : 1, fontFamily: 'var(--font-sans)' }}>
-                                    {isSaving ? 'Saving...' : (editing ? 'Update' : 'Add Flower')}
+                                    {isSaving ? (lang === 'ta' ? 'சேமிக்கிறது...' : 'Saving...') : (editing ? t('update') : (lang === 'ta' ? 'பூச் சேர்க்க' : 'Add Flower'))}
                                 </button>
                             </div>
                         </form>
