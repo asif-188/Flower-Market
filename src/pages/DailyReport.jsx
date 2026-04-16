@@ -95,7 +95,7 @@ const DailyReport = () => {
                     amount: rec,
                     cashLess: les,
                     notes: 'Sync from Daily Report',
-                    timestamp: serverTimestamp()
+                    timestamp: new Date().toISOString()
                 });
                 const bRef = doc(db, 'buyers', bid);
                 await updateDoc(bRef, {

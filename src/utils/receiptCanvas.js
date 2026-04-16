@@ -25,6 +25,7 @@ export async function generateBuyerReceiptCanvas({
     dateLabel     = '',
     bizInfo       = {},
     labels        = {}, // Translation labels
+    lang          = 'en',
 }) {
     const {
         date = 'தேதி',
@@ -39,6 +40,7 @@ export async function generateBuyerReceiptCanvas({
         total = 'தொகை',
         grandTotalLabel = 'மொத்த பாக்கி',
         sNo = 'வ.எண்',
+        salesLabel = 'SALES',
     } = labels;
 
     const W       = 800;
@@ -60,15 +62,15 @@ export async function generateBuyerReceiptCanvas({
     const displayDate = (iso) => {
         if (!iso) return '';
         const [y, m, d] = iso.split('-');
-        return `${d}/${m}/${y}`;
+        return `${d}-${m}-${y}`;
     };
 
     const runningBalance = prevBalance - paymentsTotal - cashLess;
     const absGrandTotal  = runningBalance + salesTotal;
 
     // ── Calculate Height ──
-    const rowsCount = Math.max(salesItems.length, 12);
-    const H = 1000 + (rowsCount * LINE_H); // Increased for extra info row
+    const rowsCount = salesItems.length;
+    const H = 850 + (rowsCount * LINE_H); // Reduced base height since we don't force empty rows
 
     const canvas  = document.createElement('canvas');
     canvas.width  = W;
@@ -117,7 +119,7 @@ export async function generateBuyerReceiptCanvas({
     // 3. Sales | Date Row
     rect(PAD, y, W - PAD*2, 45);
     drawText(`${date} : ${dateLabel}`, PAD + 10, y + 22, { size: 22, weight: '800' });
-    drawText('SALES', W - PAD - 10, y + 22, { size: 22, weight: '800', align: 'right' });
+    drawText(salesLabel, W - PAD - 10, y + 22, { size: 22, weight: '800', align: 'right' });
     y += 45;
 
     // 4. Customer & Balance Box
@@ -176,9 +178,9 @@ export async function generateBuyerReceiptCanvas({
         const item = salesItems[i];
         const rowY = y + 20;
         if (item) {
-            const fName = item.flowerTypeTa || item.flowerType || '';
+            const fName = lang === 'ta' ? (item.flowerTypeTa || item.flowerType) : item.flowerType;
             drawText(String(i + 1), cols[0] + colW[0]/2, rowY, { size: 20, align: 'center' });
-            drawText(fName, cols[1] + 10, rowY, { size: 22, weight: '600' });
+            drawText(fName || '', cols[1] + 10, rowY, { size: 22, weight: '600' });
             drawText(parseFloat(item.quantity).toFixed(3), cols[2] + colW[2]/2, rowY, { size: 20, align: 'center' });
             drawText(fmtNum(item.price), cols[3] + colW[3]/2, rowY, { size: 20, align: 'center' });
             drawText(fmtNum(item.total), W - PAD - 10, rowY, { size: 22, weight: '800', align: 'right' });
@@ -213,7 +215,7 @@ export async function generateBuyerReceiptCanvas({
     rect(PAD, y, W - PAD*2, 60);
     drawText(grandTotalLabel, PAD + 20, y + 30, { size: 28, weight: '900' });
     drawText(fmtNum(absGrandTotal, 2), W - PAD - 20, y + 30, { size: 32, weight: '900', align: 'right' });
-    y += 100;
+    y += 80;
 
     drawText('🌹 நன்றி (Thank You) 🌹', W/2, y, { size: 28, align: 'center' });
 
@@ -236,6 +238,7 @@ export async function generateLedgerCanvas({
     openingBalance = 0,
     bizInfo        = {},
     labels         = {},
+    lang           = 'en',
 }) {
     const {
         date        = 'DATE',
@@ -273,7 +276,7 @@ export async function generateLedgerCanvas({
     const fmtNum = (n, dec = 0) =>
         new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
 
-    const H = 850 + (Math.max(ledgerRows.length, 10) * LINE_H);
+    const H = 750 + (ledgerRows.length * LINE_H);
     const canvas  = document.createElement('canvas');
     canvas.width  = W;
     canvas.height = H;
@@ -375,18 +378,6 @@ export async function generateLedgerCanvas({
         y += LINE_H;
     });
 
-    // Fill remaining space if few rows
-    const minRows = 10;
-    if (ledgerRows.length < minRows) {
-        for (let i = ledgerRows.length; i < minRows; i++) {
-            // Empty grid lines
-            colStarts.forEach((x, j) => {
-                if (j > 0) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + LINE_H); ctx.stroke(); }
-            });
-            ctx.beginPath(); ctx.moveTo(PAD, y + LINE_H); ctx.lineTo(W - PAD, y + LINE_H); ctx.stroke();
-            y += LINE_H;
-        }
-    }
 
     // Outer Table Borders
     rect(PAD, tableStartY, W - PAD*2, y - tableStartY);

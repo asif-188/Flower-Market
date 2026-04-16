@@ -5,6 +5,7 @@ import { subscribeToCollection, db } from '../utils/storage';
 import { doc, getDoc } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import { generateBuyerReceiptCanvas, generateLedgerCanvas } from '../utils/receiptCanvas';
+import WhatsAppIcon from '../components/WhatsAppIcon';
 
 const fmt = (n) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n || 0);
@@ -20,7 +21,7 @@ const displayDate = (iso) => {
     if (!iso) return '';
     const parts = iso.split('-');
     if (parts.length !== 3) return iso;
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
 };
 
 const Reports = () => {
@@ -408,7 +409,8 @@ const Reports = () => {
                     thankYou: '🌹 ' + t('thankYou') + ' 🌹',
                     sNoLabel: t('sNo'),
                     dateLabel: appliedFrom === appliedTo ? displayDate(appliedFrom) : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`,
-                }
+                },
+                lang: lang
             });
 
             const buyerContact = (buyer?.contact || '').replace(/\D/g, '');
@@ -502,7 +504,9 @@ const Reports = () => {
                     total: t('total'),
                     grandTotalLabel: t('finalBalance'),
                     sNo: t('sNo'),
-                }
+                    salesLabel: t('sales'),
+                },
+                lang: lang
             });
 
             // Try native share (mobile) first, else open image
@@ -592,7 +596,7 @@ const Reports = () => {
                 <div style={{ padding: '6px 14px', background: '#f8fafc', borderRadius: '100px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#16a34a' }} />
                     <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)' }}>
-                        {appliedFrom === appliedTo ? appliedFrom : `${appliedFrom} — ${appliedTo}`}
+                        {appliedFrom === appliedTo ? displayDate(appliedFrom) : `${displayDate(appliedFrom)} — ${displayDate(appliedTo)}`}
                     </span>
                 </div>
 
@@ -646,7 +650,7 @@ const Reports = () => {
                     onMouseEnter={e => { e.currentTarget.style.background = '#22c55e'; e.currentTarget.style.color = '#fff'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#22c55e'; }}
                 >
-                    <MessageCircle size={16} />
+                    <WhatsAppIcon size={16} />
                 </button>
 
                 {/* Excel / Bar chart */}
@@ -756,7 +760,7 @@ const Reports = () => {
                                             >
                                                 {sharingRowId === row.id
                                                     ? <div style={{ width:'14px', height:'14px', border:'2px solid #22c55e33', borderTopColor:'#22c55e', borderRadius:'50%', animation:'spin 0.7s linear infinite' }} />
-                                                    : <MessageCircle size={14} />
+                                                    : <WhatsAppIcon size={14} />
                                                 }
                                             </button>
                                         </div>
@@ -886,7 +890,7 @@ const Reports = () => {
                                                             runningBal = runningBal + it.total - it.credit - it.less;
                                                             return (
                                                                 <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                                    <td style={{ padding: '8px' }}>{it.date.split('-').reverse().join('/')}</td>
+                                                                    <td style={{ padding: '8px' }}>{displayDate(it.date)}</td>
                                                                     <td style={{ padding: '8px', fontWeight: 600 }}>{it.desc}</td>
                                                                     <td style={{ padding: '8px', textAlign: 'right' }}>{it.qty > 0 ? parseFloat(it.qty).toFixed(3) : '—'}</td>
                                                                     <td style={{ padding: '8px', textAlign: 'right' }}>{it.price > 0 ? it.price : '—'}</td>

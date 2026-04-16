@@ -58,7 +58,11 @@ const Payments = () => {
 
     useEffect(() => {
         const u1 = subscribeToCollection('payments', (data) =>
-            setPayments(data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))));
+            setPayments(data.sort((a, b) => {
+                const dA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+                const dB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
+                return dB - dA;
+            })));
         const u2 = subscribeToCollection('buyers', setBuyers);
         const u3 = subscribeToCollection('farmers', setFarmers);
         return () => { u1(); u2(); u3(); };
@@ -109,9 +113,10 @@ const Payments = () => {
 
     const fmt = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
 
-    const formatDate = (iso) => {
-        if (!iso) return '—';
-        const d = new Date(iso);
+    const formatDate = (ts) => {
+        if (!ts) return '—';
+        const d = ts.toDate ? ts.toDate() : new Date(ts);
+        if (isNaN(d.getTime())) return '—';
         return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
     };
 
