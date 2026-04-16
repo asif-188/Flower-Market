@@ -188,8 +188,9 @@ const SalesEntry = () => {
         // Let's simplify: Today's live final balance is simply consumer.balance
         const finalBalance = buyer.balance || 0;
         const oldBalance = finalBalance - todayTotal + cashRec + cashLess;
+        const ledgerBalance = oldBalance - cashRec - cashLess;
 
-        return { oldBalance, cashRec, cashLess, todayTotal, finalBalance };
+        return { oldBalance, cashRec, cashLess, todayTotal, finalBalance, ledgerBalance };
     }, [buyers, buyerId, todayEntries, allPayments, date]);
 
     const handleAddItem = async () => {
@@ -361,27 +362,29 @@ const SalesEntry = () => {
                         border: '1.5px solid #e2e8f0', 
                         borderRadius: '16px', 
                         padding: '16px 20px', 
-                        minWidth: '240px',
+                        minWidth: '260px',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '6px'
                     }}>
-                        {[
-                            { label: t('oldBalance'), val: financialStats.oldBalance, color: '#64748b', valColor: '#1e293b' },
-                            { label: t('cashRec'), val: financialStats.cashRec, color: '#64748b', valColor: '#3b82f6' },
-                            { label: t('cashLess'), val: financialStats.cashLess, color: '#64748b', valColor: '#ef4444' },
-                        ].map((s, i) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '10px', fontWeight: 700, color: s.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</span>
-                                <span style={{ fontSize: '14px', fontWeight: 700, color: s.valColor }}>{fmt(s.val)}</span>
-                            </div>
-                        ))}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>{t('oldBalance')}</span>
+                            <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>{fmt(financialStats.oldBalance)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#3b82f6', textTransform: 'uppercase' }}>{t('cashRec')} (-)</span>
+                            <span style={{ fontSize: '15px', fontWeight: 700, color: '#3b82f6' }}>{fmt(financialStats.cashRec)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#ef4444', textTransform: 'uppercase' }}>{t('cashLess')} (-)</span>
+                            <span style={{ fontSize: '15px', fontWeight: 700, color: '#ef4444' }}>{fmt(financialStats.cashLess)}</span>
+                        </div>
                         
                         <div style={{ height: '1.5px', background: '#e2e8f0', margin: '4px 0' }} />
                         
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontSize: '11px', fontWeight: 800, color: '#16a34a', textTransform: 'uppercase' }}>{t('balance')}</span>
-                            <span style={{ fontSize: '20px', fontWeight: 900, color: '#16a34a' }}>{fmt(financialStats.finalBalance)}</span>
+                            <span style={{ fontSize: '20px', fontWeight: 900, color: '#16a34a' }}>{fmt(financialStats.ledgerBalance)}</span>
                         </div>
                     </div>
                 </div>
@@ -520,18 +523,28 @@ const SalesEntry = () => {
             </div>
             
             {/* ── Floating Grand Total Bar ── */}
-            <div style={{ position: 'sticky', bottom: '20px', background: '#1e293b', borderRadius: '16px', padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.2)', zIndex: 100 }}>
-                <div>
-                     <span style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                        {t('totalQuantity')}
-                    </span>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: '#fff' }}>
-                        {todayEntries.reduce((s, e) => s + parseFloat(e.items[0]?.quantity || 0), 0).toFixed(1)}
+            <div style={{ position: 'sticky', bottom: '20px', background: '#1e293b', borderRadius: '16px', padding: '16px 32px', display: 'flex', gap: '30px', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.2)', zIndex: 100 }}>
+                <div style={{ display: 'flex', gap: '40px' }}>
+                    <div>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                            {t('totalQuantity')}
+                        </span>
+                        <div style={{ fontSize: '20px', fontWeight: 800, color: '#fff' }}>
+                            {todayEntries.reduce((s, e) => s + parseFloat(e.items[0]?.quantity || 0), 0).toFixed(1)}
+                        </div>
+                    </div>
+                    <div>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                            {t('todayTotal')}
+                        </span>
+                        <div style={{ fontSize: '20px', fontWeight: 800, color: '#3b82f6' }}>
+                            {fmt(financialStats.todayTotal)}
+                        </div>
                     </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                     <span style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                        {t('grandTotal')} ({t('balance')} + {t('todayTotal')})
+                        {t('net')} {t('finalBalance')} ({t('balance')} + {t('todayTotal')})
                     </span>
                     <div style={{ fontSize: '28px', fontWeight: 900, color: '#10b981' }}>
                         {fmt(financialStats.finalBalance)}
