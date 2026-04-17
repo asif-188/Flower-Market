@@ -81,7 +81,7 @@ export async function generateBuyerReceiptCanvas({
     ctx.fillRect(0, 0, W, H);
 
     const drawText = (str, x, y, { size = 22, weight = 'normal', align = 'left', color = '#000' } = {}) => {
-        ctx.font         = `${weight} ${size}px serif`;
+        ctx.font         = `${weight} ${size}px sans-serif`;
         ctx.fillStyle    = color;
         ctx.textAlign    = align;
         ctx.textBaseline = 'middle';
@@ -286,7 +286,7 @@ export async function generateLedgerCanvas({
     ctx.fillRect(0, 0, W, H);
 
     const drawText = (str, x, y, { size = 20, weight = 'normal', align = 'left', color = '#000' } = {}) => {
-        ctx.font         = `${weight} ${size}px serif`;
+        ctx.font         = `${weight} ${size}px sans-serif`;
         ctx.fillStyle    = color;
         ctx.textAlign    = align;
         ctx.textBaseline = 'middle';
@@ -336,15 +336,15 @@ export async function generateLedgerCanvas({
     y += 2;
 
     // Table Setup
-    const colStarts = [PAD, PAD+80, PAD+285, PAD+365, PAD+445, PAD+535, PAD+635];
-    const colWidths = [80, 205, 80, 80, 90, 100, 85];
+    const colStarts = [PAD, PAD+60, PAD+220, PAD+280, PAD+340, PAD+430, PAD+585];
+    const colWidths = [60, 160, 60, 60, 90, 155, 135];
     const colHeaders = [sNoLabel, particulars, weight, rate, total, cashRec, cashLess];
 
     // Header Row
     rect(PAD, y, W - PAD*2, 40);
     colHeaders.forEach((lab, i) => {
         const x = colStarts[i] + colWidths[i]/2;
-        drawText(lab, x, y + 20, { size: 16, weight: '800', align: 'center' });
+        drawText(lab, x, y + 20, { size: 12, weight: '800', align: 'center' });
         if (i > 0) { ctx.beginPath(); ctx.moveTo(colStarts[i], y); ctx.lineTo(colStarts[i], y + 40); ctx.stroke(); }
     });
     y += 40;
@@ -363,7 +363,7 @@ export async function generateLedgerCanvas({
             if (i === 0 || i === 2 || i === 3) { x = colStarts[i] + colWidths[i]/2; align = 'center'; }
 
             const displayVal = (i === 0 && isOpening) ? '' : String(v || (i >= 2 && !isOpening ? '0' : ''));
-            drawText(displayVal, x, rowY + LINE_H/2, { size: 16, align, weight: isOpening ? '700' : 'normal' });
+            drawText(displayVal, x, rowY + LINE_H/2, { size: 13, align, weight: isOpening ? '700' : 'normal' });
             if (i > 0) { ctx.beginPath(); ctx.moveTo(colStarts[i], rowY); ctx.lineTo(colStarts[i], rowY + LINE_H); ctx.stroke(); }
         });
         ctx.beginPath(); ctx.moveTo(PAD, rowY + LINE_H); ctx.lineTo(W - PAD, rowY + LINE_H); ctx.stroke();
@@ -411,6 +411,209 @@ export async function generateLedgerCanvas({
 
     // Footer
     drawText(thankYou, W/2, y, { size: 24, align: 'center' });
+
+    return new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+            resolve({ blob, url: URL.createObjectURL(blob) });
+        }, 'image/png');
+    });
+}
+
+export async function generatePaymentReceiptCanvas({
+    entity,
+    payment,
+    bizInfo = {},
+    labels  = {},
+    lang    = 'en'
+}) {
+    const {
+        dateLabel = 'தேதி',
+        nameLabel = 'பெயர்',
+        amountLabel = 'தொகை',
+        notesLabel = 'விபரம்',
+        paymentReceipt = 'பணம் பெற்றுக் கொண்டமைக்கான ரசீது',
+        thankYou = '🌹 நன்றி 🌹'
+    } = labels;
+
+    const W = 800;
+    const H = 600;
+    const PAD = 50;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+
+    const {
+        motto = 'SRI RAMA JAYAM',
+        name = 'S.V.M',
+        type = 'SRI VALLI FLOWER MERCHANT',
+        address = 'B-7, FLOWER MARKET, TINDIVANAM.',
+        phone1 = '9443247771',
+        phone2 = '9952535057',
+    } = bizInfo;
+
+    const drawText = (str, x, y, { size = 22, weight = 'normal', align = 'left', color = '#000' } = {}) => {
+        ctx.font = `${weight} ${size}px sans-serif`;
+        ctx.fillStyle = color;
+        ctx.textAlign = align;
+        ctx.textBaseline = 'middle';
+        ctx.fillText(str || '', x, y);
+    };
+
+    let y = 50;
+    drawText(motto, W/2, y, { size: 24, weight: '600', align: 'center' });
+    y += 60;
+
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(PAD, y, W - PAD*2, 140);
+    drawText(name, W/2, y + 45, { size: 52, weight: '900', align: 'center' });
+    drawText(type, W/2, y + 90, { size: 24, weight: '700', align: 'center' });
+    drawText(address, W/2, y + 120, { size: 20, align: 'center' });
+    y += 160;
+
+    drawText(paymentReceipt, W/2, y, { size: 24, weight: '800', align: 'center', color: '#1e293b' });
+    y += 50;
+
+    ctx.lineWidth = 1;
+    ctx.strokeRect(PAD, y, W - PAD*2, 210);
+    
+    const drawRow = (ly, label, value, isLast = false) => {
+        drawText(label, PAD + 20, ly + 35, { size: 22, weight: '700' });
+        drawText(`:  ${value}`, PAD + 250, ly + 35, { size: 22, weight: '800' });
+        if (!isLast) {
+            ctx.beginPath(); ctx.moveTo(PAD, ly + 70); ctx.lineTo(W - PAD, ly + 70); ctx.stroke();
+        }
+    };
+
+    const dArr = (payment.date || '').split('-');
+    const displayDate = dArr.length === 3 ? `${dArr[2]}-${dArr[1]}-${dArr[0]}` : payment.date;
+
+    drawRow(y, dateLabel, displayDate);
+    drawRow(y + 70, nameLabel, (entity.nameTa && lang === 'ta') ? entity.nameTa : entity.name);
+    drawRow(y + 140, amountLabel, `Rs. ${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(payment.amount)}`, true);
+    
+    y += 260;
+    drawText(thankYou, W/2, y, { size: 28, align: 'center' });
+
+    return new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+            resolve({ blob, url: URL.createObjectURL(blob) });
+        }, 'image/png');
+    });
+}
+
+export async function generatePurchaseReceiptCanvas({
+    entity, // vendor
+    purchase, // { date, grandTotal, items: [...] }
+    bizInfo = {},
+    labels  = {},
+    lang    = 'en'
+}) {
+    const {
+        dateLabel = 'தேதி',
+        vendorLabel = 'விற்பனையாளர்',
+        totalLabel = 'மொத்த தொகை',
+        purchaseReceipt = 'கொள்முதல் ரசீது',
+        particulars = 'விவரம்',
+        qty = 'அளவு',
+        rate = 'விலை',
+        amount = 'தொகை',
+        thankYou = '🌹 நன்றி 🌹'
+    } = labels;
+
+    const W = 800;
+    const H = 800;
+    const PAD = 50;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+
+    const {
+        motto = 'SRI RAMA JAYAM',
+        name = 'S.V.M',
+        type = 'SRI VALLI FLOWER MERCHANT',
+        address = 'B-7, FLOWER MARKET, TINDIVANAM.',
+        phone1 = '9443247771',
+        phone2 = '9952535057',
+    } = bizInfo;
+
+    const drawText = (str, x, y, { size = 22, weight = 'normal', align = 'left', color = '#000' } = {}) => {
+        ctx.font = `${weight} ${size}px sans-serif`;
+        ctx.fillStyle = color;
+        ctx.textAlign = align;
+        ctx.textBaseline = 'middle';
+        ctx.fillText(str || '', x, y);
+    };
+
+    let y = 50;
+    drawText(motto, W/2, y, { size: 24, weight: '600', align: 'center' });
+    y += 60;
+
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(PAD, y, W - PAD*2, 140);
+    drawText(name, W/2, y + 45, { size: 52, weight: '900', align: 'center' });
+    drawText(type, W/2, y + 90, { size: 24, weight: '700', align: 'center' });
+    drawText(address, W/2, y + 120, { size: 20, align: 'center' });
+    y += 180;
+
+    drawText(purchaseReceipt, W/2, y, { size: 26, weight: '800', align: 'center', color: '#1e293b' });
+    y += 60;
+
+    const dArr = (purchase.date || '').split('-');
+    const displayDate = dArr.length === 3 ? `${dArr[2]}-${dArr[1]}-${dArr[0]}` : purchase.date;
+
+    drawText(`${dateLabel}: ${displayDate}`, PAD, y, { size: 22, weight: '600' });
+    y += 40;
+    drawText(`${vendorLabel}: ${ (entity.nameTa && lang === 'ta') ? entity.nameTa : entity.name }`, PAD, y, { size: 22, weight: '600' });
+    y += 60;
+
+    function fmtNum(n) { return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(n); }
+
+    // Table Header
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(PAD, y, W - PAD*2, 40);
+    ctx.strokeRect(PAD, y, W - PAD*2, 40);
+    
+    drawText(particulars, PAD + 10, y + 20, { size: 18, weight: '700' });
+    drawText(qty, PAD + 350, y + 20, { size: 18, weight: '700', align: 'center' });
+    drawText(rate, PAD + 480, y + 20, { size: 18, weight: '700', align: 'center' });
+    drawText(amount, W - PAD - 10, y + 20, { size: 18, weight: '700', align: 'right' });
+    y += 40;
+
+    // Table Rows
+    const items = purchase.items || [];
+    items.forEach((item, idx) => {
+        const itemY = y + (idx * 40);
+        ctx.strokeRect(PAD, itemY, W - PAD*2, 40);
+        
+        const flowerName = (item.flowerTypeTa && lang === 'ta') ? item.flowerTypeTa : item.flowerType;
+        drawText(flowerName, PAD + 10, itemY + 20, { size: 18 });
+        drawText(item.quantity?.toString(), PAD + 350, itemY + 20, { size: 18, align: 'center' });
+        drawText(item.price?.toString(), PAD + 480, itemY + 20, { size: 18, align: 'center' });
+        drawText(fmtNum(item.total), W - PAD - 10, itemY + 20, { size: 18, weight: '700', align: 'right' });
+    });
+    
+    y += items.length * 40;
+    y += 20;
+
+    // Total
+    ctx.strokeRect(PAD, y, W - PAD*2, 50);
+    drawText(totalLabel, PAD + 10, y + 25, { size: 22, weight: '800' });
+    drawText(fmtNum(purchase.grandTotal), W - PAD - 10, y + 25, { size: 22, weight: '900', align: 'right' });
+
+    y += 100;
+    drawText(thankYou, W/2, y, { size: 28, align: 'center' });
 
     return new Promise((resolve) => {
         canvas.toBlob((blob) => {

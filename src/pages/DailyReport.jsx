@@ -22,6 +22,7 @@ const DailyReport = () => {
     const [sales, setSales]       = useState([]);
     const [buyers, setBuyers]     = useState([]);
     const [payments, setPayments] = useState([]);
+    const [outsidePurchases, setOutsidePurchases] = useState([]);
     const [search, setSearch]     = useState('');
     const [isEntryMode, setIsEntryMode] = useState(false);
     const [tempAmounts, setTempAmounts] = useState({});
@@ -31,7 +32,8 @@ const DailyReport = () => {
         const u1 = subscribeToCollection('sales',    setSales);
         const u2 = subscribeToCollection('buyers',   setBuyers);
         const u3 = subscribeToCollection('payments', setPayments);
-        return () => { u1(); u2(); u3(); };
+        const u4 = subscribeToCollection('outside_purchases', setOutsidePurchases, true);
+        return () => { u1(); u2(); u3(); u4(); };
     }, []);
 
     const reportData = useMemo(() => {
@@ -74,8 +76,17 @@ const DailyReport = () => {
         const l = reportData.reduce((acc, r) => acc + r.less, 0);
         const b = reportData.reduce((acc, r) => acc + r.balance, 0);
         const o = b - s + (p + l);
-        return { sales: s, paid: p, less: l, end: b, open: o };
-    }, [reportData]);
+        
+        const pur = outsidePurchases
+            .filter(pur => pur.date === today)
+            .reduce((acc, p) => acc + (p.grandTotal || 0), 0);
+        
+        const vendorPaid = payments
+            .filter(p => p.type === 'vendor' && p.date === today)
+            .reduce((acc, p) => acc + (p.amount || 0), 0);
+
+        return { sales: s, paid: p, less: l, end: b, open: o, purchases: pur, vendorPaid };
+    }, [reportData, outsidePurchases, payments, today]);
 
     const handleSaveCollections = async () => {
         const entries = Object.entries(tempAmounts).filter(([_, data]) => 
@@ -175,11 +186,13 @@ const DailyReport = () => {
                     <div class="summary-row"><span>${t('cashRec')} :</span> <span>${totals.paid.toFixed(2)}</span></div>
                     <div class="summary-row"><span>${t('cashLess')} :</span> <span>${totals.less.toFixed(2)}</span></div>
                     <div class="summary-row"><span>${t('todayTotal')} :</span> <span>${totals.sales.toFixed(2)}</span></div>
+                    <div class="summary-row" style="color: #666; font-size: 18px;"><span>${t('outsidePurchase')} :</span> <span>${totals.purchases.toFixed(2)}</span></div>
+                    <div class="summary-row" style="color: #666; font-size: 18px;"><span>Vendor Paid :</span> <span>${totals.vendorPaid.toFixed(2)}</span></div>
                     <div class="summary-row grand" style="background: #f0f0f0; padding: 10px;">
                         <span>${t('grandTotal')} :</span> <span>${totals.end.toFixed(2)}</span>
                     </div>
                     <div style="font-size: 12px; margin-top: 10px; font-style: italic; color: #666;">
-                        * Formula: Opening Balance - Cash Receive + Today's Sales = Grand Total
+                        * Formula: Opening Balance - Cash Receive + Today's Sales = Grand Total (Buyer Balances)
                     </div>
                 </div>
             </body>
@@ -255,8 +268,16 @@ const DailyReport = () => {
                         <div style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>{t('todayTotal')}</div>
                         <div style={{ fontSize: '24px', fontWeight: 800, color: '#3b82f6' }}>+ {fmt(totals.sales)}</div>
                     </div>
+                    <div>
+                        <div style={{ color: '#f87171', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>{t('purchase')}</div>
+                        <div style={{ fontSize: '24px', fontWeight: 800, color: '#ef4444' }}>{fmt(totals.purchases)}</div>
+                    </div>
+                    <div>
+                        <div style={{ color: '#a78bfa', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Vendor Paid</div>
+                        <div style={{ fontSize: '24px', fontWeight: 800, color: '#a78bfa' }}>{fmt(totals.vendorPaid)}</div>
+                    </div>
                     <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '12px 20px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                        <div style={{ color: '#fbbf24', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>{t('grandTotal')}</div>
+                        <div style={{ color: '#fbbf24', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Buyer Balance</div>
                         <div style={{ fontSize: '28px', fontWeight: 900, color: '#fbbf24' }}>{fmt(totals.end)}</div>
                     </div>
                 </div>

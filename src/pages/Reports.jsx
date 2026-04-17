@@ -32,6 +32,8 @@ const Reports = () => {
     const [buyers, setBuyers]     = useState([]);
     const [payments, setPayments] = useState([]);
     const [products, setProducts] = useState([]);
+    const [outsidePurchases, setOutsidePurchases] = useState([]);
+    const [vendors, setVendors] = useState([]);
 
     const [fromDate, setFromDate]         = useState(today);
     const [toDate, setToDate]             = useState(today);
@@ -57,7 +59,9 @@ const Reports = () => {
         const u2 = subscribeToCollection('buyers',   setBuyers);
         const u3 = subscribeToCollection('payments', setPayments);
         const u4 = subscribeToCollection('products', setProducts);
-        return () => { u1(); u2(); u3(); u4(); };
+        const u5 = subscribeToCollection('outside_purchases', setOutsidePurchases, true);
+        const u6 = subscribeToCollection('vendors', setVendors, true);
+        return () => { u1(); u2(); u3(); u4(); u5(); u6(); };
     }, []);
 
     const applyPreset = (preset) => {
@@ -129,6 +133,23 @@ const Reports = () => {
         return rows.filter(r => r.sales > 0 || r.paid > 0 || r.less > 0 || r.opening !== 0 || r.balance !== 0)
                    .sort((a, b) => b.sales - a.sales);
     }, [sales, payments, buyers, appliedFrom, appliedTo]);
+    
+    const vendorStats = useMemo(() => {
+        const periodPurchases = outsidePurchases.filter(p => {
+            const dt = p.date || (p.timestamp?.toDate ? toDateStr(p.timestamp.toDate()) : null);
+            return dt && dt >= appliedFrom && dt <= appliedTo;
+        });
+        const periodPayments = payments.filter(p => {
+            if (p.type !== 'vendor') return false;
+            const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+            return dt && dt >= appliedFrom && dt <= appliedTo;
+        });
+
+        return {
+            purchases: periodPurchases.reduce((acc, p) => acc + (p.grandTotal || 0), 0),
+            paid: periodPayments.reduce((acc, p) => acc + (p.amount || 0), 0)
+        };
+    }, [outsidePurchases, payments, appliedFrom, appliedTo]);
 
     const totalOpening = report.reduce((s, r) => s + r.opening, 0);
     const totalSales   = report.reduce((s, r) => s + r.sales, 0);
@@ -576,6 +597,8 @@ const Reports = () => {
         { label: t('sales'), value: totalSales, accent: '#3b82f6', textColor: '#1d4ed8', bg: '#eff6ff' },
         { label: t('paid'), value: totalPaid, accent: '#10b981', textColor: '#15803d', bg: '#f0fdf4' },
         { label: t('cashLess'), value: totalLess, accent: '#f59e0b', textColor: '#9a3412', bg: '#fff7ed' },
+        { label: t('purchase'), value: vendorStats.purchases, accent: '#d97706', textColor: '#92400e', bg: '#fffbeb' },
+        { label: 'Vendor Paid', value: vendorStats.paid, accent: '#a78bfa', textColor: '#5b21b6', bg: '#f5f3ff' },
         { label: t('dues'), value: totalDues, accent: '#ef4444', textColor: '#991b1b', bg: '#fef2f2' },
     ];
 

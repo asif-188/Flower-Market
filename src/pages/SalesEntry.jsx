@@ -158,11 +158,12 @@ const SalesEntry = () => {
 
     // Filter today's transactions for the selected customer
     const todayEntries = React.useMemo(() => {
-        if (!buyerId) return [];
         return allSales.filter(s => {
-            if (s.buyerId !== buyerId) return false;
             const d = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-            return d === date;
+            if (d !== date) return false;
+            // If buyerId is selected, filter by it. Otherwise, show all.
+            if (buyerId && s.buyerId !== buyerId) return false;
+            return true;
         }).sort((a, b) => {
             const tA = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
             const tB = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
@@ -457,6 +458,8 @@ const SalesEntry = () => {
                         <thead>
                             <tr style={{ background: '#fff', borderBottom: '1.5px solid #f1f5f9' }}>
                                 <th style={TH_S}><Clock size={12} style={{marginRight: '6px'}}/>{t('time')}</th>
+                                <th style={TH_S}>{t('customerId')}</th>
+                                <th style={TH_S}>{t('customerName')}</th>
                                 <th style={TH_S}>{t('flower')}</th>
                                 <th style={{...TH_S, textAlign: 'center'}}>{t('qty')}</th>
                                 <th style={{...TH_S, textAlign: 'center'}}>{t('rate')}</th>
@@ -467,21 +470,31 @@ const SalesEntry = () => {
                         <tbody>
                             {todayEntries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} style={{ padding: '60px 20px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '14px' }}>
+                                    <td colSpan={8} style={{ padding: '60px 20px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '14px' }}>
                                         {t('noItemsYet')}
                                     </td>
                                 </tr>
                             ) : (
-                                todayEntries.map((sale, idx) => (
-                                    <tr key={sale.id} style={{ borderBottom: '1px solid #f8fafc', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
-                                        <td style={TD_S}>
-                                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
-                                                {formatTime(sale.timestamp)}
-                                            </span>
-                                        </td>
-                                        <td style={{...TD_S, fontWeight: 700, color: '#16a34a'}}>
-                                            {lang === 'ta' ? (sale.items[0]?.flowerTypeTa || sale.items[0]?.flowerType) : sale.items[0]?.flowerType}
-                                        </td>
+                                todayEntries.map((sale, idx) => {
+                                    const buyer = buyers.find(b => b.id === sale.buyerId);
+                                    return (
+                                        <tr key={sale.id} style={{ borderBottom: '1px solid #f8fafc', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
+                                            <td style={TD_S}>
+                                                <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
+                                                    {formatTime(sale.timestamp)}
+                                                </span>
+                                            </td>
+                                            <td style={TD_S}>
+                                                <span style={{ fontSize: '12px', fontWeight: 800, color: '#16a34a', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '3px 10px', borderRadius: '8px' }}>
+                                                    #{buyer?.displayId || '---'}
+                                                </span>
+                                            </td>
+                                            <td style={{...TD_S, fontWeight: 700, color: '#334155'}}>
+                                                {buyer ? (lang === 'ta' ? (buyer.nameTa || buyer.name) : buyer.name) : (sale.buyerName || '---')}
+                                            </td>
+                                            <td style={{...TD_S, fontWeight: 700, color: '#16a34a'}}>
+                                                {lang === 'ta' ? (sale.items[0]?.flowerTypeTa || sale.items[0]?.flowerType) : sale.items[0]?.flowerType}
+                                            </td>
                                         <td style={{...TD_S, textAlign: 'center', color: '#64748b', fontWeight: 600}}>
                                             {sale.items[0]?.quantity}
                                         </td>
@@ -506,13 +519,14 @@ const SalesEntry = () => {
                                             </div>
                                         </td>
                                     </tr>
-                                ))
+                                    );
+                                })
                             )}
                         </tbody>
                         {todayEntries.length > 0 && (
                             <tfoot>
                                 <tr style={{ background: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
-                                    <td colSpan={4} style={{...TD_S, textAlign: 'right', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', fontSize: '12px'}}>{t('todayTotal')}</td>
+                                    <td colSpan={6} style={{...TD_S, textAlign: 'right', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', fontSize: '12px'}}>{t('todayTotal')}</td>
                                     <td style={{...TD_S, textAlign: 'right', fontWeight: 900, fontSize: '18px', color: '#16a34a'}}>{fmt(financialStats.todayTotal)}</td>
                                     <td></td>
                                 </tr>
