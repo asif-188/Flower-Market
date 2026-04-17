@@ -234,12 +234,18 @@ const OutsideShop = () => {
     const stats = useMemo(() => {
         const vendor = vendors.find(v => v.id === vendorId);
         const todayTot = todayPurchases.reduce((acc, p) => acc + (p.grandTotal || 0), 0);
+        
+        let todayPayFiltered = payments.filter(p => p.date === date && p.type === 'vendor');
+        if (vendorId) {
+            todayPayFiltered = todayPayFiltered.filter(p => p.entityId === vendorId);
+        }
+
         return {
             todayTotal: todayTot,
-            cashPaid: todayPurchases.reduce((acc, p) => acc + (p.cashPaid || 0), 0),
+            cashPaid: todayPayFiltered.reduce((acc, p) => acc + (p.amount || 0), 0),
             vendorBalance: vendor?.balance || 0
         };
-    }, [todayPurchases, vendors, vendorId]);
+    }, [todayPurchases, payments, vendors, vendorId, date]);
 
     // Handlers
     const handleSavePurchase = async () => {
@@ -339,7 +345,7 @@ const OutsideShop = () => {
 
         const { url } = await generatePurchaseReceiptCanvas({ entity: vendor, purchase: p, bizInfo, labels, lang });
         const win = window.open('', '_blank');
-        win.document.write(`<html><body style="margin:0;display:flex;justify-content:center;background:#f0f0f0;"><img src="${url}" style="max-width:100%;"></body></html>`);
+        win.document.write(`<html><head><style>@media print{body{margin:0}}body{margin:0;display:flex;justify-content:center;align-items:flex-start;background:#fff}img{max-width:100%;height:auto}</style></head><body><img src="${url}"><script>window.onload=function(){window.print();}</script></body></html>`);
         win.document.close();
     };
 
@@ -354,7 +360,11 @@ const OutsideShop = () => {
     const handleSaveVendor = async (e) => {
         e.preventDefault();
         try {
-            await saveVendor({ ...vendorForm, id: editingVendor?.id });
+            await saveVendor({ 
+                ...vendorForm, 
+                id: editingVendor?.id,
+                balance: parseFloat(vendorForm.balance) || 0
+            });
             setShowVendorModal(false);
             setVendorForm({ name: '', nameTa: '', contact: '', location: '', displayId: '', balance: 0 });
             setEditingVendor(null);
@@ -470,7 +480,7 @@ const OutsideShop = () => {
 
         const { url } = await generatePaymentReceiptCanvas({ entity: vendor, payment: p, bizInfo, labels, lang });
         const win = window.open('', '_blank');
-        win.document.write(`<html><body style="margin:0;display:flex;justify-content:center;background:#f0f0f0;"><img src="${url}" style="max-width:100%;"></body></html>`);
+        win.document.write(`<html><head><style>@media print{body{margin:0}}body{margin:0;display:flex;justify-content:center;align-items:flex-start;background:#fff}img{max-width:100%;height:auto}</style></head><body><img src="${url}"><script>window.onload=function(){window.print();}</script></body></html>`);
         win.document.close();
     };
 
@@ -525,23 +535,31 @@ const OutsideShop = () => {
                         <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ ...INPUT_S, border: '1.5px solid #ffedd5', width: '150px' }} />
                     </div>
                     <h1 style={{ fontSize: '28px', fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>{t('outsidePurchase').toUpperCase()}</h1>
-                    <div style={{ justifySelf: 'end', background: '#fffbeb', border: '1.5px solid #fed7aa', borderRadius: '16px', padding: '16px 20px', minWidth: '260px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#92400e', textTransform: 'uppercase' }}>
-                                {date === new Date().toLocaleDateString('en-CA') ? t('todayTotal') : t('total')}
-                            </span>
-                            <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>{fmt(stats.todayTotal)}</span>
+                    {vendorId ? (
+                        <div style={{ justifySelf: 'end', background: '#fffbeb', border: '1.5px solid #fed7aa', borderRadius: '16px', padding: '16px 20px', minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 800, color: '#92400e', textTransform: 'uppercase' }}>
+                                    {t('initialDues') || 'Old Balance'}
+                                </span>
+                                <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>
+                                    {fmt(stats.vendorBalance - stats.todayTotal + stats.cashPaid)}
+                                </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 800, color: '#16a34a', textTransform: 'uppercase' }}>{t('cashPaid')}</span>
+                                <span style={{ fontSize: '15px', fontWeight: 700, color: '#16a34a' }}>- {fmt(stats.cashPaid)}</span>
+                            </div>
+                            <div style={{ height: '1.5px', background: '#fed7aa', margin: '4px 0' }} />
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 800, color: '#ef4444', textTransform: 'uppercase' }}>{t('balance')}</span>
+                                <span style={{ fontSize: '18px', fontWeight: 900, color: '#ef4444' }}>{fmt(stats.vendorBalance - stats.todayTotal)}</span>
+                            </div>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#16a34a', textTransform: 'uppercase' }}>{t('cashPaid')}</span>
-                            <span style={{ fontSize: '15px', fontWeight: 700, color: '#16a34a' }}>{fmt(stats.cashPaid)}</span>
+                    ) : (
+                        <div style={{ justifySelf: 'end', background: '#f8fafc', border: '1.5px dashed #e2e8f0', borderRadius: '16px', padding: '16px 20px', minWidth: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>← Select a vendor to view balance</span>
                         </div>
-                        <div style={{ height: '1.5px', background: '#fed7aa', margin: '4px 0' }} />
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#ef4444', textTransform: 'uppercase' }}>{t('balance')}</span>
-                            <span style={{ fontSize: '20px', fontWeight: 900, color: '#ef4444' }}>{fmt(stats.vendorBalance)}</span>
-                        </div>
-                    </div>
+                    )}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', alignItems: 'flex-end' }}>
@@ -668,6 +686,24 @@ const OutsideShop = () => {
                                     <td style={{...TD_S, textAlign: 'right', fontWeight: 900, fontSize: '18px', color: '#d97706'}}>{fmt(stats.todayTotal)}</td>
                                     <td></td>
                                 </tr>
+                                {vendorId && (() => {
+                                    const balance = stats.vendorBalance - stats.todayTotal;
+                                    const grandTotal = stats.vendorBalance;
+                                    return (
+                                        <tr style={{ background: '#dcfce7', borderTop: '2px solid #86efac' }}>
+                                            <td colSpan={6} style={{...TD_S, textAlign: 'right', fontWeight: 800, color: '#14532d', fontSize: '13px'}}>
+                                                {t('grandTotal').toUpperCase()}
+                                                <span style={{ opacity: 0.75, fontWeight: 600, marginLeft: '8px' }}>
+                                                    ({t('balance')} {fmt(balance)} + {t('todayTotal') || "Today's Total"} {fmt(stats.todayTotal)})
+                                                </span>
+                                            </td>
+                                            <td style={{...TD_S, textAlign: 'right', fontWeight: 900, fontSize: '18px', color: '#15803d'}}>
+                                                {fmt(grandTotal)}
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                    );
+                                })()}
                             </tfoot>
                     </table>
                 </div>
@@ -893,7 +929,7 @@ const OutsideShop = () => {
     const renderReports = () => {
         const filteredVendors = reportFilters.vendorId === 'all' ? vendors : vendors.filter(v => v.id === reportFilters.vendorId);
         
-        const handlePrintVendorLedger = async (v) => {
+        const getVendorLedgerData = (v) => {
             const vPurchases = purchases.filter(p => p.vendorId === v.id && p.date >= reportFilters.fromDate && p.date <= reportFilters.toDate);
             const vPayments = payments.filter(p => p.entityId === v.id && p.type === 'vendor' && p.date >= reportFilters.fromDate && p.date <= reportFilters.toDate);
             
@@ -905,15 +941,13 @@ const OutsideShop = () => {
             const openingBalance = (v.balance || 0) - futurePurAmt + futurePayAmt;
 
             const ledgerRows = [];
-            vPurchases.forEach(p => ledgerRows.push({ date: p.date, particulars: `${t('purchase')} - ${p.items?.[0]?.flowerType || ''}`, weight: p.items?.[0]?.quantity || 0, rate: p.items?.[0]?.price || 0, total: p.grandTotal, cashRec: 0, cashLess: 0 }));
+            vPurchases.forEach(p => ledgerRows.push({ date: p.date, particulars: lang === 'ta' ? (p.items?.[0]?.flowerTypeTa || p.items?.[0]?.flowerType || '') : (p.items?.[0]?.flowerType || ''), weight: p.items?.[0]?.quantity || 0, rate: p.items?.[0]?.price || 0, total: p.grandTotal, cashRec: 0, cashLess: 0 }));
             vPayments.forEach(p => ledgerRows.push({ date: p.date, particulars: t('cashPaid') || 'Vendor Payment', weight: 0, rate: 0, total: 0, cashRec: p.amount, cashLess: 0 }));
             ledgerRows.sort((a,b) => a.date.localeCompare(b.date));
 
-            const summary = {
-                sales: vPurchases.reduce((s, x) => s + (x.grandTotal || 0), 0),
-                paid: vPayments.reduce((s, x) => s + (x.amount || 0), 0),
-                less: 0
-            };
+            const totalP = vPurchases.reduce((s, x) => s + (x.grandTotal || 0), 0);
+            const totalPaid = vPayments.reduce((s, x) => s + (x.amount || 0), 0);
+            const summary = { sales: totalP, paid: totalPaid, less: 0 };
 
             const labels = {
                 date: t('date'), particulars: t('particulars'), weight: t('weight'), rate: t('rate'), total: t('total'), 
@@ -924,14 +958,28 @@ const OutsideShop = () => {
                 cashRecLabel: (lang === 'ta' ? 'செலுத்திய தொகை :' : 'Total Paid :'),
                 cashLessLabel: (lang === 'ta' ? 'சரிகட்டுதல் :' : 'Adjustments :'),
                 finalBalLabel: t('balance') + ' :', thankYou: '🌹 Poovanam 🌹', sNoLabel: t('sNo') || 'S.No',
-                dateLabel: `${reportFilters.fromDate} to ${reportFilters.toDate}`
+                dateLabel: `${reportFilters.fromDate.split('-').reverse().join('-')} to ${reportFilters.toDate.split('-').reverse().join('-')}`
             };
 
-            const shareData = { buyer: { ...v, displayId: `V${v.displayId}`, name: lang === 'ta' ? (v.nameTa || v.name) : v.name }, ledgerRows, summary, openingBalance, bizInfo, labels, lang };
-            const { url } = await generateLedgerCanvas(shareData);
+            return { buyer: { ...v, displayId: `V${v.displayId}`, name: lang === 'ta' ? (v.nameTa || v.name) : v.name }, ledgerRows, summary, openingBalance, bizInfo, labels, lang };
+        };
+
+        const handlePrintVendorLedger = async (v) => {
+            const { url } = await generateLedgerCanvas(getVendorLedgerData(v));
             const win = window.open('', '_blank');
-            win.document.write(`<html><body style="margin:0;display:flex;justify-content:center;background:#f0f0f0;"><img src="${url}" style="max-width:100%;box-shadow:0 0 20px rgba(0,0,0,0.2);"></body></html>`);
+            win.document.write(`<html><head><style>@media print{body{margin:0}}body{margin:0;display:flex;justify-content:center;align-items:flex-start;background:#fff}img{max-width:100%;height:auto}</style></head><body><img src="${url}"><script>window.onload=function(){window.print();}</script></body></html>`);
             win.document.close();
+        };
+
+        const handleWhatsAppVendorLedger = async (v) => {
+            const { url, blob } = await generateLedgerCanvas(getVendorLedgerData(v));
+            const file = new File([blob], `statement_${v.displayId}.png`, { type: 'image/png' });
+            if (navigator.share) await navigator.share({ files: [file], title: 'Vendor Statement' });
+            else {
+                const win = window.open('', '_blank');
+                win.document.write(`<html><body style="margin:0;display:flex;justify-content:center;background:#f0f0f0;"><img src="${url}" style="max-width:100%;"></body></html>`);
+                win.document.close();
+            }
         };
 
         return (
@@ -994,27 +1042,7 @@ const OutsideShop = () => {
                                             <td style={{...TD_S, textAlign: 'right', fontWeight: 800, color: v.balance > 0 ? '#ef4444' : '#16a34a'}}>{fmt(v.balance || 0)}</td>
                                             <td style={{...TD_S, textAlign: 'center'}}>
                                                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                                                    <button onClick={async () => {
-                                                        const labels = {
-                                                            date: t('date'), particulars: t('particulars'), weight: t('weight'), rate: t('rate'), total: t('total'), 
-                                                            cashRec: t('cashPaid'), cashLess: t('adjustments') || 'Adjustments', openingBalLabel: t('openingBalance'), 
-                                                            statementTitle: (lang==='ta' ? `${v.nameTa || v.name} அறிக்கை` : `VENDOR STATEMENT - ${v.name}`), 
-                                                            customerNoLabel: t('vendorId') || 'Vendor ID', nameLabel: t('name'),
-                                                            totalSalesLabel: (lang === 'ta' ? 'மொத்த கொள்முதல் :' : 'Total Purchase :'),
-                                                            cashRecLabel: (lang === 'ta' ? 'செலுத்திய தொகை :' : 'Total Paid :'),
-                                                            cashLessLabel: (lang === 'ta' ? 'சரிகட்டுதல் :' : 'Adjustments :'),
-                                                            finalBalLabel: t('balance') + ' :', thankYou: '🌹 Poovanam 🌹', sNoLabel: t('sNo') || 'S.No',
-                                                            dateLabel: `${reportFilters.fromDate} to ${reportFilters.toDate}`
-                                                        };
-                                                        const { url, blob } = await generateLedgerCanvas({ buyer: { ...v, displayId: `V${v.displayId}`, name: lang === 'ta' ? (v.nameTa || v.name) : v.name }, ledgerRows: purchases.filter(p => p.vendorId === v.id && p.date >= reportFilters.fromDate && p.date <= reportFilters.toDate).map(p => ({ date: p.date, particulars: lang==='ta' ? (p.items[0].flowerTypeTa || p.items[0].flowerType) : p.items[0].flowerType, weight: p.items[0].quantity, rate: p.items[0].price, total: p.grandTotal, cashRec: 0 })), summary: { sales: totalP, paid: totalPaid, less: 0 }, openingBalance: (v.balance - (totalP - totalPaid)), bizInfo, labels, lang });
-                                                        const file = new File([blob], `statement_${v.displayId}.png`, { type: 'image/png' });
-                                                        if (navigator.share) await navigator.share({ files: [file], title: 'Vendor Statement' });
-                                                        else {
-                                                            const win = window.open('', '_blank');
-                                                            win.document.write(`<html><body style="margin:0;display:flex;justify-content:center;background:#f0f0f0;"><img src="${url}" style="max-width:100%;"></body></html>`);
-                                                            win.document.close();
-                                                        }
-                                                    }} title="WhatsApp" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #dcfce7', background: '#fff', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                                    <button onClick={() => handleWhatsAppVendorLedger(v)} title="WhatsApp" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #dcfce7', background: '#fff', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                                                         <WhatsAppIcon size={16}/>
                                                     </button>
                                                     <button onClick={() => handlePrintVendorLedger(v)} title="Print Statement" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fff', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -1092,7 +1120,7 @@ const OutsideShop = () => {
                                 <input value={vendorForm.location} onChange={e => setVendorForm(p => ({...p, location: e.target.value}))} style={INPUT_S} placeholder={t('locationPlaceholder')} />
                             </div>
                             <div>
-                                <label style={LABEL_S}>{t('initialDues') || 'Opening Balance'}</label>
+                                <label style={LABEL_S}>{'Old Balance'}</label>
                                 <input type="number" value={vendorForm.balance} onChange={e => setVendorForm(p => ({...p, balance: e.target.value}))} style={INPUT_S} placeholder="0" />
                             </div>
                             <button type="submit" style={{ padding: '12px', background: '#d97706', color: '#fff', borderRadius: '12px', border: 'none', fontWeight: 800, marginTop: '10px', cursor: 'pointer' }}>

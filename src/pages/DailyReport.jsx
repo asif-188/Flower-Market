@@ -187,7 +187,7 @@ const DailyReport = () => {
                     <div class="summary-row"><span>${t('cashLess')} :</span> <span>${totals.less.toFixed(2)}</span></div>
                     <div class="summary-row"><span>${t('todayTotal')} :</span> <span>${totals.sales.toFixed(2)}</span></div>
                     <div class="summary-row" style="color: #666; font-size: 18px;"><span>${t('outsidePurchase')} :</span> <span>${totals.purchases.toFixed(2)}</span></div>
-                    <div class="summary-row" style="color: #666; font-size: 18px;"><span>Vendor Paid :</span> <span>${totals.vendorPaid.toFixed(2)}</span></div>
+
                     <div class="summary-row grand" style="background: #f0f0f0; padding: 10px;">
                         <span>${t('grandTotal')} :</span> <span>${totals.end.toFixed(2)}</span>
                     </div>
@@ -272,10 +272,7 @@ const DailyReport = () => {
                         <div style={{ color: '#f87171', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>{t('purchase')}</div>
                         <div style={{ fontSize: '24px', fontWeight: 800, color: '#ef4444' }}>{fmt(totals.purchases)}</div>
                     </div>
-                    <div>
-                        <div style={{ color: '#a78bfa', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Vendor Paid</div>
-                        <div style={{ fontSize: '24px', fontWeight: 800, color: '#a78bfa' }}>{fmt(totals.vendorPaid)}</div>
-                    </div>
+
                     <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '12px 20px', border: '1px solid rgba(255,255,255,0.1)' }}>
                         <div style={{ color: '#fbbf24', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Buyer Balance</div>
                         <div style={{ fontSize: '28px', fontWeight: 900, color: '#fbbf24' }}>{fmt(totals.end)}</div>
