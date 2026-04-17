@@ -31,6 +31,14 @@ const Dashboard = () => {
                     <div className="text-6xl group-hover:rotate-12 transition-transform">🧾</div>
                     <span className="text-5xl font-black text-indigo-700 tracking-tighter italic">{t('sales')}</span>
                 </button>
+
+                <button
+                    onClick={() => navigate('/app/outside-shop')}
+                    className="group relative overflow-hidden bg-amber-50 border-4 border-amber-100 hover:border-amber-300 p-10 rounded-[40px] shadow-2xl hover:shadow-amber-200 transition-all transform hover:-translate-y-2 active:scale-95 flex items-center justify-center gap-8"
+                >
+                    <div className="text-6xl group-hover:rotate-12 transition-transform">🏘️</div>
+                    <span className="text-5xl font-black text-amber-800 tracking-tighter italic">{t('outsideShop')}</span>
+                </button>
             </div>
 
             <div className="mt-20 flex gap-12 opacity-40 hover:opacity-100 transition-opacity">

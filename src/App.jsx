@@ -17,6 +17,7 @@ import Reports from './pages/Reports';
 import DailyReport from './pages/DailyReport';
 import Flowers from './pages/Flowers';
 import Settings from './pages/Settings';
+import OutsideShop from './pages/OutsideShop';
 
 const ProtectedRoute = ({ children, user, loading }) => {
   if (loading) return (
@@ -70,6 +71,7 @@ function App() {
           <Route path="daily-report" element={<DailyReport />} />
           <Route path="flowers" element={<Flowers />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="outside-shop" element={<OutsideShop />} />
         </Route>
       </Routes>
     </BrowserRouter>

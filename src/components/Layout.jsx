@@ -81,6 +81,7 @@ const strings = {
     oldBalance: 'Old Balance',
     cashRec: 'Cash Rec',
     cashLess: 'Cash Less',
+    adjustments: 'Adjustments',
     todayTotal: "Today's Total",
     dailyReport: 'Daily Report',
     customerNo: 'Customer No',
@@ -98,6 +99,33 @@ const strings = {
     todayLiveEntries: "Today's Live Entries",
     history: 'History',
     delete: 'Delete',
+    outsideShop: 'Outside Shop',
+    vendorName: 'Vendor Name',
+    purchase: 'Purchase',
+    vendorReport: 'Vendor Report',
+    location: 'Location',
+    outsidePurchase: 'Outside Purchase',
+    cashPaid: 'Cash Paid',
+    totalPurchase: 'Total Purchase',
+    vendorId: 'Vendor ID',
+    addVendor: 'Add Vendor',
+    backToMenu: 'Back to Menu',
+    todayPurchases: "Today's Purchases",
+    recordVendorPayment: 'Record Vendor Payment',
+    recentPayments: 'Recent Payments',
+    fromDate: 'From Date',
+    toDate: 'To Date',
+    allVendors: 'All Vendors',
+    statement: 'Statement',
+    editVendor: 'Edit Vendor',
+    englishName: 'English Name',
+    tamilNameOptional: 'Tamil Name (Optional)',
+    locationPlaceholder: 'City/Town',
+    englishNamePlaceholder: 'Vendor name in English',
+    paymentDetailsPlaceholder: 'Payment details...',
+    amount: 'Amount',
+    paymentReceipt: 'Payment Receipt',
+    purchaseReceipt: 'Purchase Receipt',
   },
   ta: {
     back: 'பின்',
@@ -173,6 +201,7 @@ const strings = {
     oldBalance: 'முன் பாக்கி',
     cashRec: 'வரவு',
     cashLess: 'கழி',
+    adjustments: 'சரிகட்டுதல்',
     todayTotal: 'இன்றைய மொத்தம்',
     dailyReport: 'தினசரி அறிக்கை',
     customerNo: 'வாடிக்கையாளர் எண்',
@@ -190,6 +219,33 @@ const strings = {
     todayLiveEntries: 'இன்றைய நேரடி பதிவுகள்',
     history: 'வரலாறு',
     delete: 'நீக்கு',
+    outsideShop: 'வெளிக்கடை',
+    vendorName: 'விற்பனையாளர் பெயர்',
+    purchase: 'கொள்முதல்',
+    vendorReport: 'விற்பனையாளர் அறிக்கை',
+    location: 'இடம்',
+    outsidePurchase: 'வெளிப்புற கொள்முதல்',
+    cashPaid: 'செலுத்திய தொகை',
+    totalPurchase: 'மொத்த கொள்முதல்',
+    vendorId: 'விற்பனையாளர் ஐடி',
+    addVendor: 'விற்பனையாளரைச் சேர்',
+    backToMenu: 'மெனுவுக்குச் செல்',
+    todayPurchases: 'இன்றைய கொள்முதல்',
+    recordVendorPayment: 'கொடுப்பனவு பதிவு',
+    recentPayments: 'சமீபத்திய கொடுப்பனவுகள்',
+    fromDate: 'தொடக்க தேதி',
+    toDate: 'முடிவு தேதி',
+    allVendors: 'அனைத்து விற்பனையாளர்கள்',
+    statement: 'அறிக்கை',
+    editVendor: 'விற்பனையாளர் மாற்றம்',
+    englishName: 'ஆங்கிலப் பெயர்',
+    tamilNameOptional: 'தமிழ் பெயர் (தேவைப்பட்டால்)',
+    locationPlaceholder: 'நகரம்/ஊர்',
+    englishNamePlaceholder: 'ஆங்கிலத்தில் பெயர்',
+    paymentDetailsPlaceholder: 'செலுத்திய விபரம்...',
+    amount: 'தொகை',
+    paymentReceipt: 'பணம் பெற்றுக் கொண்டமைக்கான ரசீது',
+    purchaseReceipt: 'கொள்முதல் ரசீது',
   },
 };
 
@@ -227,6 +283,7 @@ const Layout = () => {
     if (p.includes('/accounts'))     return '/app/dashboard';
     if (p.includes('/sales'))        return '/app/dashboard';
     if (p.includes('/farmer'))       return '/app/dashboard';
+    if (p.includes('/outside-shop')) return '/app/dashboard';
     return '/app/dashboard';
   };
 
@@ -245,6 +302,7 @@ const Layout = () => {
     if (p.includes('/sales'))        return `☘️ ${t('sales')}`;
     if (p.includes('/farmer'))       return `☘️ ${t('farmer')}`;
     if (p.includes('/daily-report')) return `☘️ Sales — ${t('dailyReport')}`;
+    if (p.includes('/outside-shop')) return `☘️ ${t('outsideShop')}`;
     return '';
   };
 
