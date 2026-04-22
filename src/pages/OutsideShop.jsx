@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useContext, useMemo } from 'react';
-import { Trash2, Plus, History, IndianRupee, Save, X, ChevronLeft, Printer, FileText, Search, Download, MessageCircle, Pencil, Users } from 'lucide-react';
+import { Trash2, Plus, History, IndianRupee, Save, X, ChevronLeft, Printer, FileText, Search, Download, MessageCircle, Pencil, Users, Camera, Scan, Upload, FileSpreadsheet, Download as DownloadIcon } from 'lucide-react';
 import { db, subscribeToCollection, saveOutsidePurchase, saveVendor, deleteVendor, getTenant } from '../utils/storage';
 import { doc, updateDoc, increment, serverTimestamp, deleteDoc, collection, addDoc, getDoc } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
+import * as XLSX from 'xlsx';
 import { generateLedgerCanvas, generatePaymentReceiptCanvas, generatePurchaseReceiptCanvas } from '../utils/receiptCanvas';
 import WhatsAppIcon from '../components/WhatsAppIcon';
+import Tesseract from 'tesseract.js';
 
 /* ── Shared Style Tokens (Matching Sales UI) ── */
 const INPUT_S = {
@@ -172,6 +174,17 @@ const OutsideShop = () => {
     const refRate = useRef(null);
     const refPayAmount = useRef(null);
     const refPayNote = useRef(null);
+    const [refFile] = [useRef(null)];
+    const [isScanning, setIsScanning] = useState(false);
+    const [draftItems, setDraftItems] = useState([]);
+    const [scanResults, setScanResults] = useState([]);
+    const [showScanModal, setShowScanModal] = useState(false);
+    const [showBulkModal, setShowBulkModal] = useState(false);
+    const [bulkCount, setBulkCount] = useState(10);
+    const [itemRows, setItemRows] = useState(5);
+    const [bulkMode, setBulkMode] = useState('blank'); // 'blank' or 'filled'
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [viewingVendor, setViewingVendor] = useState(null);
 
     useEffect(() => {
         const u1 = subscribeToCollection('vendors', setVendors, true);
@@ -247,13 +260,304 @@ const OutsideShop = () => {
         };
     }, [todayPurchases, payments, vendors, vendorId, date]);
 
+    // Excel Operations
+    const handleDownloadTemplate = () => {
+        const templateRows = [
+            { 'Vendor Name': 'Vendor Name', 'Flower Name': 'Flower Name', 'Qty': 'Qty', 'Rate': 'Rate', 'Total': 'Total' },
+            { 'Vendor Name': 'EXAMPLE VENDOR', 'Flower Name': 'Malli', 'Qty': 10, 'Rate': 100, 'Total': 1000 },
+            { 'Vendor Name': '', 'Flower Name': 'Mulli', 'Qty': 5, 'Rate': 200, 'Total': 1000 },
+            {},
+            { 'Vendor Name': 'ANOTHER VENDOR', 'Flower Name': 'Rose', 'Qty': 20, 'Rate': 50, 'Total': 1000 }
+        ];
+        const ws = XLSX.utils.json_to_sheet(templateRows, { skipHeader: true });
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'ImportTemplate');
+        XLSX.writeFile(wb, `ImportTemplate.xlsx`);
+    };
+
+    const handleExportToExcel = () => {
+        if (draftItems.length === 0) return alert('No items in list to export!');
+        
+        // Group by vendor (existing logic)
+        const groups = new Map();
+        draftItems.forEach(item => {
+            const vid = item.vendorId || vendorId || 'unknown';
+            if (!groups.has(vid)) groups.set(vid, []);
+            groups.get(vid).push(item);
+        });
+
+        const rows = [];
+        groups.forEach((items, vid) => {
+            const vendor = vendors.find(v => v.id === vid);
+            // Block Header
+            rows.push({
+                'Vendor Name': 'Vendor Name', 'Flower Name': 'Flower Name', 'Qty': 'Qty', 'Rate': 'Rate', 'Total': 'Total'
+            });
+            // Items
+            items.forEach((i, idx) => {
+                rows.push({
+                    'Vendor Name': idx === 0 ? (vendor?.name || 'Unknown') : '',
+                    'Flower Name': i.flowerType,
+                    'Qty': i.quantity,
+                    'Rate': i.price,
+                    'Total': i.total
+                });
+            });
+            rows.push({}); // Empty separator
+        });
+
+        const ws = XLSX.utils.json_to_sheet(rows, { skipHeader: true });
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'PurchaseItems');
+        XLSX.writeFile(wb, `MarketBills_${Date.now()}.xlsx`);
+    };
+
+    const handleImportFromExcel = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            const ab = evt.target.result;
+            const wb = XLSX.read(ab, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const data = XLSX.utils.sheet_to_json(ws);
+            
+            if (data.length === 0) return;
+
+            const vendorGroups = new Map(); // vendorId -> items[]
+            let currentVendorId = null;
+
+            for (const row of data) {
+                const vName = row['Vendor Name'] || row['Vendor'];
+                const fName = row['Flower Name'] || row['Flower'];
+                const qty = parseFloat(row['Qty'] || row['Quantity'] || 0);
+                const rate = parseFloat(row['Rate'] || row['Price'] || 0);
+
+                if (vName) {
+                    const v = vendors.find(vend => 
+                        vend.name.toUpperCase().includes(String(vName).trim().toUpperCase()) ||
+                        (vend.nameTa && vend.nameTa.includes(String(vName).trim()))
+                    );
+                    if (v) currentVendorId = v.id;
+                }
+
+                if (currentVendorId && fName && qty > 0) {
+                    const flower = flowers.find(f => 
+                        f.name.toUpperCase().includes(String(fName).trim().toUpperCase()) ||
+                        (f.taName && f.taName.includes(String(fName).trim()))
+                    );
+                    
+                    const newItem = {
+                        flowerType: flower ? flower.name : String(fName),
+                        flowerTypeTa: flower ? (flower.taName || '') : '',
+                        quantity: qty,
+                        price: rate,
+                        total: qty * rate,
+                        id: Math.random()
+                    };
+
+                    if (!vendorGroups.has(currentVendorId)) vendorGroups.set(currentVendorId, []);
+                    vendorGroups.get(currentVendorId).push(newItem);
+                }
+            }
+
+            if (vendorGroups.size === 0) return alert('No valid data found in Excel.');
+
+            setIsSaving(true);
+            try {
+                let count = 0;
+                for (const [vid, items] of vendorGroups.entries()) {
+                    const vendor = vendors.find(v => v.id === vid);
+                    const grandTotal = items.reduce((s, i) => s + i.total, 0);
+                    
+                    await saveOutsidePurchase({
+                        vendorId: vid,
+                        vendorName: vendor?.name || 'Unknown',
+                        items,
+                        grandTotal,
+                        date: date, // uses current selected date
+                        timestamp: serverTimestamp(),
+                    });
+                    
+                    // Update Vendor Balance
+                    const vRef = doc(db, 'vendors', vid);
+                    await updateDoc(vRef, { 
+                        balance: increment(grandTotal),
+                        lastPurchase: serverTimestamp()
+                    });
+                    count++;
+                }
+                alert(`Successfully imported and saved ${count} bills from Excel!`);
+            } catch (err) {
+                alert('Save Error: ' + err.message);
+            } finally {
+                setIsSaving(false);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        e.target.value = '';
+    };
+
+    // AI Bill Scanning
+    const handleImageScan = async (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+        setIsScanning(true);
+        
+        let allExtractedItems = [];
+        let firstVendorId = null;
+
+        try {
+            const runScan = async (imageSource) => {
+                const { data: { text } } = await Tesseract.recognize(imageSource, 'eng+tam');
+                const cleanText = text.toUpperCase();
+                console.log("Scan Result:", cleanText);
+                
+                const lines = cleanText.split('\n').map(l => l.trim()).filter(l => l.length > 2);
+                let vendorIdMatch = null;
+                let foundDate = null;
+                const items = [];
+
+                lines.forEach(line => {
+                    // Pre-clean: Remove common table dividers
+                    const cleanLine = line.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
+                    if (cleanLine.length < 3) return;
+
+                    // Skip Admin/Header lines
+                    const skipWords = ['FLOWER', 'NAME', 'OUTSIDE', 'PURCHASE', 'BILL', 'VEND', 'TOTAL:'];
+                    if (skipWords.some(w => cleanLine.includes(w))) return;
+
+                    // Date Detection (e.g. 21/4/26, 21-04-2026)
+                    const dateMatch = cleanLine.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);
+                    if (dateMatch && !foundDate) {
+                        let [_, d, m, y] = dateMatch;
+                        if (y.length === 2) y = '20' + y;
+                        foundDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+                        return; // Done with this line
+                    }
+
+                    // Vendor Detection
+                    vendors.forEach(v => {
+                        const vName = v.name.toUpperCase();
+                        const vTa = v.nameTa ? v.nameTa.toUpperCase() : "";
+                        const vArr = vName.split(' ');
+                        const isAbbrMatch = vArr.some(word => word.length >= 2 && cleanLine === word);
+                        
+                        if (cleanLine.includes(vName) || (vTa && cleanLine.includes(vTa)) || isAbbrMatch) {
+                            vendorIdMatch = v.id;
+                        }
+                    });
+
+                    // Item Parsing
+                    const numbers = cleanLine.match(/\d+(\.\d+)?/g);
+                    if (numbers && numbers.length >= 2) {
+                        const rowClean = cleanLine.replace(/[^A-Z0-9\u0B80-\u0BFF\s]/g, '');
+                        const flower = flowers.find(f => {
+                            const en = f.name.toUpperCase();
+                            const ta = (f.taName || '').toUpperCase();
+                            const shorthand = ta.slice(0, 3);
+                            return rowClean.includes(en) || (ta && rowClean.includes(ta)) || (shorthand && rowClean.includes(shorthand));
+                        });
+
+                        const flowerName = flower ? flower.name : 'Unknown';
+                        const flowerTa = flower ? (flower.taName || '') : '';
+
+                        const q = parseFloat(numbers[0]);
+                        const r = parseFloat(numbers[1]);
+                        const t = numbers[2] ? parseFloat(numbers[2]) : q * r;
+
+                        items.push({
+                            flowerType: flowerName, flowerTypeTa: flowerTa,
+                            quantity: q, 
+                            price: r || (q > 0 ? t/q : 0), 
+                            total: t,
+                            vendorId: vendorIdMatch, 
+                            id: Math.random()
+                        });
+                    }
+                });
+                return { vendorIdMatch, items, foundDate };
+            };
+
+            for (const file of files) {
+                // Pass 1: Original
+                let result = await runScan(file);
+
+                // Pass 2: Rotated 90 Deg (if P1 failed)
+                if (result.items.length === 0) {
+                    const rotatedBlob = await new Promise(resolve => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = img.height; canvas.height = img.width;
+                            const ctx = canvas.getContext('2d');
+                            ctx.rotate(90 * Math.PI / 180);
+                            ctx.drawImage(img, 0, -img.width);
+                            canvas.toBlob(resolve, 'image/jpeg', 0.85);
+                        };
+                        img.src = URL.createObjectURL(file);
+                    });
+                    result = await runScan(rotatedBlob);
+                }
+
+                if (!firstVendorId && result.vendorIdMatch) firstVendorId = result.vendorIdMatch;
+                if (result.foundDate) setDate(result.foundDate);
+                const itemsWithVendor = result.items.map(item => ({ ...item, vendorId: result.vendorIdMatch || vendorId }));
+                allExtractedItems = [...allExtractedItems, ...itemsWithVendor];
+            }
+
+            if (firstVendorId) setVendorId(firstVendorId);
+            if (allExtractedItems.length > 0) {
+                setScanResults(allExtractedItems);
+                setShowScanModal(true);
+            } else {
+                alert(lang === 'ta' ? 'விவரங்களை எடுக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்' : 'Could not extract details from the uploaded images.');
+            }
+        } catch (err) {
+            alert('Scan Error: ' + err.message);
+        } finally {
+            setIsScanning(false);
+            if (refFile.current) refFile.current.value = '';
+        }
+    };
+
+    const handleConfirmScan = () => {
+        setDraftItems(prev => [...prev, ...scanResults]);
+        setShowScanModal(false);
+        setScanResults([]);
+    };
+
+    const handleUpdateScanResult = (idx, field, val) => {
+        const updated = [...scanResults];
+        updated[idx] = { ...updated[idx], [field]: val };
+        if (field === 'quantity' || field === 'price') {
+            updated[idx].total = parseFloat(updated[idx].quantity || 0) * parseFloat(updated[idx].price || 0);
+        }
+        setScanResults(updated);
+    };
+
     // Handlers
-    const handleSavePurchase = async () => {
-        if (!vendorId || !currentItem.flowerType || !currentItem.quantity || !currentItem.price || isSaving) return;
-        setIsSaving(true);
+    const handleAddItemToBill = () => {
+        if (!currentItem.flowerType || !currentItem.quantity || !currentItem.price) return;
         const qty = parseFloat(currentItem.quantity);
         const rate = parseFloat(currentItem.price);
-        const total = qty * rate;
+        const newItem = { ...currentItem, total: qty * rate, id: Date.now() };
+        setDraftItems(p => [...p, newItem]);
+        setCurrentItem({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
+        refFlower.current?.focus();
+    };
+
+    const handleSavePurchase = async () => {
+        const finalItems = [...draftItems];
+        if (currentItem.flowerType && currentItem.quantity && currentItem.price) {
+            const qty = parseFloat(currentItem.quantity);
+            const rate = parseFloat(currentItem.price);
+            finalItems.push({ ...currentItem, total: qty * rate });
+        }
+
+        if (!vendorId || finalItems.length === 0 || isSaving) return;
+        setIsSaving(true);
+        const grandTotal = finalItems.reduce((s, i) => s + (i.total || 0), 0);
 
         try {
             const vendor = vendors.find(v => v.id === vendorId);
@@ -261,13 +565,13 @@ const OutsideShop = () => {
                 const oldSnap = await getDoc(doc(db, 'outside_purchases', editingPurchaseId));
                 if (oldSnap.exists()) {
                     const oldTotal = oldSnap.data().grandTotal || 0;
-                    const diff = total - oldTotal;
+                    const diff = grandTotal - oldTotal;
 
                     await updateDoc(doc(db, 'outside_purchases', editingPurchaseId), {
                         vendorId,
                         vendorName: vendor?.name || '',
-                        items: [{ ...currentItem, total }],
-                        grandTotal: total,
+                        items: finalItems,
+                        grandTotal: grandTotal,
                         updatedAt: serverTimestamp()
                     });
                     
@@ -282,14 +586,15 @@ const OutsideShop = () => {
                     vendorId,
                     vendorName: vendor?.name || '',
                     date,
-                    items: [{ ...currentItem, total }],
-                    grandTotal: total,
+                    items: finalItems,
+                    grandTotal: grandTotal,
                     cashPaid: 0,
                 });
-                await updateDoc(doc(db, 'vendors', vendorId), { balance: increment(total) });
+                await updateDoc(doc(db, 'vendors', vendorId), { balance: increment(grandTotal) });
             }
             
             setCurrentItem({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
+            setDraftItems([]);
             setTimeout(() => refFlower.current?.focus(), 50);
         } catch (err) { alert(err.message); }
         finally { setIsSaving(false); }
@@ -299,13 +604,17 @@ const OutsideShop = () => {
         setEditingPurchaseId(p.id);
         setVendorId(p.vendorId);
         setDate(p.date || new Date().toLocaleDateString('en-CA'));
-        const item = p.items[0];
-        setCurrentItem({
-            flowerType: item.flowerType,
-            flowerTypeTa: item.flowerTypeTa || '',
-            quantity: item.quantity,
-            price: item.price
-        });
+        
+        if (p.items && p.items.length > 0) {
+            const [first, ...rest] = p.items;
+            setCurrentItem({
+                flowerType: first.flowerType,
+                flowerTypeTa: first.flowerTypeTa || '',
+                quantity: first.quantity,
+                price: first.price
+            });
+            setDraftItems(rest.map(item => ({...item, id: Math.random()})));
+        }
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -437,6 +746,95 @@ const OutsideShop = () => {
         }
     };
 
+    const handlePrintBlankTemplate = (count = 1, rows = 5) => {
+        const isTwelve = rows === 1;
+        const win = window.open('', '_blank');
+        const templateHtml = `
+            <div class="bill-page ${isTwelve ? 'twelve' : ''}">
+                <div class="box">
+                    <div class="header" style="margin-bottom: ${isTwelve ? '5px' : '10px'};">
+                        <h1 style="margin:0; font-size: ${isTwelve ? '11px' : '14px'};">OUTSIDE PURCHASE BILL</h1>
+                        <p style="margin:1px 0; font-size: ${isTwelve ? '8px' : '9px'}; opacity: 0.7;">${bizInfo.name}</p>
+                    </div>
+                    <div class="line" style="font-size: ${isTwelve ? '9px' : '11px'}; margin-bottom: ${isTwelve ? '4px' : '8px'};">VENDOR: <span class="field"></span></div>
+                    <div class="line" style="font-size: ${isTwelve ? '9px' : '11px'}; margin-bottom: ${isTwelve ? '6px' : '12px'};">DATE: <span class="field" style="min-width: 60px;"></span></div>
+                    
+                    <table class="items-table">
+                        <thead>
+                            <tr style="font-size: ${isTwelve ? '8px' : '9px'};">
+                                <th style="width: 45%; padding: 2px;">FLOWER</th>
+                                <th style="width: 15%; padding: 2px;">QTY</th>
+                                <th style="width: 15%; padding: 2px;">RATE</th>
+                                <th style="width: 25%; padding: 2px;">TOTAL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${Array(rows).fill(0).map(() => `
+                                <tr>
+                                    <td><span class="field-cell" style="height: ${isTwelve ? '14px' : '18px'};"></span></td>
+                                    <td><span class="field-cell" style="height: ${isTwelve ? '14px' : '18px'};"></span></td>
+                                    <td><span class="field-cell" style="height: ${isTwelve ? '14px' : '18px'};"></span></td>
+                                    <td><span class="field-cell" style="height: ${isTwelve ? '14px' : '18px'};"></span></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr style="font-size: ${isTwelve ? '8px' : '10px'};">
+                                <th colspan="3" style="text-align: right; padding: 3px;">TOTAL:</th>
+                                <td><span class="field-cell" style="height: 14px;"></span></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <div style="margin-top:5px; text-align:right; font-size:7px; opacity:0.4;">
+                        Ref: Poovanam-v4-UltraDensity
+                    </div>
+                </div>
+            </div>
+        `;
+
+        win.document.write(`
+            <html>
+                <head>
+                    <title>Bill Templates</title>
+                    <style>
+                        @page { margin: 3mm; size: A4; }
+                        body { font-family: 'Inter', sans-serif; background: #fff; margin: 0; padding: 0; }
+                        .bill-page { 
+                            width: 50%; height: 33.333%; /* 6 per page default */
+                            display: inline-flex; align-items: center; justify-content: center;
+                            box-sizing: border-box; page-break-inside: avoid;
+                            border: 0.5px dashed #eee;
+                            float: left;
+                        }
+                        .bill-page.twelve {
+                            width: 33.333%; height: 25%; /* 12 per page (4 rows x 3 columns) */
+                        }
+                        .box { border: 1.5px solid #000; padding: 8px; border-radius: 6px; width: 92%; }
+                        .line { font-weight: 700; display: flex; align-items: flex-end; }
+                        .field { border-bottom: 1px solid #000; flex: 1; height: 16px; margin-left: 5px; }
+                        .items-table { width: 100%; border-collapse: collapse; }
+                        .items-table th, .items-table td { border: 1.2px solid #000; padding: 0; font-size: 10px; }
+                        .items-table th { background: #f9f9f9; }
+                        .field-cell { display: block; height: 20px; }
+                        @media print { 
+                            .no-print { display: none; } 
+                            .bill-page { border: 1px dashed #ccc; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="no-print" style="position:fixed; top:0; left:0; right:0; background:white; padding:15px; text-align:center; border-bottom:1px solid #eee; z-index:100;">
+                        <button onclick="window.print()" style="padding:10px 25px; font-size:16px; background:#d97706; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:700;">PRINT NOW</button>
+                    </div>
+                    <div style="padding-top: 50px;">
+                        ${Array(count).fill(templateHtml).join('')}
+                    </div>
+                </body>
+            </html>
+        `);
+        win.document.close();
+    };
+
     const handleEditPayment = (p) => {
         setEditingPaymentId(p.id);
         setPaymentForm({
@@ -488,6 +886,44 @@ const OutsideShop = () => {
 
     /* ── Render Sub-sections ── */
 
+    const BulkPrintModal = () => (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <div style={{ background: '#fff', borderRadius: '24px', width: '400px', maxWidth: '100%', padding: '32px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: 800, color: '#92400e', marginBottom: '8px' }}>Bulk Print Bills</h3>
+                <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '24px' }}>Generate blank templates to distribute to vendors.</p>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <div>
+                            <label style={{ fontSize: '10px', fontWeight: 800, color: '#92400e', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Flower Rows</label>
+                            <select value={itemRows} onChange={e => setItemRows(Number(e.target.value))} style={{ ...INPUT_S, width: '100%', padding: '8px' }}>
+                                <option value={1}>1 Flower (12/Page)</option>
+                                <option value={5}>5 Flowers (6/Page)</option>
+                                <option value={10}>10 Flowers (6/Page)</option>
+                                <option value={15}>15 Flowers (6/Page)</option>
+                                <option value={20}>20 Flowers (6/Page)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style={{ fontSize: '10px', fontWeight: 800, color: '#92400e', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Copies</label>
+                            <select value={bulkCount} onChange={e => setBulkCount(Number(e.target.value))} style={{ ...INPUT_S, width: '100%', padding: '8px' }}>
+                                <option value={12}>12 Bills</option>
+                                <option value={24}>24 Bills</option>
+                                <option value={60}>60 Bills</option>
+                                <option value={120}>120 Bills</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <button onClick={() => { handlePrintBlankTemplate(bulkCount, itemRows); setShowBulkModal(false); }} style={{ flex: 1, padding: '14px', background: '#d97706', color: '#fff', borderRadius: '12px', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Generate & Print</button>
+                        <button onClick={() => setShowBulkModal(false)} style={{ padding: '14px 20px', background: '#f8fafc', color: '#64748b', border: '1.5px solid #e2e8f0', borderRadius: '12px', fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
     const renderDashboard = () => (
         <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '40px' }}>
             <div style={{ textAlign: 'center' }}>
@@ -522,6 +958,7 @@ const OutsideShop = () => {
 
     const renderPurchase = () => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {showBulkModal && <BulkPrintModal />}
             <button onClick={handleBack} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 800, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', opacity: 0.7, transition: 'opacity 0.2s' }} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0.7}>
                 <ChevronLeft size={16}/> {t('backToMenu').toUpperCase()}
             </button>
@@ -562,7 +999,7 @@ const OutsideShop = () => {
                     )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', alignItems: 'flex-end' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 120px 120px', gap: '16px', alignItems: 'flex-end', marginBottom: '20px' }}>
                     <div>
                         <label style={LABEL_S}>{t('vendorName')}</label>
                         <SearchSelect 
@@ -595,28 +1032,93 @@ const OutsideShop = () => {
                         <label style={LABEL_S}>{t('rate')}</label>
                         <input ref={refRate} type="number" value={currentItem.price} onChange={e => setCurrentItem(p => ({...p, price: e.target.value}))} onKeyDown={e => { if(e.key==='Enter') handleSavePurchase() }} style={INPUT_S} />
                     </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                        <button 
-                            onClick={handleSavePurchase} 
-                            disabled={isSaving || !vendorId}
-                            style={{ flex: 1, height: '42px', background: '#d97706', color: '#fff', borderRadius: '10px', border: 'none', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                        >
-                            {isSaving ? '...' : <><Save size={18}/> {editingPurchaseId ? t('update') : t('addNew')}</>}
-                        </button>
-                        {editingPurchaseId && (
-                            <button 
-                                onClick={() => {
-                                    setEditingPurchaseId(null);
-                                    setVendorId('');
-                                    setCurrentItem({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
-                                }}
-                                style={{ width: '42px', height: '42px', background: '#fff', border: '1.5px solid #fed7aa', color: '#92400e', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            >
-                                <X size={20}/>
-                            </button>
-                        )}
-                    </div>
                 </div>
+
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '32px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
+                        <button 
+                            onClick={() => setShowBulkModal(true)}
+                            style={{ 
+                                height: '42px', padding: '0 15px', 
+                                background: '#fff', border: '1.5px solid #fed7aa', 
+                                color: '#d97706', borderRadius: '10px', 
+                                cursor: 'pointer', display: 'flex', 
+                                alignItems: 'center', justifyContent: 'center',
+                                gap: '8px', fontWeight: 700
+                            }}
+                        >
+                            <Printer size={18}/> {t('bulkPrint') || 'Bulk Print'}
+                        </button>
+                        <input type="file" ref={refFile} style={{ display: 'none' }} accept="image/*" onChange={handleImageScan} />
+                        <button onClick={() => refFile.current?.click()} disabled={isScanning} style={{ width: '42px', height: '42px', background: '#fff', border: '1.5px solid #fed7aa', color: '#d97706', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title={t('scanBill')}>
+                            {isScanning ? <div style={{ width: '18px', height: '18px', border: '2px solid #d97706', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> : <Camera size={20}/>}
+                        </button>
+                        <button onClick={handleDownloadTemplate} style={{ width: '42px', height: '42px', background: '#fff', border: '1.5px solid #64748b', color: '#64748b', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Download Import Template">
+                            <DownloadIcon size={20}/>
+                        </button>
+                        <label style={{ width: '42px', height: '42px', background: '#fff', border: '1.5px solid #6366f1', color: '#6366f1', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Import Excel">
+                            <Upload size={20} /><input type="file" accept=".xlsx, .xls" onChange={handleImportFromExcel} style={{ display: 'none' }} />
+                        </label>
+                        <div style={{ width: '1px', background: '#e2e8f0', margin: '0 4px' }} />
+                        <button onClick={handleAddItemToBill} disabled={!currentItem.flowerType || !currentItem.quantity || !currentItem.price} style={{ height: '42px', padding: '0 16px', background: '#fff', border: '1.5px solid #d97706', color: '#d97706', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 700 }} title={t('addToList')}>
+                            <Plus size={20}/> {t('addToList') || 'Add Item'}
+                        </button>
+                    </div>
+
+                    <button 
+                        onClick={handleSavePurchase} 
+                        disabled={isSaving || !vendorId || (draftItems.length === 0 && !currentItem.flowerType) || isScanning}
+                        style={{ height: '42px', padding: '0 32px', background: '#d97706', color: '#fff', borderRadius: '10px', border: 'none', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(217, 119, 6, 0.2)' }}
+                    >
+                        {isSaving ? '...' : <><Save size={18}/> {editingPurchaseId ? t('update') : t('saveReceipt') || 'Save Receipt'}</>}
+                    </button>
+                    {editingPurchaseId && (
+                        <button 
+                            onClick={() => {
+                                setEditingPurchaseId(null);
+                                setVendorId('');
+                                setDraftItems([]);
+                                setCurrentItem({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
+                            }}
+                            style={{ width: '42px', height: '42px', background: '#fff', border: '1.5px solid #fed7aa', color: '#92400e', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                            <X size={20}/>
+                        </button>
+                    )}
+                </div>
+
+                {/* --- Draft Items Table --- */}
+                {draftItems.length > 0 && (
+                    <div style={{ marginTop: '20px', border: '1.5px dashed #fed7aa', borderRadius: '12px', padding: '16px', background: '#fffcf9' }}>
+                        <h4 style={{ fontSize: '11px', fontWeight: 800, color: '#92400e', textTransform: 'uppercase', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <History size={14}/> {t('currentItems') || 'Items in Current Bill'}
+                        </h4>
+                        <table style={{ width: '100%', fontSize: '13px' }}>
+                            <thead>
+                                <tr style={{ color: '#94a3b8', textAlign: 'left', borderBottom: '1px solid #fed7aa' }}>
+                                    <th style={{ padding: '8px' }}>{t('flower')}</th>
+                                    <th style={{ padding: '8px', textAlign: 'center' }}>{t('qty')}</th>
+                                    <th style={{ padding: '8px', textAlign: 'center' }}>{t('rate')}</th>
+                                    <th style={{ padding: '8px', textAlign: 'right' }}>{t('total')}</th>
+                                    <th style={{ padding: '8px', textAlign: 'center' }}></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {draftItems.map((item, idx) => (
+                                    <tr key={item.id || idx} style={{ borderBottom: '1px solid #fff7ed' }}>
+                                        <td style={{ padding: '8px', fontWeight: 600 }}>{lang === 'ta' ? (item.flowerTypeTa || item.flowerType) : item.flowerType}</td>
+                                        <td style={{ padding: '8px', textAlign: 'center' }}>{item.quantity}</td>
+                                        <td style={{ padding: '8px', textAlign: 'center' }}>{item.price}</td>
+                                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700 }}>{fmt(item.total)}</td>
+                                        <td style={{ padding: '8px', textAlign: 'center' }}>
+                                            <button onClick={() => setDraftItems(p => p.filter((_, i) => i !== idx))} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={14}/></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
 
             <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
@@ -644,44 +1146,62 @@ const OutsideShop = () => {
                         <tbody>
                             {todayPurchases.length === 0 ? (
                                 <tr><td colSpan={8} style={{ padding: '60px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>{t('noRecords')}</td></tr>
-                            ) : todayPurchases.map((p, idx) => (
-                                <tr key={p.id} style={{ borderBottom: '1px solid #f8fafc', background: idx%2===0 ? '#fff' : '#fafafa' }}>
-                                    <td style={TD_S}>
-                                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
-                                            {p.timestamp?.toDate ? p.timestamp.toDate().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--'}
-                                        </span>
-                                    </td>
-                                    <td style={TD_S}>
-                                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#d97706', background: '#fffbeb', border: '1px solid #fed7aa', padding: '3px 8px', borderRadius: '6px' }}>
-                                            #{vendors.find(v => v.id === p.vendorId)?.displayId || '---'}
-                                        </span>
-                                    </td>
-                                    <td style={{ ...TD_S, fontWeight: 700 }}>{p.vendorName}</td>
-                                    <td style={{ ...TD_S, fontWeight: 700, color: '#92400e' }}>{lang==='ta' ? (p.items[0].flowerTypeTa || p.items[0].flowerType) : p.items[0].flowerType}</td>
-                                    <td style={{ ...TD_S, textAlign: 'center', color: '#64748b' }}>{p.items[0].quantity}</td>
-                                    <td style={{ ...TD_S, textAlign: 'center', color: '#64748b' }}>{p.items[0].price}</td>
-                                    <td style={{ ...TD_S, textAlign: 'right', fontWeight: 800, color: '#d97706' }}>{fmt(p.grandTotal)}</td>
-                                    <td style={{ ...TD_S, textAlign: 'center' }}>
-                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                                            <button onClick={() => handleEditPurchase(p)} title="Edit" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e0e7ff', background: '#fff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                                <Pencil size={14}/>
-                                            </button>
-                                            <button onClick={() => handleWhatsAppPurchase(p)} title="WhatsApp" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #dcfce7', background: '#fff', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                                <WhatsAppIcon size={16}/>
-                                            </button>
-                                            <button onClick={() => handlePrintPurchase(p)} title="Print" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                                <Printer size={14}/>
-                                            </button>
-                                            <button onClick={() => handleDeletePurchase(p)} style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #fee2e2', background: '#fff', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Trash2 size={14}/></button>
-                                        </div>
-                                    </td>
-                                </tr>
+                            ) : todayPurchases.flatMap((p, pIdx) => (
+                                p.items.map((item, iIdx) => (
+                                    <tr key={`${p.id}-${iIdx}`} style={{ borderBottom: iIdx === p.items.length - 1 ? '1px solid #e2e8f0' : '1px solid #f8fafc', background: pIdx%2===0 ? '#fff' : '#fafafa' }}>
+                                        <td style={TD_S}>
+                                            {iIdx === 0 && (
+                                                <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
+                                                    {p.timestamp?.toDate ? p.timestamp.toDate().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--'}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td style={TD_S}>
+                                            {iIdx === 0 && (
+                                                <span style={{ fontSize: '11px', fontWeight: 800, color: '#d97706', background: '#fffbeb', border: '1px solid #fed7aa', padding: '3px 8px', borderRadius: '6px' }}>
+                                                    #{vendors.find(v => v.id === p.vendorId)?.displayId || '---'}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td style={{ ...TD_S, fontWeight: 700 }}>{iIdx === 0 ? p.vendorName : ''}</td>
+                                        <td style={{ ...TD_S, fontWeight: 700, color: '#92400e' }}>
+                                            {lang === 'ta' ? (item.flowerTypeTa || item.flowerType) : item.flowerType}
+                                        </td>
+                                        <td style={{ ...TD_S, textAlign: 'center', color: '#64748b' }}>
+                                            {parseFloat(item.quantity || 0).toFixed(2)}
+                                        </td>
+                                        <td style={{ ...TD_S, textAlign: 'center', color: '#64748b' }}>
+                                            {item.price || (item.quantity > 0 ? (item.total / item.quantity).toFixed(2) : 0)}
+                                        </td>
+                                        <td style={{ ...TD_S, textAlign: 'right', fontWeight: 700, color: '#d97706' }}>
+                                            {fmt(item.total)}
+                                        </td>
+                                        <td style={{ ...TD_S, textAlign: 'center' }}>
+                                            {iIdx === 0 && (
+                                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                                    <button onClick={() => handleEditPurchase(p)} title="Edit" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e0e7ff', background: '#fff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                                        <Pencil size={14}/>
+                                                    </button>
+                                                    <button onClick={() => handleWhatsAppPurchase(p)} title="WhatsApp" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #dcfce7', background: '#fff', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                                        <WhatsAppIcon size={16}/>
+                                                    </button>
+                                                    <button onClick={() => handlePrintPurchase(p)} title="Print" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                                        <Printer size={14}/>
+                                                    </button>
+                                                    <button onClick={() => handleDeletePurchase(p)} style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #fee2e2', background: '#fff', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Trash2 size={14}/></button>
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
                             ))}
                         </tbody>
                             <tfoot>
                                 <tr style={{ background: '#fffbeb', borderTop: '2px solid #fed7aa' }}>
                                     <td colSpan={4} style={{...TD_S, textAlign: 'right', fontWeight: 800, color: '#92400e'}}>{t('total').toUpperCase()}</td>
-                                    <td style={{...TD_S, textAlign: 'center', fontWeight: 900}}>{todayPurchases.reduce((acc, p) => acc + parseFloat(p.items[0].quantity), 0).toFixed(2)}</td>
+                                    <td style={{...TD_S, textAlign: 'center', fontWeight: 900}}>
+                                        {todayPurchases.reduce((acc, p) => acc + p.items.reduce((s, i) => s + parseFloat(i.quantity || 0), 0), 0).toFixed(2)}
+                                    </td>
                                     <td></td>
                                     <td style={{...TD_S, textAlign: 'right', fontWeight: 900, fontSize: '18px', color: '#d97706'}}>{fmt(stats.todayTotal)}</td>
                                     <td></td>
@@ -941,7 +1461,19 @@ const OutsideShop = () => {
             const openingBalance = (v.balance || 0) - futurePurAmt + futurePayAmt;
 
             const ledgerRows = [];
-            vPurchases.forEach(p => ledgerRows.push({ date: p.date, particulars: lang === 'ta' ? (p.items?.[0]?.flowerTypeTa || p.items?.[0]?.flowerType || '') : (p.items?.[0]?.flowerType || ''), weight: p.items?.[0]?.quantity || 0, rate: p.items?.[0]?.price || 0, total: p.grandTotal, cashRec: 0, cashLess: 0 }));
+            vPurchases.forEach(p => {
+                p.items.forEach((item, iIdx) => {
+                    ledgerRows.push({ 
+                        date: p.date, 
+                        particulars: lang === 'ta' ? (item.flowerTypeTa || item.flowerType || '') : (item.flowerType || ''), 
+                        weight: item.quantity || 0, 
+                        rate: item.price || 0, 
+                        total: item.total || 0, 
+                        cashRec: 0, 
+                        cashLess: 0 
+                    });
+                });
+            });
             vPayments.forEach(p => ledgerRows.push({ date: p.date, particulars: t('cashPaid') || 'Vendor Payment', weight: 0, rate: 0, total: 0, cashRec: p.amount, cashLess: 0 }));
             ledgerRows.sort((a,b) => a.date.localeCompare(b.date));
 
@@ -1042,6 +1574,13 @@ const OutsideShop = () => {
                                             <td style={{...TD_S, textAlign: 'right', fontWeight: 800, color: v.balance > 0 ? '#ef4444' : '#16a34a'}}>{fmt(v.balance || 0)}</td>
                                             <td style={{...TD_S, textAlign: 'center'}}>
                                                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                                    <button 
+                                                        onClick={() => { setViewingVendor(v); setShowDetailModal(true); }} 
+                                                        title="View History" 
+                                                        style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1.5px solid #e2e8f0', background: '#fff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                                    >
+                                                        <Scan size={14}/>
+                                                    </button>
                                                     <button onClick={() => handleWhatsAppVendorLedger(v)} title="WhatsApp" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #dcfce7', background: '#fff', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                                                         <WhatsAppIcon size={16}/>
                                                     </button>
@@ -1061,6 +1600,61 @@ const OutsideShop = () => {
         );
     };
 
+    const renderDetailModal = () => {
+        if (!viewingVendor) return null;
+        const vPurchases = purchases.filter(p => p.vendorId === viewingVendor.id).map(p => ({...p, type: 'PURCHASE'}));
+        const vPayments = payments.filter(p => p.entityId === viewingVendor.id && p.type === 'vendor').map(p => ({...p, type: 'PAYMENT'}));
+        const ledger = [...vPurchases, ...vPayments].sort((a,b) => new Date(b.date) - new Date(a.date) || (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
+
+        return (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+                <div style={{ background: '#fff', borderRadius: '24px', width: '900px', maxWidth: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', border: '1px solid #fed7aa' }}>
+                    <div style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fffbeb' }}>
+                        <div>
+                            <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 900, color: '#92400e' }}>{viewingVendor.name}</h2>
+                            <p style={{ margin: 0, fontSize: '12px', color: '#92400e', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Transaction Ledger</p>
+                        </div>
+                        <button onClick={() => { setShowDetailModal(false); setViewingVendor(null); }} style={{ background: '#fff', border: '1.5px solid #fed7aa', padding: '8px', borderRadius: '12px', cursor: 'pointer', color: '#92400e' }}><X size={24}/></button>
+                    </div>
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
+                                    <th style={TH_S}>{t('date')}</th>
+                                    <th style={TH_S}>{t('type') || 'Type'}</th>
+                                    <th style={TH_S}>{t('particulars') || 'Details'}</th>
+                                    <th style={{...TH_S, textAlign: 'right'}}>{t('amount')}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {ledger.map((item, idx) => (
+                                    <tr key={idx} style={{ borderBottom: '1px solid #f8fafc', background: item.type === 'PAYMENT' ? '#f0fdf4' : 'transparent' }}>
+                                        <td style={TD_S}>{item.date.split('-').reverse().join('-')}</td>
+                                        <td style={TD_S}>
+                                            <span style={{ fontSize: '10px', fontWeight: 800, padding: '3px 8px', borderRadius: '6px', background: item.type==='PAYMENT' ? '#dcfce7' : '#fffbeb', color: item.type==='PAYMENT' ? '#166534' : '#92400e' }}>
+                                                {item.type}
+                                            </span>
+                                        </td>
+                                        <td style={TD_S}>
+                                            {item.type === 'PURCHASE' ? (
+                                                <div style={{ fontWeight: 600 }}>{item.items.map(i => lang==='ta' ? (i.flowerTypeTa || i.flowerType) : i.flowerType).join(', ')}</div>
+                                            ) : (
+                                                <div style={{ color: '#16a34a', fontWeight: 600 }}>{item.note || 'Cash Payment'}</div>
+                                            )}
+                                        </td>
+                                        <td style={{...TD_S, textAlign: 'right', fontWeight: 800, color: item.type === 'PAYMENT' ? '#16a34a' : '#1e293b'}}>
+                                            {item.type === 'PAYMENT' ? '-' : ''}{fmt(item.grandTotal || item.amount)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Content Rendering */}
@@ -1069,6 +1663,8 @@ const OutsideShop = () => {
             {activeTab === 'vendor-payments' && renderVendorPayments()}
             {activeTab === 'vendors' && renderVendors()}
             {activeTab === 'reports' && renderReports()}
+
+            {showDetailModal && renderDetailModal()}
 
             {/* Vendor Modal */}
             {showVendorModal && (
@@ -1127,6 +1723,58 @@ const OutsideShop = () => {
                                 {t('save')}
                             </button>
                         </form>
+                    </div>
+                </div>
+            )}
+            {/* Scan Modal */}
+            {showScanModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+                    <div style={{ background: '#fff', borderRadius: '32px', width: '100%', maxWidth: '900px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
+                        <div style={{ padding: '32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, #fffbeb 0%, #fff 100%)' }}>
+                            <div>
+                                <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#92400e', margin: 0 }}>📊 {t('scanResult') || 'Scan Preview'}</h2>
+                                <p style={{ fontSize: '13px', color: '#94a3b8', margin: '4px 0 0', fontWeight: 600 }}>Review and edit data before adding to bill</p>
+                            </div>
+                            <button onClick={() => setShowScanModal(false)} style={{ background: '#fee2e2', border: 'none', color: '#ef4444', width: '40px', height: '40px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={20}/></button>
+                        </div>
+                        <div style={{ padding: '32px', overflowY: 'auto', flex: 1 }}>
+                            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
+                                <thead>
+                                    <tr>
+                                        <th style={{ ...TH_S, textAlign: 'left' }}>{t('flowerName')}</th>
+                                        <th style={TH_S}>{t('qty')}</th>
+                                        <th style={TH_S}>{t('rate')}</th>
+                                        <th style={{ ...TH_S, textAlign: 'right' }}>{t('total')}</th>
+                                        <th style={TH_S}></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {scanResults.map((res, idx) => (
+                                        <tr key={idx} style={{ background: '#f8fafc', borderRadius: '12px' }}>
+                                            <td style={{ padding: '12px' }}>
+                                                <input value={res.flowerType} onChange={e => handleUpdateScanResult(idx, 'flowerType', e.target.value)} style={{ ...INPUT_S, height: '36px', background: 'transparent', border: '1px solid #e1e8f0' }} />
+                                            </td>
+                                            <td style={{ padding: '12px' }}>
+                                                <input type="number" value={res.quantity} onChange={e => handleUpdateScanResult(idx, 'quantity', e.target.value)} style={{ ...INPUT_S, height: '36px', textAlign: 'center', background: 'transparent', border: '1px solid #e1e8f0' }} />
+                                            </td>
+                                            <td style={{ padding: '12px' }}>
+                                                <input type="number" value={res.price} onChange={e => handleUpdateScanResult(idx, 'price', e.target.value)} style={{ ...INPUT_S, height: '36px', textAlign: 'center', background: 'transparent', border: '1px solid #e1e8f0' }} />
+                                            </td>
+                                            <td style={{ padding: '12px', textAlign: 'right', fontWeight: 800, color: '#d97706' }}>{fmt(res.total)}</td>
+                                            <td style={{ padding: '12px', textAlign: 'center' }}>
+                                                <button onClick={() => setScanResults(prev => prev.filter((_, i) => i !== idx))} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={16}/></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style={{ padding: '32px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '16px', justifyContent: 'flex-end', background: '#fafafa' }}>
+                            <button onClick={() => setShowScanModal(false)} style={{ padding: '12px 24px', borderRadius: '14px', border: '1.5px solid #e2e8f0', background: '#fff', fontWeight: 700, color: '#64748b', cursor: 'pointer' }}>Cancel</button>
+                            <button onClick={handleConfirmScan} style={{ padding: '12px 32px', borderRadius: '14px', border: 'none', background: '#d97706', color: '#fff', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 10px 15px -3px rgba(217, 119, 6, 0.3)' }}>
+                                <Save size={20}/> {t('confirmAndAdd') || 'Confirm & Add to Bill'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
