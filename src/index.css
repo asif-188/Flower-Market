@@ -435,6 +435,11 @@ input[type=number] {
   .no-print, .print-hide { display: none !important; }
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* ── Responsive ────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .login-card {

@@ -165,8 +165,8 @@ const SalesEntry = () => {
             if (buyerId && s.buyerId !== buyerId) return false;
             return true;
         }).sort((a, b) => {
-            const tA = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
-            const tB = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
+            const tA = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
+            const tB = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
             return tA - tB;
         });
     }, [allSales, buyerId, date]);
