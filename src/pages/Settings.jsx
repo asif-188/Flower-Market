@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Save, CheckCircle2 } from 'lucide-react';
-import { db } from '../utils/storage';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { useTenant } from '../utils/TenantContext';
+import { db, COLLECTIONS } from '../utils/storage';
+import { doc, setDoc } from 'firebase/firestore';
 
 const DEFAULTS = {
     motto:   'SRI RAMA JAYAM',
@@ -28,22 +29,24 @@ const S = {
 };
 
 const Settings = () => {
-    const [form, setForm]       = useState(DEFAULTS);
+    const { tenantId, tenantData, setTenantData, loading } = useTenant();
+    const [form, setForm]       = useState(tenantData || DEFAULTS);
     const [saving, setSaving]   = useState(false);
     const [saved, setSaved]     = useState(false);
-    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        getDoc(doc(db, 'system', 'settings')).then(snap => {
-            if (snap.exists()) setForm(f => ({ ...f, ...snap.data() }));
-        }).finally(() => setLoading(false));
-    }, []);
+        if (tenantData) {
+            setForm(tenantData);
+        }
+    }, [tenantData]);
 
     const handleSave = async (e) => {
         e.preventDefault();
+        if (!tenantId) return;
         setSaving(true);
         try {
-            await setDoc(doc(db, 'system', 'settings'), form, { merge: true });
+            await setDoc(doc(db, COLLECTIONS.TENANTS, tenantId), form, { merge: true });
+            setTenantData(form);
             setSaved(true);
             setTimeout(() => setSaved(false), 3000);
         } catch (err) {

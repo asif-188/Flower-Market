@@ -21,7 +21,7 @@ const Login = () => {
         
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            sessionStorage.setItem('fm_tenant', username.toLowerCase());
+            sessionStorage.setItem('fm_tenantId', username.toLowerCase());
             navigate('/app');
         } catch (err) {
             console.error('Login error:', err);

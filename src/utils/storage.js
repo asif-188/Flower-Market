@@ -9,6 +9,7 @@ import {
   onSnapshot, 
   query, 
   orderBy,
+  where,
   setDoc,
   serverTimestamp
 } from "firebase/firestore";
@@ -16,7 +17,7 @@ import { db } from "../firebase";
 
 export { db };
 
-const COLLECTIONS = {
+export const COLLECTIONS = {
   FARMERS: 'farmers',
   PRODUCTS: 'products',
   INTAKES: 'intakes',
@@ -24,46 +25,78 @@ const COLLECTIONS = {
   SALES: 'sales',
   VENDORS: 'vendors',
   OUTSIDE_PURCHASES: 'outside_purchases',
+  TENANTS: 'tenants'
 };
 
 // Helper to get current tenant
-export const getTenant = () => sessionStorage.getItem('fm_tenant') || 'default';
+export const getTenant = () => {
+    // Check session storage first (set during login)
+    const tid = sessionStorage.getItem('fm_tenantId');
+    if (tid) return tid;
+    
+    // Fallback if not in session (might happen on page refresh before context loads)
+    // but ideally we should rely on TenantContext in React components.
+    return 'default';
+};
 
-// --- Real-time Listeners (Hooks style or Callback style) ---
-export const subscribeToCollection = (collectionName, callback, filterByTenant = false) => {
-  let q = query(collection(db, collectionName));
-  // If collection name is one of the new ones or requested, we could filter by tenantId
-  // For now, let's keep it simple and just allow filtering if requested
-  // In the future, we should migrate all collections to be tenant-aware.
+// --- Multi-Tenant CRUD Helpers ---
+
+export const subscribeToCollection = (collectionName, callback, filterByTenant = true) => {
+  const tenantId = getTenant();
+  let q;
+  
+  if (filterByTenant) {
+    q = query(collection(db, collectionName), where('tenantId', '==', tenantId), orderBy('createdAt', 'desc'));
+  } else {
+    q = query(collection(db, collectionName), orderBy('createdAt', 'desc'));
+  }
+  
   return onSnapshot(q, (snapshot) => {
     let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    if (filterByTenant) {
-      data = data.filter(item => item.tenantId === getTenant());
-    }
     callback(data);
   });
 };
 
-// --- FARMERS ---
-// ... (existing farmer code remains) ...
-// (I will use multi_replace if I need to skip blocks, but here I'll just append at the end and update the COLLECTIONS)
+// --- Generic Operations (to replace manual addDoc/updateDoc) ---
+
+export const addData = async (colName, data) => {
+    const tenantId = getTenant();
+    return await addDoc(collection(db, colName), {
+        ...data,
+        tenantId,
+        createdAt: serverTimestamp()
+    });
+};
+
+export const updateData = async (colName, id, data) => {
+    const tenantId = getTenant();
+    const docRef = doc(db, colName, id);
+    return await updateDoc(docRef, {
+        ...data,
+        tenantId, // Ensure it stays tied to tenant
+        updatedAt: serverTimestamp()
+    });
+};
+
+// --- Specialized Helpers ---
 
 // --- FARMERS ---
 export const getFarmers = async () => {
-  const querySnapshot = await getDocs(collection(db, COLLECTIONS.FARMERS));
+  const tenantId = getTenant();
+  const q = query(collection(db, COLLECTIONS.FARMERS), where('tenantId', '==', tenantId));
+  const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 export const saveFarmer = async (farmer) => {
+  const tenantId = getTenant();
   const { id, ...data } = farmer;
   if (id) {
-    const farmerRef = doc(db, COLLECTIONS.FARMERS, id);
-    await updateDoc(farmerRef, { ...data, updatedAt: serverTimestamp() });
+    await updateData(COLLECTIONS.FARMERS, id, data);
   } else {
-    await addDoc(collection(db, COLLECTIONS.FARMERS), { 
-      ...data, 
-      balance: data.balance || 0,
-      createdAt: serverTimestamp() 
+    await addData(COLLECTIONS.FARMERS, {
+        ...data,
+        balance: data.balance || 0
     });
   }
 };
@@ -74,82 +107,87 @@ export const deleteFarmer = async (id) => {
 
 // --- PRODUCTS ---
 export const getProducts = async () => {
-  const querySnapshot = await getDocs(collection(db, COLLECTIONS.PRODUCTS));
+  const tenantId = getTenant();
+  const q = query(collection(db, COLLECTIONS.PRODUCTS), where('tenantId', '==', tenantId));
+  const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+export const saveProduct = async (product) => {
+    const { id, ...data } = product;
+    if (id) {
+        await updateData(COLLECTIONS.PRODUCTS, id, data);
+    } else {
+        await addData(COLLECTIONS.PRODUCTS, data);
+    }
 };
 
 // --- INTAKE ---
 export const saveIntake = async (intakeData) => {
-  const docRef = await addDoc(collection(db, COLLECTIONS.INTAKES), {
+  const docRef = await addData(COLLECTIONS.INTAKES, {
     ...intakeData,
-    timestamp: serverTimestamp(),
     date: new Date().toISOString()
   });
   return { id: docRef.id, ...intakeData };
 };
 
 export const getIntakes = async () => {
-  const q = query(collection(db, COLLECTIONS.INTAKES), orderBy('timestamp', 'desc'));
+  const tenantId = getTenant();
+  const q = query(collection(db, COLLECTIONS.INTAKES), where('tenantId', '==', tenantId), orderBy('createdAt', 'desc'));
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 // --- BUYERS ---
 export const getBuyers = async () => {
-  const querySnapshot = await getDocs(collection(db, COLLECTIONS.BUYERS));
+  const tenantId = getTenant();
+  const q = query(collection(db, COLLECTIONS.BUYERS), where('tenantId', '==', tenantId));
+  const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 export const saveBuyer = async (buyer) => {
   const { id, ...data } = buyer;
   if (id) {
-    const buyerRef = doc(db, COLLECTIONS.BUYERS, id);
-    await updateDoc(buyerRef, { ...data, updatedAt: serverTimestamp() });
+    await updateData(COLLECTIONS.BUYERS, id, data);
   } else {
-    await addDoc(collection(db, COLLECTIONS.BUYERS), { 
-      ...data, 
-      balance: data.balance || 0,
-      createdAt: serverTimestamp() 
+    await addData(COLLECTIONS.BUYERS, {
+        ...data,
+        balance: data.balance || 0
     });
   }
 };
 
 // --- SALES ---
 export const saveSale = async (saleData) => {
-  const docRef = await addDoc(collection(db, COLLECTIONS.SALES), {
-    ...saleData,
-    timestamp: serverTimestamp()
-  });
+  const docRef = await addData(COLLECTIONS.SALES, saleData);
   return { id: docRef.id, ...saleData };
 };
 
 export const getSales = async () => {
-  const q = query(collection(db, COLLECTIONS.SALES), orderBy('timestamp', 'desc'));
+  const tenantId = getTenant();
+  const q = query(collection(db, COLLECTIONS.SALES), where('tenantId', '==', tenantId), orderBy('createdAt', 'desc'));
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 // --- VENDORS ---
 export const getVendors = async () => {
-  const querySnapshot = await getDocs(collection(db, COLLECTIONS.VENDORS));
-  return querySnapshot.docs
-    .map(doc => ({ id: doc.id, ...doc.data() }))
-    .filter(v => v.tenantId === getTenant());
+    const tenantId = getTenant();
+    const q = query(collection(db, COLLECTIONS.VENDORS), where('tenantId', '==', tenantId));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 export const saveVendor = async (vendor) => {
-  const tenantId = getTenant();
   const { id, ...data } = vendor;
   if (id) {
-    const vendorRef = doc(db, COLLECTIONS.VENDORS, id);
-    await updateDoc(vendorRef, { ...data, tenantId, updatedAt: serverTimestamp() });
+    await updateData(COLLECTIONS.VENDORS, id, data);
   } else {
-    await addDoc(collection(db, COLLECTIONS.VENDORS), { 
-      ...data, 
-      displayId: data.displayId || Date.now().toString().slice(-4),
-      balance: data.balance || 0,
-      tenantId,
-      createdAt: serverTimestamp() 
+    await addData(COLLECTIONS.VENDORS, {
+        ...data,
+        displayId: data.displayId || Date.now().toString().slice(-4),
+        balance: data.balance || 0
     });
   }
 };
@@ -160,19 +198,13 @@ export const deleteVendor = async (id) => {
 
 // --- OUTSIDE PURCHASES ---
 export const saveOutsidePurchase = async (purchaseData) => {
-  const tenantId = getTenant();
-  const docRef = await addDoc(collection(db, COLLECTIONS.OUTSIDE_PURCHASES), {
-    ...purchaseData,
-    tenantId,
-    timestamp: serverTimestamp()
-  });
+  const docRef = await addData(COLLECTIONS.OUTSIDE_PURCHASES, purchaseData);
   return { id: docRef.id, ...purchaseData };
 };
 
 export const getOutsidePurchases = async () => {
-  const q = query(collection(db, COLLECTIONS.OUTSIDE_PURCHASES), orderBy('timestamp', 'desc'));
+  const tenantId = getTenant();
+  const q = query(collection(db, COLLECTIONS.OUTSIDE_PURCHASES), where('tenantId', '==', tenantId), orderBy('createdAt', 'desc'));
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs
-    .map(doc => ({ id: doc.id, ...doc.data() }))
-    .filter(p => p.tenantId === getTenant());
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };

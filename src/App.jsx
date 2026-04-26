@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from './firebase';
+import { TenantProvider, useTenant } from './utils/TenantContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -19,7 +18,9 @@ import Flowers from './pages/Flowers';
 import Settings from './pages/Settings';
 import OutsideShop from './pages/OutsideShop';
 
-const ProtectedRoute = ({ children, user, loading }) => {
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useTenant();
+  
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
@@ -29,34 +30,29 @@ const ProtectedRoute = ({ children, user, loading }) => {
 };
 
 function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-      if (currentUser) {
-        sessionStorage.setItem('fm_logged_in', 'true');
-      } else {
-        sessionStorage.removeItem('fm_logged_in');
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={user ? <Navigate to="/app" replace /> : <Login />} />
-        <Route
-          path="/app"
-          element={
-            <ProtectedRoute user={user} loading={loading}>
-              <Layout />
-            </ProtectedRoute>
-          }
-        >
+    <TenantProvider>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </TenantProvider>
+  );
+}
+
+const AppRoutes = () => {
+  const { user } = useTenant();
+  
+  return (
+    <Routes>
+      <Route path="/" element={user ? <Navigate to="/app" replace /> : <Login />} />
+      <Route
+        path="/app"
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
           <Route index element={<Navigate to="/app/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="intake" element={<Intake />} />
@@ -72,9 +68,8 @@ function App() {
           <Route path="flowers" element={<Flowers />} />
           <Route path="settings" element={<Settings />} />
           <Route path="outside-shop" element={<OutsideShop />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+      </Route>
+    </Routes>
   );
 }
 
