@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Plus, Edit2, Trash2, X, Flower2 } from 'lucide-react';
-import { subscribeToCollection, db } from '../utils/storage';
+import { subscribeToCollection, saveProduct, db } from '../utils/storage';
 import { LangContext } from '../components/Layout';
-import { collection, addDoc, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, deleteDoc } from 'firebase/firestore';
 
 const S = {
     page: {
@@ -95,20 +95,12 @@ const Flowers = () => {
         if (!form.name.trim() || isSaving) return;
         setIsSaving(true);
         try {
-            if (editing) {
-                await updateDoc(doc(db, 'products', editing.id), {
-                    name: form.name.trim(),
-                    taName: form.taName.trim(),
-                    unit: form.unit,
-                });
-            } else {
-                await addDoc(collection(db, 'products'), {
-                    name: form.name.trim(),
-                    taName: form.taName.trim(),
-                    unit: form.unit,
-                    createdAt: serverTimestamp(),
-                });
-            }
+            await saveProduct({
+                id: editing?.id,
+                name: form.name.trim(),
+                taName: form.taName.trim(),
+                unit: form.unit,
+            });
             setIsModalOpen(false);
         } catch (err) {
             alert('❌ Failed: ' + err.message);

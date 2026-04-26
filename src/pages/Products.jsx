@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Search, X, Tag, Package, Download, Upload, Boxes } from 'lucide-react';
-import { subscribeToCollection, db } from '../utils/storage';
-import { collection, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { subscribeToCollection, saveProduct, db } from '../utils/storage';
+import { deleteDoc, doc } from 'firebase/firestore';
 
 const Products = () => {
     const [products, setProducts] = useState([]);
@@ -22,16 +22,10 @@ const Products = () => {
         }
         setIsModalOpen(true);
     };
-
     const handleSave = async (e) => {
         e.preventDefault();
         try {
-            if (currentProduct.id) {
-                const docRef = doc(db, 'products', currentProduct.id);
-                await updateDoc(docRef, currentProduct);
-            } else {
-                await addDoc(collection(db, 'products'), currentProduct);
-            }
+            await saveProduct(currentProduct);
             setIsModalOpen(false);
         } catch (error) {
             console.error("Error saving product:", error);
