@@ -13,50 +13,51 @@ export const TenantProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        let active = true; // Guard against StrictMode double-invocation and stale closures
+
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            if (!active) return; // Discard if this effect instance was already cleaned up
+
             setUser(currentUser);
             if (currentUser) {
-                // Determine tenantId. 
-                // Option A: From user profile in Firestore
-                // Option B: From custom claim (Identity Platform)
-                // Option C: Derived from email (simple approach for now as per current Login.jsx)
-                
                 let tid = sessionStorage.getItem('fm_tenantId');
-                
+
                 if (!tid) {
-                    // Try to fetch from a 'users' collection
                     try {
                         const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
+                        if (!active) return; // Check again after every await
                         if (userSnap.exists()) {
                             tid = userSnap.data().tenantId;
                         } else {
-                            // Fallback to extraction from email for backward compatibility with current mock
                             tid = currentUser.email.split('@')[0];
                         }
                     } catch (err) {
-                        console.error("Error fetching user data:", err);
+                        if (!active) return;
+                        console.error('Error fetching user data:', err);
                         tid = currentUser.email.split('@')[0];
                     }
                 }
 
-                if (tid) {
+                if (tid && active) {
                     setTenantId(tid);
                     sessionStorage.setItem('fm_tenantId', tid);
-                    
+
                     // Fetch tenant settings
                     try {
                         const tenantSnap = await getDoc(doc(db, 'tenants', tid));
+                        if (!active) return;
                         if (tenantSnap.exists()) {
                             setTenantData(tenantSnap.data());
                         } else {
-                            // Try global settings as fallback if tenant-specific not yet created
                             const globalSnap = await getDoc(doc(db, 'system', 'settings'));
+                            if (!active) return;
                             if (globalSnap.exists()) {
                                 setTenantData(globalSnap.data());
                             }
                         }
                     } catch (err) {
-                        console.error("Error fetching tenant data:", err);
+                        if (!active) return;
+                        console.error('Error fetching tenant data:', err);
                     }
                 }
             } else {
@@ -64,10 +65,14 @@ export const TenantProvider = ({ children }) => {
                 setTenantData(null);
                 sessionStorage.removeItem('fm_tenantId');
             }
-            setLoading(false);
+
+            if (active) setLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => {
+            active = false; // Prevent any in-flight async callbacks from committing state
+            unsubscribe();
+        };
     }, []);
 
     const value = {

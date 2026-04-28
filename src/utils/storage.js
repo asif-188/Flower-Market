@@ -25,7 +25,9 @@ export const COLLECTIONS = {
   SALES: 'sales',
   VENDORS: 'vendors',
   OUTSIDE_PURCHASES: 'outside_purchases',
-  TENANTS: 'tenants'
+  TENANTS: 'tenants',
+  PAYMENTS: 'payments',
+  SYSTEM: 'system',
 };
 
 // Helper to get current tenant
@@ -43,18 +45,46 @@ export const getTenant = () => {
 
 export const subscribeToCollection = (collectionName, callback, filterByTenant = true) => {
   const tenantId = getTenant();
-  let q;
-  
-  if (filterByTenant) {
-    q = query(collection(db, collectionName), where('tenantId', '==', tenantId), orderBy('createdAt', 'desc'));
-  } else {
-    q = query(collection(db, collectionName), orderBy('createdAt', 'desc'));
-  }
-  
-  return onSnapshot(q, (snapshot) => {
-    let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    callback(data);
-  });
+
+  // Build the ordered query (requires a Firestore composite index)
+  const orderedQ = filterByTenant
+    ? query(collection(db, collectionName), where('tenantId', '==', tenantId), orderBy('createdAt', 'desc'))
+    : query(collection(db, collectionName), orderBy('createdAt', 'desc'));
+
+  // Track the active unsubscribe so we can swap it out cleanly if needed
+  let activeUnsub = null;
+
+  const startFallback = () => {
+    // Simple query without orderBy — no composite index required
+    const fallbackQ = filterByTenant
+      ? query(collection(db, collectionName), where('tenantId', '==', tenantId))
+      : query(collection(db, collectionName));
+
+    activeUnsub = onSnapshot(fallbackQ, (snapshot) => {
+      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      callback(data);
+    });
+  };
+
+  // Start with the ordered query
+  activeUnsub = onSnapshot(
+    orderedQ,
+    (snapshot) => {
+      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      callback(data);
+    },
+    (error) => {
+      // Only fall back when the error is a missing-index / permission error.
+      // Crucially: unsubscribe the broken listener BEFORE starting a new one
+      // to avoid triggering Firestore's internal watch-stream assertion.
+      console.warn(`subscribeToCollection(${collectionName}) ordered query failed, using fallback:`, error.code, error.message);
+      if (activeUnsub) { try { activeUnsub(); } catch (_) {} }
+      startFallback();
+    }
+  );
+
+  // Return a stable unsub handle that always cancels the currently active listener
+  return () => { if (activeUnsub) { try { activeUnsub(); } catch (_) {} } };
 };
 
 // --- Generic Operations (to replace manual addDoc/updateDoc) ---
@@ -200,6 +230,12 @@ export const deleteVendor = async (id) => {
 export const saveOutsidePurchase = async (purchaseData) => {
   const docRef = await addData(COLLECTIONS.OUTSIDE_PURCHASES, purchaseData);
   return { id: docRef.id, ...purchaseData };
+};
+
+// --- PAYMENTS ---
+export const savePayment = async (paymentData) => {
+  const docRef = await addData(COLLECTIONS.PAYMENTS, paymentData);
+  return { id: docRef.id, ...paymentData };
 };
 
 export const getOutsidePurchases = async () => {

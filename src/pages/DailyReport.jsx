@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { FileText, Printer, Search } from 'lucide-react';
-import { subscribeToCollection, db } from '../utils/storage';
-import { collection, addDoc, doc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { subscribeToCollection, db, savePayment } from '../utils/storage';
+import { doc, updateDoc, increment } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import { Check, Edit3, Save } from 'lucide-react';
 
@@ -100,7 +100,7 @@ const DailyReport = () => {
                 const rec = Number(data.received || 0);
                 const les = Number(data.less || 0);
 
-                await addDoc(collection(db, 'payments'), {
+                await savePayment({
                     entityId: bid,
                     type: 'buyer',
                     amount: rec,

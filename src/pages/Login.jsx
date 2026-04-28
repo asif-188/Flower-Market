@@ -20,8 +20,10 @@ const Login = () => {
         const email = username.includes('@') ? username : `${username.toLowerCase()}@poovanam.com`;
         
         try {
+        // Derive tenantId: always use only the part before '@' for consistency
+            const tenantId = username.includes('@') ? username.split('@')[0].toLowerCase() : username.toLowerCase();
             await signInWithEmailAndPassword(auth, email, password);
-            sessionStorage.setItem('fm_tenantId', username.toLowerCase());
+            sessionStorage.setItem('fm_tenantId', tenantId);
             navigate('/app');
         } catch (err) {
             console.error('Login error:', err);

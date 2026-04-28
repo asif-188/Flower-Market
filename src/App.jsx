@@ -17,6 +17,7 @@ import DailyReport from './pages/DailyReport';
 import Flowers from './pages/Flowers';
 import Settings from './pages/Settings';
 import OutsideShop from './pages/OutsideShop';
+import AdminPanel from './pages/AdminPanel';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useTenant();
@@ -69,6 +70,7 @@ const AppRoutes = () => {
           <Route path="settings" element={<Settings />} />
           <Route path="outside-shop" element={<OutsideShop />} />
       </Route>
+      <Route path="/admin" element={<AdminPanel />} />
     </Routes>
   );
 }

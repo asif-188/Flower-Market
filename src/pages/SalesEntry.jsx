@@ -145,7 +145,7 @@ const SalesEntry = () => {
         const u5 = subscribeToCollection('system', (data) => {
             const s = data.find(i => i.id === 'settings');
             if (s) setSettings(s);
-        });
+        }, false); // system collection is global, not tenant-scoped
         return () => { u1(); u2(); u3(); u4(); u5(); };
     }, []);
 
