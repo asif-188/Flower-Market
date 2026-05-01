@@ -165,9 +165,9 @@ const SalesEntry = () => {
             if (buyerId && s.buyerId !== buyerId) return false;
             return true;
         }).sort((a, b) => {
-            const tA = a.timestamp?.toMillis ? a.timestamp.toMillis() : 0;
-            const tB = b.timestamp?.toMillis ? b.timestamp.toMillis() : 0;
-            return tA - tB;
+            const tA = (a.timestamp?.toMillis?.() || a.createdAt?.toMillis?.() || 0);
+            const tB = (b.timestamp?.toMillis?.() || b.createdAt?.toMillis?.() || 0);
+            return tB - tA;
         });
     }, [allSales, buyerId, date]);
 
@@ -252,7 +252,8 @@ const SalesEntry = () => {
     const formatTime = (ts) => {
         if (!ts) return '--:--';
         const d = ts.toDate ? ts.toDate() : new Date(ts);
-        return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+        if (isNaN(d.getTime())) return '--:--';
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
     };
 
     const handleShareWhatsApp = async () => {
@@ -481,7 +482,7 @@ const SalesEntry = () => {
                                         <tr key={sale.id} style={{ borderBottom: '1px solid #f8fafc', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
                                             <td style={TD_S}>
                                                 <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
-                                                    {formatTime(sale.timestamp)}
+                                                    {formatTime(sale.timestamp || sale.createdAt)}
                                                 </span>
                                             </td>
                                             <td style={TD_S}>

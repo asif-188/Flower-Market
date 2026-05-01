@@ -203,6 +203,13 @@ const OutsideShop = () => {
 
     const toDateStr = (d) => d.toISOString().split('T')[0];
     const fmt = (n) => `₹${Number(n).toLocaleString('en-IN')}`;
+    const formatTime = (ts) => {
+        if (!ts) return '--:--';
+        // Handle Firestore Timestamp, Date object, or fallback to createdAt
+        const d = ts.toDate ? ts.toDate() : new Date(ts);
+        if (isNaN(d.getTime())) return '--:--';
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    };
 
     const translate = async (text, from, to) => {
         if (!text || text.length < 2) return '';
@@ -241,7 +248,11 @@ const OutsideShop = () => {
         if (vendorId) {
             filtered = filtered.filter(p => p.vendorId === vendorId);
         }
-        return filtered.sort((a,b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
+        return filtered.sort((a,b) => {
+            const tA = (a.timestamp?.toMillis?.() || a.createdAt?.toMillis?.() || 0);
+            const tB = (b.timestamp?.toMillis?.() || b.createdAt?.toMillis?.() || 0);
+            return tB - tA;
+        });
     }, [purchases, date, vendorId]);
 
     const stats = useMemo(() => {
@@ -541,8 +552,8 @@ const OutsideShop = () => {
         if (!currentItem.flowerType || !currentItem.quantity || !currentItem.price) return;
         const qty = parseFloat(currentItem.quantity);
         const rate = parseFloat(currentItem.price);
-        const newItem = { ...currentItem, total: qty * rate, id: Date.now() };
-        setDraftItems(p => [...p, newItem]);
+        const newItem = { ...currentItem, total: qty * rate, id: Date.now(), time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) };
+        setDraftItems(p => [newItem, ...p]);
         setCurrentItem({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
         refFlower.current?.focus();
     };
@@ -589,6 +600,7 @@ const OutsideShop = () => {
                     items: finalItems,
                     grandTotal: grandTotal,
                     cashPaid: 0,
+                    timestamp: serverTimestamp(),
                 });
                 await updateDoc(doc(db, 'vendors', vendorId), { balance: increment(grandTotal) });
             }
@@ -1096,6 +1108,7 @@ const OutsideShop = () => {
                         <table style={{ width: '100%', fontSize: '13px' }}>
                             <thead>
                                 <tr style={{ color: '#94a3b8', textAlign: 'left', borderBottom: '1px solid #fed7aa' }}>
+                                    <th style={{ padding: '8px' }}>{t('time') || 'Time'}</th>
                                     <th style={{ padding: '8px' }}>{t('flower')}</th>
                                     <th style={{ padding: '8px', textAlign: 'center' }}>{t('qty')}</th>
                                     <th style={{ padding: '8px', textAlign: 'center' }}>{t('rate')}</th>
@@ -1106,6 +1119,9 @@ const OutsideShop = () => {
                             <tbody>
                                 {draftItems.map((item, idx) => (
                                     <tr key={item.id || idx} style={{ borderBottom: '1px solid #fff7ed' }}>
+                                        <td style={{ padding: '8px' }}>
+                                            <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700 }}>{item.time || '--:--'}</span>
+                                        </td>
                                         <td style={{ padding: '8px', fontWeight: 600 }}>{lang === 'ta' ? (item.flowerTypeTa || item.flowerType) : item.flowerType}</td>
                                         <td style={{ padding: '8px', textAlign: 'center' }}>{item.quantity}</td>
                                         <td style={{ padding: '8px', textAlign: 'center' }}>{item.price}</td>
@@ -1152,7 +1168,7 @@ const OutsideShop = () => {
                                         <td style={TD_S}>
                                             {iIdx === 0 && (
                                                 <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
-                                                    {p.timestamp?.toDate ? p.timestamp.toDate().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--'}
+                                                    {formatTime(p.timestamp || p.createdAt)}
                                                 </span>
                                             )}
                                         </td>
