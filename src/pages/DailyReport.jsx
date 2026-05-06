@@ -217,7 +217,7 @@ const DailyReport = () => {
                     <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <FileText className="text-emerald-600" /> {t('dailyReport')}
                     </h1>
-                    <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>{t('date')}: {today.split('-').reverse().join('/')}</p>
+                    <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>{t('date')}: {today.split('-').reverse().join('-')}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
                     {!isEntryMode ? (

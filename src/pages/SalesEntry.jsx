@@ -172,22 +172,29 @@ const SalesEntry = () => {
     }, [allSales, buyerId, date]);
 
     const financialStats = React.useMemo(() => {
-        const buyer = buyers.find(b => b.id === buyerId);
-        if (!buyer) return { oldBalance: 0, cashRec: 0, cashLess: 0, todayTotal: 0, finalBalance: 0 };
-        
+        // 1. Today's Total (calculated from todayEntries, which is already filtered by date/buyer)
         const todayTotal = todayEntries.reduce((s, e) => s + (e.grandTotal || 0), 0);
+        
+        // 2. Filter payments for the selected date (and buyer if present)
         const dayPayments = allPayments.filter(p => {
-            if (p.entityId !== buyerId) return false;
+            if (buyerId && p.entityId !== buyerId) return false;
             const d = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
             return d === date;
         });
         const cashRec  = dayPayments.reduce((s, p) => s + (p.amount || 0), 0);
         const cashLess = dayPayments.reduce((s, p) => s + (p.cashLess || 0), 0);
         
-        // currentDebt = what's in DB right now
-        // oldBalance = Debt - todayEntriesTotal + cashRec + cashLess (approximately)
-        // Let's simplify: Today's live final balance is simply consumer.balance
-        const finalBalance = buyer.balance || 0;
+        // 3. Determine Balance (Individual or Aggregate)
+        let finalBalance = 0;
+        if (buyerId) {
+            const buyer = buyers.find(b => b.id === buyerId);
+            finalBalance = buyer?.balance || 0;
+        } else {
+            // Sum of all buyers' balances for aggregate shop view
+            finalBalance = buyers.reduce((s, b) => s + (b.balance || 0), 0);
+        }
+
+        // 4. Calculate Old Balance and Ledger Balance
         const oldBalance = finalBalance - todayTotal + cashRec + cashLess;
         const ledgerBalance = oldBalance - cashRec - cashLess;
 
@@ -273,7 +280,7 @@ const SalesEntry = () => {
                 paymentsTotal: cashRec,
                 cashLess: cashLess,
                 prevBalance: oldBalance,
-                dateLabel: date.split('-').reverse().join('/'),
+                dateLabel: date.split('-').reverse().join('-'),
                 bizInfo: settings,
                 lang: lang,
                 labels: {
@@ -341,6 +348,9 @@ const SalesEntry = () => {
                                     color: '#475569'
                                 }}
                             />
+                            <div style={{ fontSize: '11px', fontWeight: 700, color: '#16a34a', marginTop: '6px', textAlign: 'center' }}>
+                                {date.split('-').reverse().join('-')}
+                            </div>
                         </div>
                     </div>
 
@@ -596,7 +606,7 @@ const SalesEntry = () => {
 
                 {/* 3. Sales | Date Row */}
                 <div style={{ border: '2px solid #000', display: 'flex', justifyContent: 'space-between', padding: '8px 15px', fontWeight: 'bold', fontSize: '18px', marginBottom: '10px' }}>
-                    <span>{t('date')} : {date.split('-').reverse().join('/')}</span>
+                    <span>{t('date')} : {date.split('-').reverse().join('-')}</span>
                     <span style={{ textTransform: 'uppercase' }}>{t('sales')}</span>
                 </div>
 
