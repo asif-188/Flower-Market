@@ -17,7 +17,8 @@ const toDateStr = (d) => {
 
 const DailyReport = () => {
     const { t, lang } = useContext(LangContext);
-    const today = toDateStr(new Date());
+    const [fromDate, setFromDate] = useState(toDateStr(new Date()));
+    const [toDate, setToDate]     = useState(toDateStr(new Date()));
 
     const [sales, setSales]       = useState([]);
     const [buyers, setBuyers]     = useState([]);
@@ -38,18 +39,18 @@ const DailyReport = () => {
 
     const reportData = useMemo(() => {
         return buyers.map(b => {
-            const dayPayments = payments.filter(p => 
-                p.entityId === b.id && p.type === 'buyer' && 
-                (p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date())) : '') === today
-            );
-            const daySales = sales.filter(s => 
-                s.buyerId === b.id && 
-                (s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : '')) === today
-            );
+            const rangePayments = payments.filter(p => {
+                const pDate = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date())) : '';
+                return p.entityId === b.id && p.type === 'buyer' && pDate >= fromDate && pDate <= toDate;
+            });
+            const rangeSales = sales.filter(s => {
+                const sDate = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : '');
+                return s.buyerId === b.id && sDate >= fromDate && sDate <= toDate;
+            });
 
-            const received = dayPayments.reduce((s, p) => s + (p.amount || 0), 0);
-            const less     = dayPayments.reduce((s, p) => s + (p.cashLess || 0), 0);
-            const salesAmt = daySales.reduce((s, x) => s + (x.grandTotal || 0), 0);
+            const received = rangePayments.reduce((s, p) => s + (p.amount || 0), 0);
+            const less     = rangePayments.reduce((s, p) => s + (p.cashLess || 0), 0);
+            const salesAmt = rangeSales.reduce((s, x) => s + (x.grandTotal || 0), 0);
 
             return {
                 id: b.id,
@@ -63,7 +64,7 @@ const DailyReport = () => {
                 sales: salesAmt
             };
         }).sort((a, b) => (parseInt(a.displayId) || 0) - (parseInt(b.displayId) || 0));
-    }, [buyers, sales, payments, today]);
+    }, [buyers, sales, payments, fromDate, toDate]);
 
     const filtered = reportData.filter(r => 
         r.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -78,15 +79,15 @@ const DailyReport = () => {
         const o = b - s + (p + l);
         
         const pur = outsidePurchases
-            .filter(pur => pur.date === today)
+            .filter(pur => pur.date >= fromDate && pur.date <= toDate)
             .reduce((acc, p) => acc + (p.grandTotal || 0), 0);
         
         const vendorPaid = payments
-            .filter(p => p.type === 'vendor' && p.date === today)
+            .filter(p => p.type === 'vendor' && p.date >= fromDate && p.date <= toDate)
             .reduce((acc, p) => acc + (p.amount || 0), 0);
 
         return { sales: s, paid: p, less: l, end: b, open: o, purchases: pur, vendorPaid };
-    }, [reportData, outsidePurchases, payments, today]);
+    }, [reportData, outsidePurchases, payments, fromDate, toDate]);
 
     const handleSaveCollections = async () => {
         const entries = Object.entries(tempAmounts).filter(([_, data]) => 
@@ -129,7 +130,7 @@ const DailyReport = () => {
         const content = `
             <html>
             <head>
-                <title>Daily Report - ${today}</title>
+                <title>Sales Report - ${fromDate} to ${toDate}</title>
                 <style>
                     @page { size: auto; margin: 0; }
                     body { font-family: serif; padding: 15mm; line-height: 1.4; margin: 0; font-size: 15pt; }
@@ -145,8 +146,8 @@ const DailyReport = () => {
             </head>
             <body onload="window.print(); window.close();">
                 <div class="header">
-                    <div class="title">DAILY REPORT</div>
-                    <div style="font-size: 16px; font-weight: 700;">Date: ${today.split('-').reverse().join('/')}</div>
+                    <div class="title">SALES REPORT</div>
+                    <div style="font-size: 16px; font-weight: 700;">Range: ${fromDate.split('-').reverse().join('/')} - ${toDate.split('-').reverse().join('/')}</div>
                 </div>
                 <table>
                     <thead>
@@ -210,14 +211,67 @@ const DailyReport = () => {
         summaryCard: { background: '#1e293b', borderRadius: '16px', padding: '24px', color: '#fff', marginBottom: '24px', border: '1px solid #334155' }
     };
 
+    const RANGE_INPUT_S = {
+        padding: '6px 12px',
+        borderRadius: '8px',
+        border: '1.5px solid #e2e8f0',
+        fontSize: '13px',
+        fontWeight: 700,
+        color: '#1e293b',
+        background: '#fff',
+        outline: 'none'
+    };
+
     return (
         <div style={S.page}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
                 <div>
                     <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <FileText className="text-emerald-600" /> {t('dailyReport')}
+                        <FileText className="text-emerald-600" /> {t('reports')}
                     </h1>
-                    <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>{t('date')}: {today.split('-').reverse().join('-')}</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>{t('fromDate')}:</span>
+                            <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} style={RANGE_INPUT_S} />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>{t('toDate')}:</span>
+                            <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} style={RANGE_INPUT_S} />
+                        </div>
+                        <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
+                            {[
+                                { label: t('today'), onClick: () => { const d = toDateStr(new Date()); setFromDate(d); setToDate(d); } },
+                                { label: 'Weekly', onClick: () => { 
+                                    const d = new Date(); 
+                                    setToDate(toDateStr(d));
+                                    d.setDate(d.getDate() - 7);
+                                    setFromDate(toDateStr(d));
+                                }},
+                                { label: 'Monthly', onClick: () => { 
+                                    const d = new Date(); 
+                                    setToDate(toDateStr(d));
+                                    d.setDate(1);
+                                    setFromDate(toDateStr(d));
+                                }},
+                                { label: 'Yearly', onClick: () => { 
+                                    const d = new Date(); 
+                                    setToDate(toDateStr(d));
+                                    d.setMonth(0, 1);
+                                    setFromDate(toDateStr(d));
+                                }}
+                            ].map(btn => (
+                                <button 
+                                    key={btn.label} 
+                                    onClick={btn.onClick}
+                                    style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, borderRadius: '6px', border: 'none', background: 'transparent', color: '#475569', cursor: 'pointer', transition: 'all 0.2s' }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#fff'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                >
+                                    {btn.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
                     {!isEntryMode ? (

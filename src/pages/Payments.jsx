@@ -54,7 +54,7 @@ const Payments = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [paymentType] = useState('buyer');
 
-    const [formData, setFormData] = useState({ entityId: '', amount: '', cashLess: '', method: 'Cash', note: '' });
+    const [formData, setFormData] = useState({ entityId: '', amount: '', cashLess: '', method: 'Cash', note: '', date: new Date().toISOString().split('T')[0] });
 
     useEffect(() => {
         const u1 = subscribeToCollection('payments', (data) =>
@@ -69,7 +69,14 @@ const Payments = () => {
     }, []);
 
     const handleOpenModal = () => {
-        setFormData({ entityId: '', amount: '', cashLess: '', method: 'Cash', note: '' });
+        setFormData({ 
+            entityId: '', 
+            amount: '', 
+            cashLess: '', 
+            method: 'Cash', 
+            note: '', 
+            date: new Date().toISOString().split('T')[0] 
+        });
         setIsModalOpen(true);
     };
 
@@ -86,11 +93,11 @@ const Payments = () => {
                 amount: amountNum,
                 cashLess: cashLessNum,
                 type: paymentType,
-                timestamp: new Date().toISOString()
+                timestamp: new Date(formData.date).toISOString()
             });
             await updateDoc(entityRef, { balance: increment(-(amountNum + cashLessNum)) });
             setIsModalOpen(false);
-            setFormData({ entityId: '', amount: '', cashLess: '', method: 'Cash', note: '' });
+            setFormData({ entityId: '', amount: '', cashLess: '', method: 'Cash', note: '', date: new Date().toISOString().split('T')[0] });
         } catch (err) {
             alert('❌ Failed to record payment: ' + err.message);
         } finally {
@@ -246,6 +253,20 @@ const Payments = () => {
                                     <option value="">{t('selectCustomer')}</option>
                                     {buyers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                                 </select>
+                            </div>
+
+                            {/* Date */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <label style={{ width: '140px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#374151' }}>{t('date')}</label>
+                                <input
+                                    type="date"
+                                    value={formData.date}
+                                    onChange={e => setFormData({ ...formData, date: e.target.value })}
+                                    required
+                                    style={{ flex: 1, padding: '9px 12px', borderRadius: '9px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '14px', fontWeight: 500, color: '#1e293b', outline: 'none', fontFamily: 'var(--font-sans)' }}
+                                    onFocus={e => e.target.style.borderColor = '#16a34a'}
+                                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                                />
                             </div>
 
                             {/* Opening Balance */}
