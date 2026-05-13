@@ -55,6 +55,10 @@ const Payments = () => {
     const [paymentType] = useState('buyer');
 
     const [formData, setFormData] = useState({ entityId: '', amount: '', cashLess: '', method: 'Cash', note: '', date: new Date().toISOString().split('T')[0] });
+    const [customerSearch, setCustomerSearch] = useState('');
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [dateRange, setDateRange] = useState('all'); // 'today', 'yesterday', 'month', 'year', 'prevYear', 'custom', 'all'
+    const [customRange, setCustomRange] = useState({ start: '', end: '' });
 
     useEffect(() => {
         const u1 = subscribeToCollection('payments', (data) =>
@@ -77,6 +81,8 @@ const Payments = () => {
             note: '', 
             date: new Date().toISOString().split('T')[0] 
         });
+        setCustomerSearch('');
+        setIsDropdownOpen(false);
         setIsModalOpen(true);
     };
 
@@ -140,8 +146,44 @@ const Payments = () => {
     const openingBalance = selectedEntity?.balance || 0;
     const closingBalance = openingBalance - (parseFloat(formData.amount) || 0) - (parseFloat(formData.cashLess) || 0);
 
-    // Filter to show only buyer payments in this view
-    const buyerPayments = payments.filter(p => p.type === 'buyer');
+    const filteredBuyers = buyers.filter(b => 
+        b.name.toLowerCase().includes(customerSearch.toLowerCase()) || 
+        b.displayId?.toString().toLowerCase().includes(customerSearch.toLowerCase())
+    );
+
+    const getFilteredPayments = () => {
+        let filtered = payments.filter(p => p.type === 'buyer');
+        
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        
+        if (dateRange === 'today') {
+            filtered = filtered.filter(p => p.timestamp?.split('T')[0] === todayStr);
+        } else if (dateRange === 'yesterday') {
+            filtered = filtered.filter(p => p.timestamp?.split('T')[0] === yesterdayStr);
+        } else if (dateRange === 'thisMonth') {
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+            filtered = filtered.filter(p => p.timestamp >= startOfMonth);
+        } else if (dateRange === 'thisYear') {
+            const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
+            filtered = filtered.filter(p => p.timestamp >= startOfYear);
+        } else if (dateRange === 'prevYear') {
+            const startOfPrevYear = new Date(now.getFullYear() - 1, 0, 1).toISOString();
+            const endOfPrevYear = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59).toISOString();
+            filtered = filtered.filter(p => p.timestamp >= startOfPrevYear && p.timestamp <= endOfPrevYear);
+        } else if (dateRange === 'custom' && customRange.start && customRange.end) {
+            filtered = filtered.filter(p => {
+                const date = p.timestamp?.split('T')[0];
+                return date >= customRange.start && date <= customRange.end;
+            });
+        }
+        return filtered;
+    };
+
+    const buyerPayments = getFilteredPayments();
 
     return (
         <div style={S.page}>
@@ -151,14 +193,51 @@ const Payments = () => {
                     <span style={{ fontSize: '22px' }}>💰</span>
                     <h2 style={S.title}>{t('cashReceive')}</h2>
                 </div>
-                <button
-                    style={S.btnAdd}
-                    onClick={handleOpenModal}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#16a34a'; e.currentTarget.style.color = '#fff'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#16a34a'; }}
-                >
-                    <Plus size={14} /> {t('receivePayment')}
-                </button>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                    <button
+                        style={S.btnAdd}
+                        onClick={handleOpenModal}
+                        onMouseEnter={e => { e.currentTarget.style.background = '#16a34a'; e.currentTarget.style.color = '#fff'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#16a34a'; }}
+                    >
+                        <Plus size={14} /> {t('receivePayment')}
+                    </button>
+                </div>
+            </div>
+
+            {/* ── Date Filters ── */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', flexWrap: 'wrap', background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginRight: '5px' }}>{t('filter')}:</span>
+                {[
+                    { id: 'all' },
+                    { id: 'today' },
+                    { id: 'yesterday' },
+                    { id: 'thisMonth' },
+                    { id: 'thisYear' },
+                    { id: 'prevYear' },
+                    { id: 'custom' }
+                ].map(f => (
+                    <button
+                        key={f.id}
+                        onClick={() => setDateRange(f.id)}
+                        style={{
+                            padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                            background: dateRange === f.id ? '#16a34a' : '#fff',
+                            color: dateRange === f.id ? '#fff' : '#64748b',
+                            boxShadow: dateRange === f.id ? '0 2px 8px rgba(22,163,74,0.3)' : '0 1px 2px rgba(0,0,0,0.05)'
+                        }}
+                    >{t(f.id)}</button>
+                ))}
+
+                {dateRange === 'custom' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '10px', animation: 'fadeIn 0.3s ease' }}>
+                        <input type="date" value={customRange.start} onChange={e => setCustomRange({ ...customRange, start: e.target.value })}
+                            style={{ padding: '5px 8px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '12px', outline: 'none' }} />
+                        <span style={{ color: '#94a3b8' }}>to</span>
+                        <input type="date" value={customRange.end} onChange={e => setCustomRange({ ...customRange, end: e.target.value })}
+                            style={{ padding: '5px 8px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '12px', outline: 'none' }} />
+                    </div>
+                )}
             </div>
 
             {/* ── Table ── */}
@@ -239,22 +318,6 @@ const Payments = () => {
                         </div>
 
                         <form onSubmit={handleSave} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                            {/* Customer */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <label style={{ width: '140px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#374151' }}>{t('customer')}</label>
-                                <select
-                                    value={formData.entityId}
-                                    onChange={e => setFormData({ ...formData, entityId: e.target.value })}
-                                    required
-                                    style={{ flex: 1, padding: '9px 12px', borderRadius: '9px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '14px', fontWeight: 500, color: '#1e293b', outline: 'none', fontFamily: 'var(--font-sans)' }}
-                                    onFocus={e => e.target.style.borderColor = '#16a34a'}
-                                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
-                                >
-                                    <option value="">{t('selectCustomer')}</option>
-                                    {buyers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                                </select>
-                            </div>
-
                             {/* Date */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <label style={{ width: '140px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#374151' }}>{t('date')}</label>
@@ -267,6 +330,51 @@ const Payments = () => {
                                     onFocus={e => e.target.style.borderColor = '#16a34a'}
                                     onBlur={e => e.target.style.borderColor = '#e2e8f0'}
                                 />
+                            </div>
+
+                            {/* Customer Searchable Dropdown */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <label style={{ width: '140px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#374151' }}>{t('customer')}</label>
+                                <div style={{ flex: 1, position: 'relative' }}>
+                                    <input
+                                        type="text"
+                                        placeholder={t('selectCustomer')}
+                                        value={formData.entityId ? buyers.find(b => b.id === formData.entityId)?.name || '' : customerSearch}
+                                        onChange={e => {
+                                            setCustomerSearch(e.target.value);
+                                            setFormData({ ...formData, entityId: '' });
+                                            setIsDropdownOpen(true);
+                                        }}
+                                        onFocus={() => setIsDropdownOpen(true)}
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '9px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '14px', fontWeight: 500, color: '#1e293b', outline: 'none', fontFamily: 'var(--font-sans)' }}
+                                        onFocusCapture={e => e.target.style.borderColor = '#16a34a'}
+                                        onBlurCapture={e => e.target.style.borderColor = '#e2e8f0'}
+                                    />
+                                    {isDropdownOpen && (
+                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 110, background: '#fff', borderRadius: '9px', border: '1.5px solid #e2e8f0', marginTop: '4px', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+                                            {filteredBuyers.length > 0 ? (
+                                                filteredBuyers.map(b => (
+                                                    <div
+                                                        key={b.id}
+                                                        onClick={() => {
+                                                            setFormData({ ...formData, entityId: b.id });
+                                                            setCustomerSearch('');
+                                                            setIsDropdownOpen(false);
+                                                        }}
+                                                        style={{ padding: '10px 12px', cursor: 'pointer', fontSize: '14px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                                        onMouseEnter={e => e.currentTarget.style.background = '#f0fdf4'}
+                                                        onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                                                    >
+                                                        <span style={{ fontWeight: 600 }}>{b.name}</span>
+                                                        <span style={{ fontSize: '11px', color: '#64748b', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>#{b.displayId}</span>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>{t('noRecords')}</div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Opening Balance */}

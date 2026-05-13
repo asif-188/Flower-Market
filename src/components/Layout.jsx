@@ -126,6 +126,12 @@ const strings = {
     amount: 'Amount',
     paymentReceipt: 'Payment Receipt',
     purchaseReceipt: 'Purchase Receipt',
+    all: 'All',
+    yesterday: 'Yesterday',
+    thisMonth: 'This Month',
+    thisYear: 'This Year',
+    prevYear: 'Prev Year',
+    filter: 'Filter',
   },
   ta: {
     back: 'பின்',
@@ -246,6 +252,12 @@ const strings = {
     amount: 'தொகை',
     paymentReceipt: 'பணம் பெற்றுக் கொண்டமைக்கான ரசீது',
     purchaseReceipt: 'கொள்முதல் ரசீது',
+    all: 'அனைத்தும்',
+    yesterday: 'நேற்று',
+    thisMonth: 'இந்த மாதம்',
+    thisYear: 'இந்த ஆண்டு',
+    prevYear: 'கடந்த ஆண்டு',
+    filter: 'தேடல்',
   },
 };
 
