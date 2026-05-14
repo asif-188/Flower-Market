@@ -63,6 +63,7 @@ const Payments = () => {
     const [customerFilterSearch, setCustomerFilterSearch] = useState('');
     const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(-1);
+    const [filterSelectedIndex, setFilterSelectedIndex] = useState(-1);
 
     // Refs for focus management
     const dateRef = React.useRef(null);
@@ -82,7 +83,7 @@ const Payments = () => {
             setPayments(data.sort((a, b) => {
                 const dA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
                 const dB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
-                return dB - dA;
+                return dA - dB;
             })));
         const u2 = subscribeToCollection('buyers', setBuyers);
         const u3 = subscribeToCollection('farmers', setFarmers);
@@ -120,17 +121,18 @@ const Payments = () => {
             });
             await updateDoc(entityRef, { balance: increment(-(amountNum + cashLessNum)) });
             
-            // Keep modal open and reset only payment fields
+            // Keep modal open and reset to fresh page
             setFormData(prev => ({ 
                 ...prev, 
+                entityId: '', 
                 amount: '', 
                 cashLess: '', 
                 note: '' 
             }));
             setCustomerSearch('');
             
-            // Re-focus amount for next entry
-            setTimeout(() => amountRef.current?.focus(), 100);
+            // Re-focus customer search for next entry
+            setTimeout(() => customerRef.current?.focus(), 100);
         } catch (err) {
             alert('❌ Failed to record payment: ' + err.message);
         } finally {
@@ -281,7 +283,10 @@ const Payments = () => {
                 {/* Customer Filter */}
                 <div style={{ position: 'relative', minWidth: '180px', marginLeft: '5px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', cursor: 'pointer' }}
-                        onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}>
+                        onClick={() => {
+                            setIsFilterDropdownOpen(!isFilterDropdownOpen);
+                            setFilterSelectedIndex(-1);
+                        }}>
                         <User size={14} style={{ color: '#16a34a' }} />
                         <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
                             {customerFilterId === 'all' ? t('all') : buyers.find(b => b.id === customerFilterId)?.name || t('all')}
@@ -290,21 +295,80 @@ const Payments = () => {
                     {isFilterDropdownOpen && (
                         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: '#fff', borderRadius: '10px', border: '1.5px solid #e2e8f0', marginTop: '5px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', minWidth: '220px' }}>
                             <div style={{ padding: '8px', borderBottom: '1px solid #f1f5f9' }}>
-                                <input type="text" placeholder={t('search')} value={customerFilterSearch} onChange={e => setCustomerFilterSearch(e.target.value)}
-                                    style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1.5px solid #f1f5f9', fontSize: '12px', outline: 'none' }} autoFocus />
+                                <input 
+                                    type="text" 
+                                    placeholder={t('search')} 
+                                    value={customerFilterSearch} 
+                                    onChange={e => {
+                                        setCustomerFilterSearch(e.target.value);
+                                        setFilterSelectedIndex(-1);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        const results = buyers.filter(b => b.name.toLowerCase().includes(customerFilterSearch.toLowerCase()) || b.displayId?.toString().includes(customerFilterSearch));
+                                        const totalOptions = results.length + 1; // +1 for "All"
+                                        
+                                        if (e.key === 'ArrowDown') {
+                                            e.preventDefault();
+                                            setFilterSelectedIndex(prev => (prev + 1) % totalOptions);
+                                        } else if (e.key === 'ArrowUp') {
+                                            e.preventDefault();
+                                            setFilterSelectedIndex(prev => (prev - 1 + totalOptions) % totalOptions);
+                                        } else if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            if (filterSelectedIndex === 0) {
+                                                setCustomerFilterId('all');
+                                                setIsFilterDropdownOpen(false);
+                                                setCustomerFilterSearch('');
+                                            } else if (filterSelectedIndex > 0) {
+                                                const selected = results[filterSelectedIndex - 1];
+                                                setCustomerFilterId(selected.id);
+                                                setIsFilterDropdownOpen(false);
+                                                setCustomerFilterSearch('');
+                                            }
+                                        }
+                                    }}
+                                    style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1.5px solid #f1f5f9', fontSize: '12px', outline: 'none' }} 
+                                    autoFocus 
+                                />
                             </div>
                             <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
                                 <div onClick={() => { setCustomerFilterId('all'); setIsFilterDropdownOpen(false); setCustomerFilterSearch(''); }}
-                                    style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', fontWeight: customerFilterId === 'all' ? 700 : 400, color: customerFilterId === 'all' ? '#16a34a' : '#475569', background: customerFilterId === 'all' ? '#f0fdf4' : 'transparent' }}>
+                                    onMouseEnter={() => setFilterSelectedIndex(0)}
+                                    style={{ 
+                                        padding: '8px 12px', 
+                                        fontSize: '13px', 
+                                        cursor: 'pointer', 
+                                        fontWeight: 700, 
+                                        color: filterSelectedIndex === 0 ? '#fff' : (customerFilterId === 'all' ? '#16a34a' : '#475569'), 
+                                        background: filterSelectedIndex === 0 ? '#16a34a' : (customerFilterId === 'all' ? '#f0fdf4' : 'transparent') 
+                                    }}>
                                     {t('all')}
                                 </div>
-                                {buyers.filter(b => b.name.toLowerCase().includes(customerFilterSearch.toLowerCase()) || b.displayId?.toString().includes(customerFilterSearch)).map(b => (
-                                    <div key={b.id} onClick={() => { setCustomerFilterId(b.id); setIsFilterDropdownOpen(false); setCustomerFilterSearch(''); }}
-                                        style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', fontWeight: customerFilterId === b.id ? 700 : 400, color: customerFilterId === b.id ? '#16a34a' : '#475569', background: customerFilterId === b.id ? '#f0fdf4' : 'transparent' }}>
-                                        <span>{b.name}</span>
-                                        <span style={{ fontSize: '10px', color: '#94a3b8' }}>#{b.displayId}</span>
-                                    </div>
-                                ))}
+                                {buyers.filter(b => b.name.toLowerCase().includes(customerFilterSearch.toLowerCase()) || b.displayId?.toString().includes(customerFilterSearch)).map((b, idx) => {
+                                    const optionIdx = idx + 1;
+                                    const isHighlighted = filterSelectedIndex === optionIdx;
+                                    const isSelected = customerFilterId === b.id;
+                                    return (
+                                        <div key={b.id} onClick={() => { setCustomerFilterId(b.id); setIsFilterDropdownOpen(false); setCustomerFilterSearch(''); }}
+                                            onMouseEnter={() => setFilterSelectedIndex(optionIdx)}
+                                            style={{ 
+                                                padding: '8px 12px', 
+                                                fontSize: '13px', 
+                                                cursor: 'pointer', 
+                                                display: 'flex', 
+                                                justifyContent: 'space-between', 
+                                                fontWeight: 600,
+                                                color: isHighlighted ? '#fff' : (isSelected ? '#16a34a' : '#475569'), 
+                                                background: isHighlighted ? '#16a34a' : (isSelected ? '#f0fdf4' : 'transparent') 
+                                            }}>
+                                            <span>{b.name}</span>
+                                            <span style={{ 
+                                                fontSize: '10px', 
+                                                color: isHighlighted ? 'rgba(255,255,255,0.8)' : '#94a3b8' 
+                                            }}>#{b.displayId}</span>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}

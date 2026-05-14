@@ -174,7 +174,7 @@ const SalesEntry = () => {
         }).sort((a, b) => {
             const tA = (a.timestamp?.toMillis?.() || a.createdAt?.toMillis?.() || 0);
             const tB = (b.timestamp?.toMillis?.() || b.createdAt?.toMillis?.() || 0);
-            return tB - tA;
+            return tA - tB;
         });
     }, [allSales, buyerId, date]);
 
