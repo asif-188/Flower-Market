@@ -182,7 +182,7 @@ const strings = {
     rate: 'விலை',
     addNew: 'சேமி',
     totalQuantity: 'மொத்த அளவு',
-    grandTotal: 'மொத்த தொகை',
+    grandTotal: 'மொத்த பாக்கி',
     submitSales: 'பதிவு செய்',
     selectFlower: 'பூவைத் தேர்ந்தெடுக்கவும்',
     items: 'உருப்படிகள்',

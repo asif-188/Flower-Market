@@ -5,6 +5,7 @@ import { doc, updateDoc, increment, serverTimestamp, deleteDoc } from 'firebase/
 import { LangContext } from '../components/Layout';
 import { generateBuyerReceiptCanvas } from '../utils/receiptCanvas';
 import WhatsAppIcon from '../components/WhatsAppIcon';
+import { useTenant } from '../utils/TenantContext';
 
 /* ── Keyboard-navigable Searchable Customer Dropdown ── */
 const SearchSelect = ({ items, value, onChange, onKeyDown, inputRef, placeholder, lang }) => {
@@ -114,11 +115,21 @@ const LABEL_S = {
 
 const SalesEntry = () => {
     const { t, lang } = useContext(LangContext);
+    const { tenantData } = useTenant();
     const [flowers, setFlowers]   = useState([]);
     const [buyers, setBuyers]     = useState([]);
     const [allSales, setAllSales] = useState([]);
     const [allPayments, setAllPayments] = useState([]);
-    const [settings, setSettings] = useState({ name: 'S.V.M', type: '', address: '', phone1: '', phone2: '' });
+    
+    // settings fallback from profile
+    const settings = tenantData || { 
+        motto: 'SRI RAMA JAYAM', 
+        name: 'S.V.M', 
+        type: 'SRI VALLI FLOWER MERCHANT', 
+        address: 'B-7, FLOWER MARKET, TINDIVANAM.', 
+        phone1: '9443247771', 
+        phone2: '9952535057' 
+    };
     
     const [buyerId, setBuyerId] = useState('');
     const [date, setDate]       = useState(new Date().toLocaleDateString('en-CA'));
@@ -142,11 +153,7 @@ const SalesEntry = () => {
         const u2 = subscribeToCollection('buyers', setBuyers);
         const u3 = subscribeToCollection('sales', setAllSales);
         const u4 = subscribeToCollection('payments', setAllPayments);
-        const u5 = subscribeToCollection('system', (data) => {
-            const s = data.find(i => i.id === 'settings');
-            if (s) setSettings(s);
-        }, false); // system collection is global, not tenant-scoped
-        return () => { u1(); u2(); u3(); u4(); u5(); };
+        return () => { u1(); u2(); u3(); u4(); };
     }, []);
 
     const toDateStr = (d) => {
@@ -280,7 +287,7 @@ const SalesEntry = () => {
                 paymentsTotal: cashRec,
                 cashLess: cashLess,
                 prevBalance: oldBalance,
-                dateLabel: date.split('-').reverse().join('-'),
+                dateLabel: date.split('-').reverse().join('/'),
                 bizInfo: settings,
                 lang: lang,
                 labels: {

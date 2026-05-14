@@ -6,6 +6,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import { generateBuyerReceiptCanvas, generateLedgerCanvas } from '../utils/receiptCanvas';
 import WhatsAppIcon from '../components/WhatsAppIcon';
+import { useTenant } from '../utils/TenantContext';
 
 const fmt = (n) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n || 0);
@@ -26,6 +27,7 @@ const displayDate = (iso) => {
 
 const Reports = () => {
     const { t, lang } = useContext(LangContext);
+    const { tenantData } = useTenant();
     const today = toDateStr(new Date());
 
     const [sales, setSales]       = useState([]);
@@ -45,14 +47,8 @@ const Reports = () => {
     const [showFullLedger, setShowFullLedger] = useState(false);
     const [isDownloading, setIsDownloading]  = useState(false);
     const [sharingRowId, setSharingRowId]    = useState(null);
-    const [bizInfo, setBizInfo]              = useState({ name: 'Poovanam Market', type: 'Flower Business', address: '', phones: '' });
 
-    // Load business info once
-    useEffect(() => {
-        getDoc(doc(db, 'system', 'settings')).then(snap => {
-            if (snap.exists()) setBizInfo(d => ({ ...d, ...snap.data() }));
-        }).catch(() => {});
-    }, []);
+    const bizInfo = tenantData || { motto: 'SRI RAMA JAYAM', name: 'S.V.M', type: 'SRI VALLI FLOWER MERCHANT', address: 'B-7, FLOWER MARKET, TINDIVANAM.', phone1: '9443247771', phone2: '9952535057' };
 
     useEffect(() => {
         const u1 = subscribeToCollection('sales',    setSales);
@@ -260,6 +256,7 @@ const Reports = () => {
             </head>
             <body onload="window.print(); window.close();">
                 <div class="header">
+                    <div style="font-size: 14px; font-style: italic; margin-bottom: 4px;">${bizInfo.motto || ''}</div>
                     <div class="shop-name">${bizInfo.name || 'S.V.M'}</div>
                     <div style="font-size: 16px; font-weight: 700;">${bizInfo.type || ''}</div>
                     <div style="font-size: 14px;">${bizInfo.address || ''}</div>

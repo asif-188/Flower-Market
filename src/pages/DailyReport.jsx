@@ -4,6 +4,7 @@ import { subscribeToCollection, db, savePayment } from '../utils/storage';
 import { doc, updateDoc, increment } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import { Check, Edit3, Save } from 'lucide-react';
+import { useTenant } from '../utils/TenantContext';
 
 const fmt = (n) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n || 0);
@@ -17,6 +18,7 @@ const toDateStr = (d) => {
 
 const DailyReport = () => {
     const { t, lang } = useContext(LangContext);
+    const { tenantData } = useTenant();
     const [fromDate, setFromDate] = useState(toDateStr(new Date()));
     const [toDate, setToDate]     = useState(toDateStr(new Date()));
 
@@ -126,6 +128,7 @@ const DailyReport = () => {
     };
 
     const handlePrint = () => {
+        const biz = tenantData || { name: 'S.V.M', type: 'SRI VALLI FLOWER MERCHANT', address: 'B-7, FLOWER MARKET, TINDIVANAM.', phone1: '9443247771', phone2: '9952535057' };
         const printWindow = window.open('', '_blank');
         const content = `
             <html>
@@ -135,7 +138,8 @@ const DailyReport = () => {
                     @page { size: auto; margin: 0; }
                     body { font-family: serif; padding: 15mm; line-height: 1.4; margin: 0; font-size: 15pt; }
                     .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #000; padding-bottom: 15px; }
-                    .title { font-size: 32px; font-weight: 900; letter-spacing: 1px; }
+                    .shop-name { font-size: 32px; font-weight: 900; }
+                    .title { font-size: 24px; font-weight: 800; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
                     table { width: 100%; border-collapse: collapse; margin-top: 15px; }
                     th, td { border: 2px solid #000; padding: 10px 12px; font-size: 16px; font-weight: 500; }
                     th { background: #f2f2f2; font-weight: 900; text-transform: uppercase; font-size: 14px; }
@@ -146,6 +150,14 @@ const DailyReport = () => {
             </head>
             <body onload="window.print(); window.close();">
                 <div class="header">
+                    <div style="font-size: 14px; font-style: italic; margin-bottom: 4px;">${biz.motto || ''}</div>
+                    <div class="shop-name">${biz.name}</div>
+                    <div style="font-size: 16px; font-weight: 700;">${biz.type || ''}</div>
+                    <div style="font-size: 14px;">${biz.address || ''}</div>
+                    <div style="display: flex; justify-content: space-between; border-top: 1px solid #000; padding-top: 5px; margin-top: 5px;">
+                        <span>CELL : ${biz.phone1 || ''}</span>
+                        <span>CELL : ${biz.phone2 || ''}</span>
+                    </div>
                     <div class="title">SALES REPORT</div>
                     <div style="font-size: 16px; font-weight: 700;">Range: ${fromDate.split('-').reverse().join('/')} - ${toDate.split('-').reverse().join('/')}</div>
                 </div>

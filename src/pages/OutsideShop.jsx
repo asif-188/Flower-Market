@@ -6,6 +6,7 @@ import { LangContext } from '../components/Layout';
 import * as XLSX from 'xlsx';
 import { generateLedgerCanvas, generatePaymentReceiptCanvas, generatePurchaseReceiptCanvas } from '../utils/receiptCanvas';
 import WhatsAppIcon from '../components/WhatsAppIcon';
+import { useTenant } from '../utils/TenantContext';
 import Tesseract from 'tesseract.js';
 
 /* ── Shared Style Tokens (Matching Sales UI) ── */
@@ -125,6 +126,7 @@ const MenuCard = ({ emoji, label, color, onClick, delay }) => {
 
 const OutsideShop = () => {
     const { t, lang } = useContext(LangContext);
+    const { tenantData } = useTenant();
     const [activeTab, setActiveTab] = useState('menu');
     
     // Data States
@@ -133,7 +135,8 @@ const OutsideShop = () => {
     const [purchases, setPurchases] = useState([]);
     const [payments, setPayments] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
-    const [bizInfo, setBizInfo] = useState({});
+    
+    const bizInfo = tenantData || { motto: 'SRI RAMA JAYAM', name: 'S.V.M', type: 'SRI VALLI FLOWER MERCHANT', address: 'B-7, FLOWER MARKET, TINDIVANAM.', phone1: '9443247771', phone2: '9952535057' };
 
     // Filtering states for Reports
     const [reportFilters, setReportFilters] = useState({ 
@@ -195,8 +198,6 @@ const OutsideShop = () => {
         });
         const u3 = subscribeToCollection('outside_purchases', setPurchases, true);
         const u4 = subscribeToCollection('payments', setPayments, true);
-        
-        getDoc(doc(db, 'system', 'settings')).then(s => s.exists() && setBizInfo(s.data()));
         
         return () => { u1(); u2(); u3(); u4(); };
     }, []);
@@ -766,7 +767,8 @@ const OutsideShop = () => {
                 <div class="box">
                     <div class="header" style="margin-bottom: ${isTwelve ? '5px' : '10px'};">
                         <h1 style="margin:0; font-size: ${isTwelve ? '11px' : '14px'};">OUTSIDE PURCHASE BILL</h1>
-                        <p style="margin:1px 0; font-size: ${isTwelve ? '8px' : '9px'}; opacity: 0.7;">${bizInfo.name}</p>
+                        <p style="margin:0; font-size: ${isTwelve ? '8px' : '10px'}; font-style: italic; opacity: 0.8;">${bizInfo.motto || ''}</p>
+                        <p style="margin:1px 0; font-size: ${isTwelve ? '9px' : '11px'}; font-weight: 900;">${bizInfo.name}</p>
                     </div>
                     <div class="line" style="font-size: ${isTwelve ? '9px' : '11px'}; margin-bottom: ${isTwelve ? '4px' : '8px'};">VENDOR: <span class="field"></span></div>
                     <div class="line" style="font-size: ${isTwelve ? '9px' : '11px'}; margin-bottom: ${isTwelve ? '6px' : '12px'};">DATE: <span class="field" style="min-width: 60px;"></span></div>

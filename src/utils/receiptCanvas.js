@@ -97,14 +97,14 @@ export async function generateBuyerReceiptCanvas({
     let y = PAD;
 
     // 1. Mottos
-    drawText(motto, W/2, y, { size: 22, weight: '700', align: 'center' });
-    y += 28;
-    drawText('SRI PERIYANDAVAR THUNAI', W/2, y, { size: 22, weight: '700', align: 'center' });
-    y += 35;
+    if (motto) {
+        drawText(motto, W/2, y, { size: 22, weight: '700', align: 'center' });
+        y += 40;
+    }
 
     // 2. Shop Info Box
     const boxY = y;
-    rect(PAD, boxY, W - PAD*2, 190);
+    rect(PAD, boxY, W - PAD*2, 200);
     // Use serif for the name to match the sign board image
     ctx.font = '900 86px serif';
     ctx.textAlign = 'center';
@@ -113,17 +113,14 @@ export async function generateBuyerReceiptCanvas({
     drawText(type, W/2, boxY + 115, { size: 28, weight: '700', align: 'center' });
     drawText(address, W/2, boxY + 145, { size: 22, align: 'center' });
     
-    // Phones at bottom of box
-    ctx.beginPath();
-    ctx.moveTo(PAD, boxY + 160); ctx.lineTo(W - PAD, boxY + 160); ctx.stroke();
-    drawText(`CELL : ${phone1}`, PAD + 15, boxY + 175, { size: 22, weight: '700' });
-    drawText(`CELL : ${phone2}`, W - PAD - 15, boxY + 175, { size: 22, weight: '700', align: 'right' });
-    y += 190;
+    // Phones at bottom of box - centered
+    drawText(`CELL : ${phone1}           CELL : ${phone2}`, W/2, boxY + 175, { size: 22, weight: '700', align: 'center' });
+    y += 200;
 
     // 3. Sales | Date Row
     rect(PAD, y, W - PAD*2, 45);
-    drawText(`${date} : ${dateLabel}`, PAD + 10, y + 22, { size: 22, weight: '800' });
-    drawText(salesLabel, W - PAD - 10, y + 22, { size: 22, weight: '800', align: 'right' });
+    drawText(salesLabel, PAD + 10, y + 22, { size: 22, weight: '800' });
+    drawText(`${date} : ${dateLabel}`, W - PAD - 10, y + 22, { size: 22, weight: '800', align: 'right' });
     y += 45;
 
     // 4. Customer & Balance Box
