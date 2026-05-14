@@ -97,24 +97,28 @@ export async function generateBuyerReceiptCanvas({
     let y = PAD;
 
     // 1. Mottos
-    drawText(motto, W/2, y, { size: 24, weight: '600', align: 'center' });
-    y += 30;
-    drawText('SRI PERIYANDAVAR THUNAI', W/2, y, { size: 24, weight: '600', align: 'center' });
-    y += 40;
+    drawText(motto, W/2, y, { size: 22, weight: '700', align: 'center' });
+    y += 28;
+    drawText('SRI PERIYANDAVAR THUNAI', W/2, y, { size: 22, weight: '700', align: 'center' });
+    y += 35;
 
     // 2. Shop Info Box
     const boxY = y;
-    rect(PAD, boxY, W - PAD*2, 160);
-    drawText(name, W/2, boxY + 50, { size: 52, weight: '900', align: 'center' });
-    drawText(type, W/2, boxY + 95, { size: 24, weight: '700', align: 'center' });
-    drawText(address, W/2, boxY + 125, { size: 20, align: 'center' });
+    rect(PAD, boxY, W - PAD*2, 190);
+    // Use serif for the name to match the sign board image
+    ctx.font = '900 86px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(name, W/2, boxY + 65);
+    
+    drawText(type, W/2, boxY + 115, { size: 28, weight: '700', align: 'center' });
+    drawText(address, W/2, boxY + 145, { size: 22, align: 'center' });
     
     // Phones at bottom of box
     ctx.beginPath();
-    ctx.moveTo(PAD, boxY + 135); ctx.lineTo(W - PAD, boxY + 135); ctx.stroke();
-    drawText(`CELL : ${phone1}`, PAD + 10, boxY + 152, { size: 20, weight: '700' });
-    drawText(`CELL : ${phone2}`, W - PAD - 10, boxY + 152, { size: 20, weight: '700', align: 'right' });
-    y += 160;
+    ctx.moveTo(PAD, boxY + 160); ctx.lineTo(W - PAD, boxY + 160); ctx.stroke();
+    drawText(`CELL : ${phone1}`, PAD + 15, boxY + 175, { size: 22, weight: '700' });
+    drawText(`CELL : ${phone2}`, W - PAD - 15, boxY + 175, { size: 22, weight: '700', align: 'right' });
+    y += 190;
 
     // 3. Sales | Date Row
     rect(PAD, y, W - PAD*2, 45);
@@ -126,8 +130,8 @@ export async function generateBuyerReceiptCanvas({
     const infoH = 160; // Increased for 4 rows
     rect(PAD, y, W - PAD*2, infoH);
     // Left: Code / Name
-    drawText(`CODE : ${buyer.displayId || '---'}`, PAD + 10, y + 60, { size: 22, weight: '700' });
-    drawText(`${nameLabel} : ${(buyer.name || '---').toUpperCase()}`, PAD + 10, y + 105, { size: 22, weight: '700' });
+    drawText(`CODE : ${buyer.displayId || '---'}`, PAD + 15, y + 55, { size: 26, weight: '800' });
+    drawText(`${nameLabel} : ${(buyer.name || '---').toUpperCase()}`, PAD + 15, y + 105, { size: 26, weight: '800' });
     
     // Right: Balance Grid (4 Rows)
     const balW = 280;
@@ -151,7 +155,7 @@ export async function generateBuyerReceiptCanvas({
     y += infoH;
 
     // 5. Items Table
-    const colW = [80, 220, 110, 130, 160];
+    const colW = [60, 260, 100, 120, 160];
     const cols = [PAD, PAD + colW[0], PAD + colW[0] + colW[1], PAD + colW[0] + colW[1] + colW[2], PAD + colW[0] + colW[1] + colW[2] + colW[3]];
     
     // Header
@@ -212,10 +216,12 @@ export async function generateBuyerReceiptCanvas({
     rect(PAD, tableStartY, W - PAD*2, y - tableStartY);
 
     // 6. Grand Total
-    rect(PAD, y, W - PAD*2, 60);
-    drawText(grandTotalLabel, PAD + 20, y + 30, { size: 28, weight: '900' });
-    drawText(fmtNum(absGrandTotal, 2), W - PAD - 20, y + 30, { size: 32, weight: '900', align: 'right' });
-    y += 80;
+    ctx.lineWidth = 3.0;
+    rect(PAD, y, W - PAD*2, 70);
+    drawText(grandTotalLabel, PAD + 20, y + 35, { size: 28, weight: '900' });
+    drawText(`₹${fmtNum(absGrandTotal, 2)}`, W - PAD - 20, y + 35, { size: 36, weight: '900', align: 'right' });
+    y += 90;
+    ctx.lineWidth = 1.5;
 
     drawText('🌹 நன்றி (Thank You) 🌹', W/2, y, { size: 28, align: 'center' });
 

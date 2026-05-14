@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Plus, X, Edit2, Trash2, CheckCircle2 } from 'lucide-react';
+import { Plus, X, Edit2, Trash2, CheckCircle2, User } from 'lucide-react';
 import { subscribeToCollection, db, savePayment } from '../utils/storage';
 import { doc, updateDoc, increment, deleteDoc } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
@@ -59,6 +59,9 @@ const Payments = () => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [dateRange, setDateRange] = useState('all'); // 'today', 'yesterday', 'month', 'year', 'prevYear', 'custom', 'all'
     const [customRange, setCustomRange] = useState({ start: '', end: '' });
+    const [customerFilterId, setCustomerFilterId] = useState('all');
+    const [customerFilterSearch, setCustomerFilterSearch] = useState('');
+    const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
 
     useEffect(() => {
         const u1 = subscribeToCollection('payments', (data) =>
@@ -180,10 +183,15 @@ const Payments = () => {
                 return date >= customRange.start && date <= customRange.end;
             });
         }
+        if (customerFilterId !== 'all') {
+            filtered = filtered.filter(p => p.entityId === customerFilterId);
+        }
+
         return filtered;
     };
 
     const buyerPayments = getFilteredPayments();
+    const totalReceived = buyerPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
 
     return (
         <div style={S.page}>
@@ -238,6 +246,43 @@ const Payments = () => {
                             style={{ padding: '5px 8px', borderRadius: '6px', border: '1.5px solid #e2e8f0', fontSize: '12px', outline: 'none' }} />
                     </div>
                 )}
+
+                {/* Customer Filter */}
+                <div style={{ position: 'relative', minWidth: '180px', marginLeft: '5px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', cursor: 'pointer' }}
+                        onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}>
+                        <User size={14} style={{ color: '#16a34a' }} />
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
+                            {customerFilterId === 'all' ? t('all') : buyers.find(b => b.id === customerFilterId)?.name || t('all')}
+                        </span>
+                    </div>
+                    {isFilterDropdownOpen && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: '#fff', borderRadius: '10px', border: '1.5px solid #e2e8f0', marginTop: '5px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', minWidth: '220px' }}>
+                            <div style={{ padding: '8px', borderBottom: '1px solid #f1f5f9' }}>
+                                <input type="text" placeholder={t('search')} value={customerFilterSearch} onChange={e => setCustomerFilterSearch(e.target.value)}
+                                    style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1.5px solid #f1f5f9', fontSize: '12px', outline: 'none' }} autoFocus />
+                            </div>
+                            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                <div onClick={() => { setCustomerFilterId('all'); setIsFilterDropdownOpen(false); setCustomerFilterSearch(''); }}
+                                    style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', fontWeight: customerFilterId === 'all' ? 700 : 400, color: customerFilterId === 'all' ? '#16a34a' : '#475569', background: customerFilterId === 'all' ? '#f0fdf4' : 'transparent' }}>
+                                    {t('all')}
+                                </div>
+                                {buyers.filter(b => b.name.toLowerCase().includes(customerFilterSearch.toLowerCase()) || b.displayId?.toString().includes(customerFilterSearch)).map(b => (
+                                    <div key={b.id} onClick={() => { setCustomerFilterId(b.id); setIsFilterDropdownOpen(false); setCustomerFilterSearch(''); }}
+                                        style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', fontWeight: customerFilterId === b.id ? 700 : 400, color: customerFilterId === b.id ? '#16a34a' : '#475569', background: customerFilterId === b.id ? '#f0fdf4' : 'transparent' }}>
+                                        <span>{b.name}</span>
+                                        <span style={{ fontSize: '10px', color: '#94a3b8' }}>#{b.displayId}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px', background: '#fff', padding: '6px 15px', borderRadius: '10px', border: '1.5px solid #16a34a', boxShadow: '0 2px 10px rgba(22,163,74,0.1)' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total:</span>
+                    <span style={{ fontSize: '16px', fontWeight: 900, color: '#1e293b', fontFamily: 'var(--font-display)' }}>{fmt(totalReceived)}</span>
+                </div>
             </div>
 
             {/* ── Table ── */}
