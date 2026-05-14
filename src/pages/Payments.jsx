@@ -62,6 +62,20 @@ const Payments = () => {
     const [customerFilterId, setCustomerFilterId] = useState('all');
     const [customerFilterSearch, setCustomerFilterSearch] = useState('');
     const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+    const [selectedIndex, setSelectedIndex] = useState(-1);
+
+    // Refs for focus management
+    const dateRef = React.useRef(null);
+    const customerRef = React.useRef(null);
+    const amountRef = React.useRef(null);
+    const cashLessRef = React.useRef(null);
+    const saveRef = React.useRef(null);
+
+    useEffect(() => {
+        if (isModalOpen) {
+            setTimeout(() => dateRef.current?.focus(), 100);
+        }
+    }, [isModalOpen]);
 
     useEffect(() => {
         const u1 = subscribeToCollection('payments', (data) =>
@@ -105,8 +119,18 @@ const Payments = () => {
                 timestamp: new Date(formData.date).toISOString()
             });
             await updateDoc(entityRef, { balance: increment(-(amountNum + cashLessNum)) });
-            setIsModalOpen(false);
-            setFormData({ entityId: '', amount: '', cashLess: '', method: 'Cash', note: '', date: new Date().toISOString().split('T')[0] });
+            
+            // Keep modal open and reset only payment fields
+            setFormData(prev => ({ 
+                ...prev, 
+                amount: '', 
+                cashLess: '', 
+                note: '' 
+            }));
+            setCustomerSearch('');
+            
+            // Re-focus amount for next entry
+            setTimeout(() => amountRef.current?.focus(), 100);
         } catch (err) {
             alert('❌ Failed to record payment: ' + err.message);
         } finally {
@@ -153,6 +177,13 @@ const Payments = () => {
         b.name.toLowerCase().includes(customerSearch.toLowerCase()) || 
         b.displayId?.toString().toLowerCase().includes(customerSearch.toLowerCase())
     );
+
+    const handleKeyDown = (e, nextRef) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            nextRef?.current?.focus();
+        }
+    };
 
     const getFilteredPayments = () => {
         let filtered = payments.filter(p => p.type === 'buyer');
@@ -367,9 +398,11 @@ const Payments = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <label style={{ width: '140px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#374151' }}>{t('date')}</label>
                                 <input
+                                    ref={dateRef}
                                     type="date"
                                     value={formData.date}
                                     onChange={e => setFormData({ ...formData, date: e.target.value })}
+                                    onKeyDown={(e) => handleKeyDown(e, customerRef)}
                                     required
                                     style={{ flex: 1, padding: '9px 12px', borderRadius: '9px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '14px', fontWeight: 500, color: '#1e293b', outline: 'none', fontFamily: 'var(--font-sans)' }}
                                     onFocus={e => e.target.style.borderColor = '#16a34a'}
@@ -382,6 +415,7 @@ const Payments = () => {
                                 <label style={{ width: '140px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#374151' }}>{t('customer')}</label>
                                 <div style={{ flex: 1, position: 'relative' }}>
                                     <input
+                                        ref={customerRef}
                                         type="text"
                                         placeholder={t('selectCustomer')}
                                         value={formData.entityId ? buyers.find(b => b.id === formData.entityId)?.name || '' : customerSearch}
@@ -389,8 +423,34 @@ const Payments = () => {
                                             setCustomerSearch(e.target.value);
                                             setFormData({ ...formData, entityId: '' });
                                             setIsDropdownOpen(true);
+                                            setSelectedIndex(-1);
                                         }}
                                         onFocus={() => setIsDropdownOpen(true)}
+                                        onKeyDown={(e) => {
+                                            if (isDropdownOpen && filteredBuyers.length > 0) {
+                                                if (e.key === 'ArrowDown') {
+                                                    e.preventDefault();
+                                                    setSelectedIndex(prev => (prev + 1) % filteredBuyers.length);
+                                                } else if (e.key === 'ArrowUp') {
+                                                    e.preventDefault();
+                                                    setSelectedIndex(prev => (prev - 1 + filteredBuyers.length) % filteredBuyers.length);
+                                                } else if (e.key === 'Enter') {
+                                                    if (selectedIndex >= 0) {
+                                                        e.preventDefault();
+                                                        const b = filteredBuyers[selectedIndex];
+                                                        setFormData({ ...formData, entityId: b.id });
+                                                        setCustomerSearch('');
+                                                        setIsDropdownOpen(false);
+                                                        setSelectedIndex(-1);
+                                                        amountRef.current?.focus();
+                                                    } else if (formData.entityId) {
+                                                        handleKeyDown(e, amountRef);
+                                                    }
+                                                }
+                                            } else if (e.key === 'Enter' && formData.entityId) {
+                                                handleKeyDown(e, amountRef);
+                                            }
+                                        }}
                                         style={{ width: '100%', padding: '9px 12px', borderRadius: '9px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '14px', fontWeight: 500, color: '#1e293b', outline: 'none', fontFamily: 'var(--font-sans)' }}
                                         onFocusCapture={e => e.target.style.borderColor = '#16a34a'}
                                         onBlurCapture={e => e.target.style.borderColor = '#e2e8f0'}
@@ -398,20 +458,37 @@ const Payments = () => {
                                     {isDropdownOpen && (
                                         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 110, background: '#fff', borderRadius: '9px', border: '1.5px solid #e2e8f0', marginTop: '4px', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
                                             {filteredBuyers.length > 0 ? (
-                                                filteredBuyers.map(b => (
+                                                filteredBuyers.map((b, idx) => (
                                                     <div
                                                         key={b.id}
                                                         onClick={() => {
                                                             setFormData({ ...formData, entityId: b.id });
                                                             setCustomerSearch('');
                                                             setIsDropdownOpen(false);
+                                                            setSelectedIndex(-1);
+                                                            setTimeout(() => amountRef.current?.focus(), 50);
                                                         }}
-                                                        style={{ padding: '10px 12px', cursor: 'pointer', fontSize: '14px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                                                        onMouseEnter={e => e.currentTarget.style.background = '#f0fdf4'}
-                                                        onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                                                        style={{ 
+                                                            padding: '10px 12px', 
+                                                            cursor: 'pointer', 
+                                                            fontSize: '14px', 
+                                                            borderBottom: '1px solid #f1f5f9', 
+                                                            display: 'flex', 
+                                                            justifyContent: 'space-between', 
+                                                            alignItems: 'center',
+                                                            background: selectedIndex === idx ? '#16a34a' : '#fff',
+                                                            color: selectedIndex === idx ? '#fff' : '#1e293b'
+                                                        }}
+                                                        onMouseEnter={() => setSelectedIndex(idx)}
                                                     >
                                                         <span style={{ fontWeight: 600 }}>{b.name}</span>
-                                                        <span style={{ fontSize: '11px', color: '#64748b', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>#{b.displayId}</span>
+                                                        <span style={{ 
+                                                            fontSize: '11px', 
+                                                            color: selectedIndex === idx ? 'rgba(255,255,255,0.9)' : '#64748b', 
+                                                            background: selectedIndex === idx ? 'rgba(255,255,255,0.2)' : '#f1f5f9', 
+                                                            padding: '2px 6px', 
+                                                            borderRadius: '4px' 
+                                                        }}>#{b.displayId}</span>
                                                     </div>
                                                 ))
                                             ) : (
@@ -433,10 +510,12 @@ const Payments = () => {
                                 <label style={{ width: '140px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#374151' }}>{t('givenAmount')}</label>
                                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px' }}>
                                     <input
+                                        ref={amountRef}
                                         type="number"
                                         placeholder="0"
                                         value={formData.amount}
                                         onChange={e => setFormData({ ...formData, amount: e.target.value })}
+                                        onKeyDown={(e) => handleKeyDown(e, cashLessRef)}
                                         required
                                         min="1"
                                         style={{ flex: 1, padding: '9px 12px', borderRadius: '9px', border: '1.5px solid #e2e8f0', fontSize: '14px', fontWeight: 700, color: '#1e293b', outline: 'none', fontFamily: 'var(--font-sans)' }}
@@ -459,10 +538,12 @@ const Payments = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <label style={{ width: '140px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#374151' }}>Cash Less</label>
                                 <input
+                                    ref={cashLessRef}
                                     type="number"
                                     placeholder="0"
                                     value={formData.cashLess}
                                     onChange={e => setFormData({ ...formData, cashLess: e.target.value })}
+                                    onKeyDown={(e) => handleKeyDown(e, saveRef)}
                                     style={{ flex: 1, padding: '9px 12px', borderRadius: '9px', border: '1.5px solid #e2e8f0', fontSize: '14px', fontWeight: 700, color: '#f43f5e', outline: 'none', fontFamily: 'var(--font-sans)', background: '#fff' }}
                                     onFocus={e => e.target.style.borderColor = '#f43f5e'}
                                     onBlur={e => e.target.style.borderColor = '#e2e8f0'}
@@ -481,7 +562,10 @@ const Payments = () => {
                                     style={{ padding: '9px 20px', borderRadius: '9px', border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontWeight: 600, fontSize: '13px', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
                                     {t('close')}
                                 </button>
-                                <button type="submit" disabled={isSaving}
+                                <button 
+                                    ref={saveRef}
+                                    type="submit" 
+                                    disabled={isSaving}
                                     style={{ padding: '9px 20px', borderRadius: '9px', background: '#16a34a', border: 'none', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'var(--font-sans)' }}>
                                     {isSaving
                                         ? <div style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
