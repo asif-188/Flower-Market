@@ -64,6 +64,8 @@ const Payments = () => {
     const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [filterSelectedIndex, setFilterSelectedIndex] = useState(-1);
+    const [mainTableSelectedIndex, setMainTableSelectedIndex] = useState(-1);
+    const mainTableRowRefs = React.useRef([]);
 
     // Refs for focus management
     const dateRef = React.useRef(null);
@@ -400,46 +402,81 @@ const Payments = () => {
                                 </td>
                             </tr>
                         ) : (
-                            buyerPayments.map((p, idx) => (
-                                <tr key={p.id}
-                                    style={{ background: idx % 2 === 0 ? '#fff' : '#fafafa' }}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#f0fdf4'}
-                                    onMouseLeave={e => e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa'}
-                                >
-                                    <td style={{ ...S.td, color: '#64748b', fontSize: '13px' }}>
-                                        {formatDate(p.timestamp)}
-                                    </td>
-                                    <td style={{ ...S.td, fontWeight: 600 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <span style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '5px' }}>
-                                                #{getDisplayId(p.entityId, p.type)}
-                                            </span>
-                                            {getName(p.entityId, p.type)}
-                                        </div>
-                                    </td>
-                                    <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: '#16a34a', fontSize: '15px' }}>
-                                        {fmt(p.amount)}
-                                        <div style={{ fontSize: '10px', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase' }}>{p.method}</div>
-                                    </td>
-                                    <td style={{ ...S.td, color: '#64748b' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <span>{p.note || '—'}</span>
-                                            <button onClick={() => handleEditNote(p)}
-                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1', display: 'flex', padding: '2px' }}
-                                                onMouseEnter={e => e.currentTarget.style.color = '#16a34a'}
-                                                onMouseLeave={e => e.currentTarget.style.color = '#cbd5e1'}
-                                            ><Edit2 size={12} /></button>
-                                        </div>
-                                    </td>
-                                    <td style={{ ...S.td, textAlign: 'center' }}>
-                                        <button onClick={() => handleDelete(p)}
-                                            style={{ background: '#fff1f2', border: 'none', borderRadius: '8px', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#f43f5e' }}
-                                            onMouseEnter={e => { e.currentTarget.style.background = '#f43f5e'; e.currentTarget.style.color = '#fff'; }}
-                                            onMouseLeave={e => { e.currentTarget.style.background = '#fff1f2'; e.currentTarget.style.color = '#f43f5e'; }}
-                                        ><Trash2 size={13} /></button>
-                                    </td>
-                                </tr>
-                            ))
+                            buyerPayments.map((p, idx) => {
+                                const isHighlighted = mainTableSelectedIndex === idx;
+                                return (
+                                    <tr key={p.id}
+                                        ref={el => mainTableRowRefs.current[idx] = el}
+                                        tabIndex={0}
+                                        onClick={() => setMainTableSelectedIndex(idx)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'ArrowDown') {
+                                                e.preventDefault();
+                                                const nextIdx = Math.min(idx + 1, buyerPayments.length - 1);
+                                                setMainTableSelectedIndex(nextIdx);
+                                                mainTableRowRefs.current[nextIdx]?.focus();
+                                            } else if (e.key === 'ArrowUp') {
+                                                e.preventDefault();
+                                                const prevIdx = Math.max(idx - 1, 0);
+                                                setMainTableSelectedIndex(prevIdx);
+                                                mainTableRowRefs.current[prevIdx]?.focus();
+                                            }
+                                        }}
+                                        style={{ 
+                                            background: isHighlighted ? '#16a34a' : (idx % 2 === 0 ? '#fff' : '#fafafa'),
+                                            color: isHighlighted ? '#fff' : '#374151',
+                                            cursor: 'pointer',
+                                            outline: 'none'
+                                        }}
+                                        onMouseEnter={e => !isHighlighted && (e.currentTarget.style.background = '#f0fdf4')}
+                                        onMouseLeave={e => !isHighlighted && (e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa')}
+                                    >
+                                        <td style={{ ...S.td, color: isHighlighted ? 'rgba(255,255,255,0.9)' : '#64748b', fontSize: '13px' }}>
+                                            {formatDate(p.timestamp)}
+                                        </td>
+                                        <td style={{ ...S.td, fontWeight: 600 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <span style={{ 
+                                                    background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#f0fdf4', 
+                                                    border: '1px solid ' + (isHighlighted ? 'rgba(255,255,255,0.4)' : '#bbf7d0'), 
+                                                    color: isHighlighted ? '#fff' : '#15803d', 
+                                                    fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '5px' 
+                                                }}>
+                                                    #{getDisplayId(p.entityId, p.type)}
+                                                </span>
+                                                {getName(p.entityId, p.type)}
+                                            </div>
+                                        </td>
+                                        <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#16a34a', fontSize: '15px' }}>
+                                            {fmt(p.amount)}
+                                            <div style={{ fontSize: '10px', fontWeight: 600, color: isHighlighted ? 'rgba(255,255,255,0.7)' : '#9ca3af', textTransform: 'uppercase' }}>{p.method}</div>
+                                        </td>
+                                        <td style={{ ...S.td, color: isHighlighted ? 'rgba(255,255,255,0.9)' : '#64748b' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <span>{p.note || '—'}</span>
+                                                <button onClick={() => handleEditNote(p)}
+                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: isHighlighted ? 'rgba(255,255,255,0.6)' : '#cbd5e1', display: 'flex', padding: '2px' }}
+                                                    onMouseEnter={e => { if(!isHighlighted) e.currentTarget.style.color = '#16a34a' }}
+                                                    onMouseLeave={e => { if(!isHighlighted) e.currentTarget.style.color = '#cbd5e1' }}
+                                                ><Edit2 size={12} /></button>
+                                            </div>
+                                        </td>
+                                        <td style={{ ...S.td, textAlign: 'center' }}>
+                                            <button onClick={() => handleDelete(p)}
+                                                style={{ 
+                                                    background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#fff1f2', 
+                                                    border: 'none', borderRadius: '8px', width: '32px', height: '32px', 
+                                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', 
+                                                    cursor: 'pointer', color: isHighlighted ? '#fff' : '#f43f5e' 
+                                                }}
+                                                onMouseEnter={e => { if(!isHighlighted) { e.currentTarget.style.background = '#f43f5e'; e.currentTarget.style.color = '#fff'; } }}
+                                                onMouseLeave={e => { if(!isHighlighted) { e.currentTarget.style.background = '#fff1f2'; e.currentTarget.style.color = '#f43f5e'; } }}
+                                            ><Trash2 size={13} /></button>
+                                        </td>
+                                    </tr>
+                                );
+                            })
+                        )}
                         )}
                     </tbody>
                 </table>

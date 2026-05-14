@@ -47,6 +47,8 @@ const Reports = () => {
     const [showFullLedger, setShowFullLedger] = useState(false);
     const [isDownloading, setIsDownloading]  = useState(false);
     const [sharingRowId, setSharingRowId]    = useState(null);
+    const [mainTableSelectedIndex, setMainTableSelectedIndex] = useState(-1);
+    const mainTableRowRefs = React.useRef([]);
 
     const bizInfo = tenantData || { motto: 'SRI RAMA JAYAM', name: 'S.V.M', type: 'SRI VALLI FLOWER MERCHANT', address: 'B-7, FLOWER MARKET, TINDIVANAM.', phone1: '9443247771', phone2: '9952535057' };
 
@@ -729,64 +731,100 @@ const Reports = () => {
                                 </td>
                             </tr>
                         ) : (
-                            filtered.map((row, idx) => (
-                                <tr key={row.id}
-                                    style={{ background: idx % 2 === 0 ? '#fff' : '#fafafa' }}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#f0fdf4'}
-                                    onMouseLeave={e => e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa'}
-                                >
-                                    <td style={S.td}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <span style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '5px' }}>
-                                                #{row.displayId}
-                                            </span>
-                                            <span style={{ fontWeight: 600, color: '#1e293b' }}>
-                                                {lang === 'ta' ? (row.taName || row.name) : row.name}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: '#6366f1' }}>{fmt(row.opening)}</td>
-                                    <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: '#1d4ed8' }}>{fmt(row.sales)}</td>
-                                    <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: '#15803d' }}>{fmt(row.paid)}</td>
-                                    <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: '#f97316' }}>{fmt(row.less)}</td>
-                                    <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: row.balance > 0 ? '#dc2626' : '#15803d' }}>{fmt(row.balance)}</td>
-                                    <td style={{ ...S.td, textAlign: 'center' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                            {/* View detail */}
-                                            <button onClick={() => { setDetailBuyer(row); setShowFullLedger(false); }}
-                                                style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#16a34a', fontSize: '12px', fontWeight: 700, padding: '5px 12px', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontFamily: 'var(--font-sans)' }}
-                                                onMouseEnter={e => { e.currentTarget.style.background = '#16a34a'; e.currentTarget.style.color = '#fff'; }}
-                                                onMouseLeave={e => { e.currentTarget.style.background = '#f0fdf4'; e.currentTarget.style.color = '#16a34a'; }}
-                                            >
-                                                {t('view')} <ChevronRight size={13} />
-                                            </button>
+                            filtered.map((row, idx) => {
+                                const isHighlighted = mainTableSelectedIndex === idx;
+                                return (
+                                    <tr key={row.id}
+                                        ref={el => mainTableRowRefs.current[idx] = el}
+                                        tabIndex={0}
+                                        onClick={() => setMainTableSelectedIndex(idx)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'ArrowDown') {
+                                                e.preventDefault();
+                                                const nextIdx = Math.min(idx + 1, filtered.length - 1);
+                                                setMainTableSelectedIndex(nextIdx);
+                                                mainTableRowRefs.current[nextIdx]?.focus();
+                                            } else if (e.key === 'ArrowUp') {
+                                                e.preventDefault();
+                                                const prevIdx = Math.max(idx - 1, 0);
+                                                setMainTableSelectedIndex(prevIdx);
+                                                mainTableRowRefs.current[prevIdx]?.focus();
+                                            } else if (e.key === 'Enter') {
+                                                setDetailBuyer(row);
+                                                setShowFullLedger(false);
+                                            }
+                                        }}
+                                        style={{ 
+                                            background: isHighlighted ? '#16a34a' : (idx % 2 === 0 ? '#fff' : '#fafafa'),
+                                            color: isHighlighted ? '#fff' : '#374151',
+                                            cursor: 'pointer',
+                                            outline: 'none'
+                                        }}
+                                        onMouseEnter={e => !isHighlighted && (e.currentTarget.style.background = '#f0fdf4')}
+                                        onMouseLeave={e => !isHighlighted && (e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa')}
+                                    >
+                                        <td style={S.td}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <span style={{ 
+                                                    background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#f0fdf4', 
+                                                    border: '1px solid ' + (isHighlighted ? 'rgba(255,255,255,0.4)' : '#bbf7d0'), 
+                                                    color: isHighlighted ? '#fff' : '#15803d', 
+                                                    fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '5px' 
+                                                }}>
+                                                    #{row.displayId}
+                                                </span>
+                                                <span style={{ fontWeight: 600, color: isHighlighted ? '#fff' : '#1e293b' }}>
+                                                    {lang === 'ta' ? (row.taName || row.name) : row.name}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#6366f1' }}>{fmt(row.opening)}</td>
+                                        <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#1d4ed8' }}>{fmt(row.sales)}</td>
+                                        <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#15803d' }}>{fmt(row.paid)}</td>
+                                        <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#f97316' }}>{fmt(row.less)}</td>
+                                        <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : (row.balance > 0 ? '#dc2626' : '#15803d') }}>{fmt(row.balance)}</td>
+                                        <td style={{ ...S.td, textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                                <button onClick={() => { setDetailBuyer(row); setShowFullLedger(false); }}
+                                                    style={{ 
+                                                        background: isHighlighted ? 'rgba(255,255,255,0.1)' : '#f0fdf4', 
+                                                        border: '1px solid ' + (isHighlighted ? 'rgba(255,255,255,0.5)' : '#bbf7d0'), 
+                                                        color: isHighlighted ? '#fff' : '#16a34a', 
+                                                        fontSize: '12px', fontWeight: 700, padding: '5px 12px', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontFamily: 'var(--font-sans)' 
+                                                    }}
+                                                    onMouseEnter={e => { if(!isHighlighted) { e.currentTarget.style.background = '#16a34a'; e.currentTarget.style.color = '#fff'; }}}
+                                                    onMouseLeave={e => { if(!isHighlighted) { e.currentTarget.style.background = '#f0fdf4'; e.currentTarget.style.color = '#16a34a'; }}}
+                                                >
+                                                    {t('view')} <ChevronRight size={13} />
+                                                </button>
 
-                                            {/* WhatsApp receipt share */}
-                                            <button
-                                                onClick={() => handleShareRow(row)}
-                                                disabled={sharingRowId === row.id}
-                                                title="Share receipt on WhatsApp"
-                                                style={{
-                                                    width: '32px', height: '32px', borderRadius: '8px',
-                                                    border: '1.5px solid #22c55e', background: '#fff',
-                                                    color: '#22c55e', display: 'inline-flex',
-                                                    alignItems: 'center', justifyContent: 'center',
-                                                    cursor: sharingRowId === row.id ? 'not-allowed' : 'pointer',
-                                                    opacity: sharingRowId === row.id ? 0.5 : 1,
-                                                    flexShrink: 0,
-                                                }}
-                                                onMouseEnter={e => { if (sharingRowId !== row.id) { e.currentTarget.style.background='#22c55e'; e.currentTarget.style.color='#fff'; }}}
-                                                onMouseLeave={e => { e.currentTarget.style.background='#fff'; e.currentTarget.style.color='#22c55e'; }}
-                                            >
-                                                {sharingRowId === row.id
-                                                    ? <div style={{ width:'14px', height:'14px', border:'2px solid #22c55e33', borderTopColor:'#22c55e', borderRadius:'50%', animation:'spin 0.7s linear infinite' }} />
-                                                    : <WhatsAppIcon size={14} />
-                                                }
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
+                                                <button
+                                                    onClick={() => handleShareRow(row)}
+                                                    disabled={sharingRowId === row.id}
+                                                    title="Share receipt on WhatsApp"
+                                                    style={{
+                                                        width: '32px', height: '32px', borderRadius: '8px',
+                                                        border: '1.5px solid ' + (isHighlighted ? 'rgba(255,255,255,0.5)' : '#22c55e'), 
+                                                        background: isHighlighted ? 'rgba(255,255,255,0.1)' : '#fff',
+                                                        color: isHighlighted ? '#fff' : '#22c55e', display: 'inline-flex',
+                                                        alignItems: 'center', justifyContent: 'center',
+                                                        cursor: sharingRowId === row.id ? 'not-allowed' : 'pointer',
+                                                        opacity: sharingRowId === row.id ? 0.5 : 1,
+                                                        flexShrink: 0,
+                                                    }}
+                                                    onMouseEnter={e => { if (!isHighlighted && sharingRowId !== row.id) { e.currentTarget.style.background='#22c55e'; e.currentTarget.style.color='#fff'; }}}
+                                                    onMouseLeave={e => { if (!isHighlighted) { e.currentTarget.style.background='#fff'; e.currentTarget.style.color='#22c55e'; }}}
+                                                >
+                                                    {sharingRowId === row.id
+                                                        ? <div style={{ width:'14px', height:'14px', border:'2px solid ' + (isHighlighted ? '#fff' : '#22c55e33'), borderTopColor: isHighlighted ? '#fff' : '#22c55e', borderRadius:'50%', animation:'spin 0.7s linear infinite' }} />
+                                                        : <WhatsAppIcon size={14} />
+                                                    }
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         )}
                     </tbody>
                 </table>

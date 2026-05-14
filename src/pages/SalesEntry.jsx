@@ -135,6 +135,7 @@ const SalesEntry = () => {
     const [date, setDate]       = useState(new Date().toLocaleDateString('en-CA'));
     const [currentItem, setCurrentItem] = useState({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
     const [isSaving, setIsSaving] = useState(false);
+    const [mainTableSelectedIndex, setMainTableSelectedIndex] = useState(-1);
 
     // Refs
     const refDate     = useRef(null);
@@ -143,6 +144,7 @@ const SalesEntry = () => {
     const refQty      = useRef(null);
     const refRate     = useRef(null);
     const refAddBtn   = useRef(null);
+    const mainTableRowRefs = useRef([]);
 
     useEffect(() => {
         const u1 = subscribeToCollection('products', (data) => {
@@ -495,48 +497,97 @@ const SalesEntry = () => {
                             ) : (
                                 todayEntries.map((sale, idx) => {
                                     const buyer = buyers.find(b => b.id === sale.buyerId);
+                                    const isHighlighted = mainTableSelectedIndex === idx;
                                     return (
-                                        <tr key={sale.id} style={{ borderBottom: '1px solid #f8fafc', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
+                                        <tr key={sale.id}
+                                            ref={el => mainTableRowRefs.current[idx] = el}
+                                            tabIndex={0}
+                                            onClick={() => setMainTableSelectedIndex(idx)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'ArrowDown') {
+                                                    e.preventDefault();
+                                                    const nextIdx = Math.min(idx + 1, todayEntries.length - 1);
+                                                    setMainTableSelectedIndex(nextIdx);
+                                                    mainTableRowRefs.current[nextIdx]?.focus();
+                                                } else if (e.key === 'ArrowUp') {
+                                                    e.preventDefault();
+                                                    const prevIdx = Math.max(idx - 1, 0);
+                                                    setMainTableSelectedIndex(prevIdx);
+                                                    mainTableRowRefs.current[prevIdx]?.focus();
+                                                }
+                                            }}
+                                            style={{ 
+                                                background: isHighlighted ? '#16a34a' : (idx % 2 === 0 ? '#fff' : '#fafafa'),
+                                                color: isHighlighted ? '#fff' : '#374151',
+                                                cursor: 'pointer',
+                                                outline: 'none'
+                                            }}
+                                            onMouseEnter={e => !isHighlighted && (e.currentTarget.style.background = '#f0fdf4')}
+                                            onMouseLeave={e => !isHighlighted && (e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa')}
+                                        >
                                             <td style={TD_S}>
-                                                <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
+                                                <span style={{ 
+                                                    fontSize: '11px', fontWeight: 700, 
+                                                    color: isHighlighted ? '#fff' : '#94a3b8', 
+                                                    background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#f1f5f9', 
+                                                    padding: '3px 8px', borderRadius: '6px' 
+                                                }}>
                                                     {formatTime(sale.timestamp || sale.createdAt)}
                                                 </span>
                                             </td>
                                             <td style={TD_S}>
-                                                <span style={{ fontSize: '12px', fontWeight: 800, color: '#16a34a', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '3px 10px', borderRadius: '8px' }}>
+                                                <span style={{ 
+                                                    fontSize: '12px', fontWeight: 800, 
+                                                    color: isHighlighted ? '#fff' : '#16a34a', 
+                                                    background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#f0fdf4', 
+                                                    border: '1px solid ' + (isHighlighted ? 'rgba(255,255,255,0.4)' : '#bbf7d0'), 
+                                                    padding: '3px 10px', borderRadius: '8px' 
+                                                }}>
                                                     #{buyer?.displayId || '---'}
                                                 </span>
                                             </td>
-                                            <td style={{...TD_S, fontWeight: 700, color: '#334155'}}>
+                                            <td style={{...TD_S, fontWeight: 700, color: isHighlighted ? '#fff' : '#334155'}}>
                                                 {buyer ? (lang === 'ta' ? (buyer.nameTa || buyer.name) : buyer.name) : (sale.buyerName || '---')}
                                             </td>
-                                            <td style={{...TD_S, fontWeight: 700, color: '#16a34a'}}>
+                                            <td style={{...TD_S, fontWeight: 700, color: isHighlighted ? '#fff' : '#16a34a'}}>
                                                 {lang === 'ta' ? (sale.items[0]?.flowerTypeTa || sale.items[0]?.flowerType) : sale.items[0]?.flowerType}
                                             </td>
-                                        <td style={{...TD_S, textAlign: 'center', color: '#64748b', fontWeight: 600}}>
-                                            {sale.items[0]?.quantity}
-                                        </td>
-                                        <td style={{...TD_S, textAlign: 'center', color: '#64748b', fontWeight: 600}}>
-                                            {sale.items[0]?.price}
-                                        </td>
-                                        <td style={{...TD_S, textAlign: 'right', fontWeight: 800, color: '#16a34a'}}>
-                                            {fmt(sale.grandTotal)}
-                                        </td>
-                                        <td style={{...TD_S, textAlign: 'center'}}>
-                                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                                                <button onClick={() => handleEditItem(sale)}
-                                                    style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fff', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                                                >
-                                                    <Pencil size={14} />
-                                                </button>
-                                                <button onClick={() => handleDeleteItem(sale)}
-                                                    style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #fee2e2', background: '#fff', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                            <td style={{...TD_S, textAlign: 'center', color: isHighlighted ? '#fff' : '#64748b', fontWeight: 600}}>
+                                                {sale.items[0]?.quantity}
+                                            </td>
+                                            <td style={{...TD_S, textAlign: 'center', color: isHighlighted ? '#fff' : '#64748b', fontWeight: 600}}>
+                                                {sale.items[0]?.price}
+                                            </td>
+                                            <td style={{...TD_S, textAlign: 'right', fontWeight: 800, color: isHighlighted ? '#fff' : '#16a34a'}}>
+                                                {fmt(sale.grandTotal)}
+                                            </td>
+                                            <td style={{...TD_S, textAlign: 'center'}}>
+                                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                                    <button onClick={() => handleEditItem(sale)}
+                                                        style={{ 
+                                                            width: '28px', height: '28px', borderRadius: '6px', 
+                                                            border: '1px solid ' + (isHighlighted ? 'rgba(255,255,255,0.4)' : '#e2e8f0'), 
+                                                            background: isHighlighted ? 'rgba(255,255,255,0.1)' : '#fff', 
+                                                            color: isHighlighted ? '#fff' : '#3b82f6', 
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' 
+                                                        }}
+                                                    >
+                                                        <Pencil size={14} />
+                                                    </button>
+                                                    <button onClick={() => handleDeleteItem(sale)}
+                                                        style={{ 
+                                                            width: '28px', height: '28px', borderRadius: '6px', 
+                                                            border: '1px solid ' + (isHighlighted ? 'rgba(255,255,255,0.4)' : '#fee2e2'), 
+                                                            background: isHighlighted ? 'rgba(255,255,255,0.1)' : '#fff', 
+                                                            color: isHighlighted ? '#fff' : '#ef4444', 
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' 
+                                                        }}
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     );
                                 })
                             )}
