@@ -125,7 +125,9 @@ const Buyer = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentBuyer, setCurrentBuyer] = useState({ id: '', name: '', contact: '', balance: 0 });
     const [isSaving, setIsSaving] = useState(false);
+    const [tableSelectedIndex, setTableSelectedIndex] = useState(-1);
     const importRef = useRef(null);
+    const rowRefs = useRef([]);
 
     useEffect(() => {
         const u1 = subscribeToCollection('buyers', setBuyers);
@@ -278,6 +280,12 @@ const Buyer = () => {
         return (b.name || '').toLowerCase().includes(s) || (b.contact || '').includes(s) || String(b.displayId || '').includes(s);
     }).sort((a, b) => (parseInt(a.displayId) || 0) - (parseInt(b.displayId) || 0));
 
+    useEffect(() => {
+        if (tableSelectedIndex >= 0 && rowRefs.current[tableSelectedIndex]) {
+            rowRefs.current[tableSelectedIndex].focus();
+        }
+    }, [tableSelectedIndex]);
+
     const fmt = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
 
     return (
@@ -318,10 +326,19 @@ const Buyer = () => {
                     type="text"
                     placeholder={t('search')}
                     value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
+                    onChange={e => {
+                        setSearchTerm(e.target.value);
+                        setTableSelectedIndex(-1);
+                    }}
                     style={S.searchInput}
                     onFocus={e => e.target.style.borderColor='#16a34a'}
                     onBlur={e => e.target.style.borderColor='#d1fae5'}
+                    onKeyDown={e => {
+                        if (e.key === 'ArrowDown' && filteredBuyers.length > 0) {
+                            e.preventDefault();
+                            setTableSelectedIndex(0);
+                        }
+                    }}
                 />
             </div>
 
@@ -344,44 +361,84 @@ const Buyer = () => {
                                 <td colSpan={6} style={S.emptyRow}>{t('noRecords')}</td>
                             </tr>
                         ) : (
-                            filteredBuyers.map((buyer, idx) => (
-                                <tr key={buyer.id}
-                                    style={{background: idx % 2 === 0 ? '#fff' : '#fafafa'}}
-                                    onMouseEnter={e => e.currentTarget.style.background='#f0fdf4'}
-                                    onMouseLeave={e => e.currentTarget.style.background=idx % 2 === 0 ? '#fff' : '#fafafa'}
-                                >
-                                    <td style={S.td}>
-                                        <span style={S.idBadge}>#{buyer.displayId}</span>
-                                    </td>
-                                    <td style={{...S.td, fontWeight:700, color:'#1e293b'}}>
-                                        {lang === 'ta' ? (buyer.nameTa || buyer.name) : buyer.name}
-                                    </td>
-                                    <td style={{...S.td, color:'#6b7280'}}>{buyer.contact || '—'}</td>
-                                    <td style={{...S.td, textAlign:'right', fontWeight:700, color: buyer.balance > 0 ? '#f43f5e' : '#16a34a'}}>
-                                        {fmt(buyer.balance)}
-                                    </td>
-                                    <td style={{...S.td, textAlign:'center'}}>
-                                        <button style={S.viewBtn} onClick={() => setViewingBuyer(buyer)}
-                                            onMouseEnter={e => { e.currentTarget.style.borderColor='#16a34a'; e.currentTarget.style.color='#16a34a'; }}
-                                            onMouseLeave={e => { e.currentTarget.style.borderColor='#e5e7eb'; e.currentTarget.style.color='#6b7280'; }}
-                                        >
-                                            <FileText size={13}/> {t('view')}
-                                        </button>
-                                    </td>
-                                    <td style={{...S.td, textAlign:'center'}}>
-                                        <div style={{display:'flex', gap:'6px', justifyContent:'center'}}>
-                                            <button style={S.editBtn} onClick={() => handleOpenModal(buyer)}
-                                                onMouseEnter={e => { e.currentTarget.style.background='#3b82f6'; e.currentTarget.style.color='#fff'; }}
-                                                onMouseLeave={e => { e.currentTarget.style.background='#eff6ff'; e.currentTarget.style.color='#3b82f6'; }}
-                                            ><Edit2 size={13}/></button>
-                                            <button style={S.deleteBtn} onClick={() => handleDelete(buyer.id)}
-                                                onMouseEnter={e => { e.currentTarget.style.background='#f43f5e'; e.currentTarget.style.color='#fff'; }}
-                                                onMouseLeave={e => { e.currentTarget.style.background='#fff1f2'; e.currentTarget.style.color='#f43f5e'; }}
-                                            ><Trash2 size={13}/></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
+                            filteredBuyers.map((buyer, idx) => {
+                                const isHighlighted = tableSelectedIndex === idx;
+                                return (
+                                    <tr key={buyer.id}
+                                        ref={el => rowRefs.current[idx] = el}
+                                        tabIndex={0}
+                                        onClick={() => setTableSelectedIndex(idx)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'ArrowDown') {
+                                                e.preventDefault();
+                                                setTableSelectedIndex(prev => Math.min(prev + 1, filteredBuyers.length - 1));
+                                            } else if (e.key === 'ArrowUp') {
+                                                e.preventDefault();
+                                                setTableSelectedIndex(prev => Math.max(prev - 1, 0));
+                                            } else if (e.key === 'Enter') {
+                                                setViewingBuyer(buyer);
+                                            }
+                                        }}
+                                        style={{
+                                            background: isHighlighted ? '#16a34a' : (idx % 2 === 0 ? '#fff' : '#fafafa'),
+                                            cursor: 'pointer',
+                                            outline: 'none',
+                                            transition: 'all 0.1s'
+                                        }}
+                                        onMouseEnter={e => !isHighlighted && (e.currentTarget.style.background='#f0fdf4')}
+                                        onMouseLeave={e => !isHighlighted && (e.currentTarget.style.background=idx % 2 === 0 ? '#fff' : '#fafafa')}
+                                    >
+                                        <td style={S.td}>
+                                            <span style={{
+                                                ...S.idBadge,
+                                                background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#f0fdf4',
+                                                color: isHighlighted ? '#fff' : '#15803d',
+                                                borderColor: isHighlighted ? 'rgba(255,255,255,0.4)' : '#bbf7d0'
+                                            }}>#{buyer.displayId}</span>
+                                        </td>
+                                        <td style={{...S.td, fontWeight:700, color: isHighlighted ? '#fff' : '#1e293b'}}>
+                                            {lang === 'ta' ? (buyer.nameTa || buyer.name) : buyer.name}
+                                        </td>
+                                        <td style={{...S.td, color: isHighlighted ? 'rgba(255,255,255,0.9)' : '#6b7280'}}>{buyer.contact || '—'}</td>
+                                        <td style={{...S.td, textAlign:'right', fontWeight:700, color: isHighlighted ? '#fff' : (buyer.balance > 0 ? '#f43f5e' : '#16a34a')}}>
+                                            {fmt(buyer.balance)}
+                                        </td>
+                                        <td style={{...S.td, textAlign:'center'}}>
+                                            <button style={{
+                                                ...S.viewBtn,
+                                                background: isHighlighted ? 'rgba(255,255,255,0.1)' : '#fff',
+                                                color: isHighlighted ? '#fff' : '#6b7280',
+                                                borderColor: isHighlighted ? 'rgba(255,255,255,0.5)' : '#e5e7eb'
+                                            }} onClick={() => setViewingBuyer(buyer)}
+                                                onMouseEnter={e => { if (!isHighlighted) { e.currentTarget.style.borderColor='#16a34a'; e.currentTarget.style.color='#16a34a'; } }}
+                                                onMouseLeave={e => { if (!isHighlighted) { e.currentTarget.style.borderColor='#e5e7eb'; e.currentTarget.style.color='#6b7280'; } }}
+                                            >
+                                                <FileText size={13}/> {t('view')}
+                                            </button>
+                                        </td>
+                                        <td style={{...S.td, textAlign:'center'}}>
+                                            <div style={{display:'flex', gap:'6px', justifyContent:'center'}}>
+                                                <button style={{
+                                                    ...S.editBtn,
+                                                    background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#eff6ff',
+                                                    color: isHighlighted ? '#fff' : '#3b82f6'
+                                                }} onClick={() => handleOpenModal(buyer)}
+                                                    onMouseEnter={e => { if (!isHighlighted) { e.currentTarget.style.background='#3b82f6'; e.currentTarget.style.color='#fff'; } }}
+                                                    onMouseLeave={e => { if (!isHighlighted) { e.currentTarget.style.background='#eff6ff'; e.currentTarget.style.color='#3b82f6'; } }}
+                                                ><Edit2 size={13}/></button>
+                                                <button style={{
+                                                    ...S.deleteBtn,
+                                                    background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#fff1f2',
+                                                    color: isHighlighted ? '#fff' : '#f43f5e'
+                                                }} onClick={() => handleDelete(buyer.id)}
+                                                    onMouseEnter={e => { if (!isHighlighted) { e.currentTarget.style.background='#f43f5e'; e.currentTarget.style.color='#fff'; } }}
+                                                    onMouseLeave={e => { if (!isHighlighted) { e.currentTarget.style.background='#fff1f2'; e.currentTarget.style.color='#f43f5e'; } }}
+                                                ><Trash2 size={13}/></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         )}
                     </tbody>
                 </table>
