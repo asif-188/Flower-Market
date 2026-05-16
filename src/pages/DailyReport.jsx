@@ -184,14 +184,6 @@ const DailyReport = () => {
                             </tr>
                         `).join('')}
                     </tbody>
-                    <tfoot>
-                        <tr style="font-weight: 900; background: #eee;">
-                            <td colspan="3" align="right">TOTAL</td>
-                            <td align="right">${totals.end.toFixed(0)}</td>
-                            <td align="right"></td>
-                            <td align="right"></td>
-                        </tr>
-                    </tfoot>
                 </table>
 
                 <div class="summary-box">
@@ -204,7 +196,15 @@ const DailyReport = () => {
                     <div class="summary-row grand" style="background: #f0f0f0; padding: 10px;">
                         <span>${t('grandTotal')} :</span> <span>${totals.end.toFixed(2)}</span>
                     </div>
-                    <div style="font-size: 12px; margin-top: 10px; font-style: italic; color: #666;">
+
+                    <div class="summary-row" style="margin-top: 10px;">
+                        <span>Today Sales Amount :</span> <span>${totals.sales.toFixed(2)}</span>
+                    </div>
+                    <div class="summary-row grand" style="border-top: 3px solid #000; margin-top: 5px; padding-top: 10px;">
+                        <span>Sum :</span> <span>${(totals.end + totals.sales).toFixed(2)}</span>
+                    </div>
+
+                    <div style="font-size: 12px; margin-top: 15px; font-style: italic; color: #666;">
                         * Formula: Opening Balance - Cash Receive + Today's Sales = Grand Total (Buyer Balances)
                     </div>
                 </div>

@@ -170,8 +170,8 @@ const SalesEntry = () => {
         return allSales.filter(s => {
             const d = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
             if (d !== date) return false;
-            // If buyerId is selected, filter by it. Otherwise, show all.
-            if (buyerId && s.buyerId !== buyerId) return false;
+            // Show only for selected customer
+            if (!buyerId || s.buyerId !== buyerId) return false;
             return true;
         }).sort((a, b) => {
             const tA = (a.timestamp?.toMillis?.() || a.createdAt?.toMillis?.() || 0);
@@ -186,7 +186,7 @@ const SalesEntry = () => {
         
         // 2. Filter payments for the selected date (and buyer if present)
         const dayPayments = allPayments.filter(p => {
-            if (buyerId && p.entityId !== buyerId) return false;
+            if (!buyerId || p.entityId !== buyerId) return false;
             const d = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
             return d === date;
         });
@@ -199,8 +199,8 @@ const SalesEntry = () => {
             const buyer = buyers.find(b => b.id === buyerId);
             finalBalance = buyer?.balance || 0;
         } else {
-            // Sum of all buyers' balances for aggregate shop view
-            finalBalance = buyers.reduce((s, b) => s + (b.balance || 0), 0);
+            // Default to 0 if no customer is selected
+            finalBalance = 0;
         }
 
         // 4. Calculate Old Balance and Ledger Balance
