@@ -80,12 +80,32 @@ export async function generateBuyerReceiptCanvas({
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, W, H);
 
-    const drawText = (str, x, y, { size = 22, weight = 'normal', align = 'left', color = '#000' } = {}) => {
+    const drawText = (str, x, y, { size = 22, weight = 'normal', align = 'left', color = '#000', maxWidth, wrapWidth, lineHeight = 32 } = {}) => {
         ctx.font         = `${weight} ${size}px sans-serif`;
         ctx.fillStyle    = color;
         ctx.textAlign    = align;
         ctx.textBaseline = 'middle';
-        ctx.fillText(str || '', x, y);
+        if (wrapWidth) {
+            const words = (str || '').split(' ');
+            let line = '';
+            let currentY = y;
+            for (let i = 0; i < words.length; i++) {
+                const testLine = line + words[i] + ' ';
+                const testWidth = ctx.measureText(testLine).width;
+                if (testWidth > wrapWidth && i > 0) {
+                    ctx.fillText(line.trim(), x, currentY, wrapWidth);
+                    line = words[i] + ' ';
+                    currentY += lineHeight;
+                } else {
+                    line = testLine;
+                }
+            }
+            ctx.fillText(line.trim(), x, currentY, wrapWidth);
+        } else if (maxWidth) {
+            ctx.fillText(str || '', x, y, maxWidth);
+        } else {
+            ctx.fillText(str || '', x, y);
+        }
     };
 
     const rect = (x, y, w, h) => {
@@ -127,8 +147,8 @@ export async function generateBuyerReceiptCanvas({
     const infoH = 160; // Increased for 4 rows
     rect(PAD, y, W - PAD*2, infoH);
     // Left: Code / Name
-    drawText(`CODE : ${buyer.displayId || '---'}`, PAD + 15, y + 55, { size: 26, weight: '800' });
-    drawText(`${nameLabel} : ${(buyer.name || '---').toUpperCase()}`, PAD + 15, y + 105, { size: 26, weight: '800' });
+    drawText(`CODE : ${buyer.displayId || '---'}`, PAD + 15, y + 45, { size: 26, weight: '800' });
+    drawText(`${nameLabel} : ${(buyer.name || '---').toUpperCase()}`, PAD + 15, y + 95, { size: 26, weight: '800', wrapWidth: 390, lineHeight: 32 });
     
     // Right: Balance Grid (4 Rows)
     const balW = 280;
@@ -152,7 +172,7 @@ export async function generateBuyerReceiptCanvas({
     y += infoH;
 
     // 5. Items Table
-    const colW = [60, 260, 100, 120, 160];
+    const colW = [85, 235, 100, 120, 160];
     const cols = [PAD, PAD + colW[0], PAD + colW[0] + colW[1], PAD + colW[0] + colW[1] + colW[2], PAD + colW[0] + colW[1] + colW[2] + colW[3]];
     
     // Header
@@ -288,12 +308,32 @@ export async function generateLedgerCanvas({
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, W, H);
 
-    const drawText = (str, x, y, { size = 20, weight = 'normal', align = 'left', color = '#000' } = {}) => {
+    const drawText = (str, x, y, { size = 20, weight = 'normal', align = 'left', color = '#000', maxWidth, wrapWidth, lineHeight = 28 } = {}) => {
         ctx.font         = `${weight} ${size}px sans-serif`;
         ctx.fillStyle    = color;
         ctx.textAlign    = align;
         ctx.textBaseline = 'middle';
-        ctx.fillText(str || '', x, y);
+        if (wrapWidth) {
+            const words = (str || '').split(' ');
+            let line = '';
+            let currentY = y;
+            for (let i = 0; i < words.length; i++) {
+                const testLine = line + words[i] + ' ';
+                const testWidth = ctx.measureText(testLine).width;
+                if (testWidth > wrapWidth && i > 0) {
+                    ctx.fillText(line.trim(), x, currentY, wrapWidth);
+                    line = words[i] + ' ';
+                    currentY += lineHeight;
+                } else {
+                    line = testLine;
+                }
+            }
+            ctx.fillText(line.trim(), x, currentY, wrapWidth);
+        } else if (maxWidth) {
+            ctx.fillText(str || '', x, y, maxWidth);
+        } else {
+            ctx.fillText(str || '', x, y);
+        }
     };
 
     const rect = (x, y, w, h) => {
@@ -329,8 +369,13 @@ export async function generateLedgerCanvas({
     drawText(`${customerNoLabel} : ${buyer.displayId || '---'}`, PAD + 10, y, { size: 20, weight: '700' });
     drawText(`${date} : ${dateLabel}`, W - PAD - 10, y, { size: 20, weight: '700', align: 'right' });
     y += 25;
-    drawText(`${nameLabel} : ${buyer.name || '---'}`, PAD + 10, y, { size: 20, weight: '700' });
-    y += 30;
+    ctx.font = '700 20px sans-serif';
+    const nameStr = `${nameLabel} : ${buyer.name || '---'}`;
+    const nameWidth = ctx.measureText(nameStr).width;
+    const isNameWrapped = nameWidth > (W - PAD*2 - 20);
+    
+    drawText(nameStr, PAD + 10, y, { size: 20, weight: '700', wrapWidth: W - PAD*2 - 20, lineHeight: 28 });
+    y += isNameWrapped ? 58 : 30;
     
     // Double Border before table
     ctx.beginPath(); ctx.lineWidth = 1; ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
@@ -339,8 +384,8 @@ export async function generateLedgerCanvas({
     y += 2;
 
     // Table Setup
-    const colStarts = [PAD, PAD+60, PAD+220, PAD+280, PAD+340, PAD+430, PAD+585];
-    const colWidths = [60, 160, 60, 60, 90, 155, 135];
+    const colStarts = [PAD, PAD+85, PAD+220, PAD+280, PAD+340, PAD+430, PAD+585];
+    const colWidths = [85, 135, 60, 60, 90, 155, 135];
     const colHeaders = [sNoLabel, particulars, weight, rate, total, cashRec, cashLess];
 
     // Header Row
@@ -459,12 +504,13 @@ export async function generatePaymentReceiptCanvas({
         phone2 = '9952535057',
     } = bizInfo;
 
-    const drawText = (str, x, y, { size = 22, weight = 'normal', align = 'left', color = '#000' } = {}) => {
+    const drawText = (str, x, y, { size = 22, weight = 'normal', align = 'left', color = '#000', maxWidth } = {}) => {
         ctx.font = `${weight} ${size}px sans-serif`;
         ctx.fillStyle = color;
         ctx.textAlign = align;
         ctx.textBaseline = 'middle';
-        ctx.fillText(str || '', x, y);
+        if (maxWidth) ctx.fillText(str || '', x, y, maxWidth);
+        else ctx.fillText(str || '', x, y);
     };
 
     let y = 50;
@@ -550,12 +596,13 @@ export async function generatePurchaseReceiptCanvas({
         phone2 = '9952535057',
     } = bizInfo;
 
-    const drawText = (str, x, y, { size = 22, weight = 'normal', align = 'left', color = '#000' } = {}) => {
+    const drawText = (str, x, y, { size = 22, weight = 'normal', align = 'left', color = '#000', maxWidth } = {}) => {
         ctx.font = `${weight} ${size}px sans-serif`;
         ctx.fillStyle = color;
         ctx.textAlign = align;
         ctx.textBaseline = 'middle';
-        ctx.fillText(str || '', x, y);
+        if (maxWidth) ctx.fillText(str || '', x, y, maxWidth);
+        else ctx.fillText(str || '', x, y);
     };
 
     let y = 50;

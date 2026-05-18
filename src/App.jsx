@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { TenantProvider, useTenant } from './utils/TenantContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -33,9 +33,9 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <TenantProvider>
-      <BrowserRouter>
+      <HashRouter>
         <AppRoutes />
-      </BrowserRouter>
+      </HashRouter>
     </TenantProvider>
   );
 }

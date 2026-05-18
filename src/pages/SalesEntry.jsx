@@ -165,24 +165,28 @@ const SalesEntry = () => {
         return `${y}-${m}-${dd}`;
     };
 
-    // Filter today's transactions for the selected customer
-    const todayEntries = React.useMemo(() => {
+    // Filter all transactions for the selected date
+    const dailyEntries = React.useMemo(() => {
         return allSales.filter(s => {
             const d = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-            if (d !== date) return false;
-            // Show only for selected customer
-            if (!buyerId || s.buyerId !== buyerId) return false;
-            return true;
+            return d === date;
         }).sort((a, b) => {
             const tA = (a.timestamp?.toMillis?.() || a.createdAt?.toMillis?.() || 0);
             const tB = (b.timestamp?.toMillis?.() || b.createdAt?.toMillis?.() || 0);
             return tA - tB;
         });
-    }, [allSales, buyerId, date]);
+    }, [allSales, date]);
+
+    // Filter today's transactions for the selected customer
+    const buyerTodayEntries = React.useMemo(() => {
+        return dailyEntries.filter(s => !buyerId || s.buyerId === buyerId);
+    }, [dailyEntries, buyerId]);
 
     const financialStats = React.useMemo(() => {
-        // 1. Today's Total (calculated from todayEntries, which is already filtered by date/buyer)
-        const todayTotal = todayEntries.reduce((s, e) => s + (e.grandTotal || 0), 0);
+        const activeBuyerEntries = buyerId ? dailyEntries.filter(s => s.buyerId === buyerId) : [];
+        
+        // 1. Today's Total (calculated from activeBuyerEntries)
+        const todayTotal = activeBuyerEntries.reduce((s, e) => s + (e.grandTotal || 0), 0);
         
         // 2. Filter payments for the selected date (and buyer if present)
         const dayPayments = allPayments.filter(p => {
@@ -208,7 +212,7 @@ const SalesEntry = () => {
         const ledgerBalance = oldBalance - cashRec - cashLess;
 
         return { oldBalance, cashRec, cashLess, todayTotal, finalBalance, ledgerBalance };
-    }, [buyers, buyerId, todayEntries, allPayments, date]);
+    }, [buyers, buyerId, dailyEntries, allPayments, date]);
 
     const handleAddItem = async () => {
         if (!buyerId || !currentItem.flowerType || !currentItem.quantity || !currentItem.price || isSaving) return;
@@ -273,7 +277,8 @@ const SalesEntry = () => {
     };
 
     const handleShareWhatsApp = async () => {
-        if (!buyerId || todayEntries.length === 0) return alert('No items to share for today.');
+        const activeBuyerEntries = dailyEntries.filter(s => s.buyerId === buyerId);
+        if (!buyerId || activeBuyerEntries.length === 0) return alert('No items to share for today.');
         const buyer = buyers.find(b => b.id === buyerId);
         const { oldBalance, cashRec, cashLess, todayTotal } = financialStats;
 
@@ -284,7 +289,7 @@ const SalesEntry = () => {
                     displayId: buyer.displayId,
                     name: lang === 'ta' ? (buyer.nameTa || buyer.name) : buyer.name,
                 },
-                salesItems: todayEntries.flatMap(s => s.items || []),
+                salesItems: activeBuyerEntries.flatMap(s => s.items || []),
                 salesTotal: todayTotal,
                 paymentsTotal: cashRec,
                 cashLess: cashLess,
@@ -314,7 +319,8 @@ const SalesEntry = () => {
     };
 
     const handlePrint = () => {
-        if (todayEntries.length > 0) window.print();
+        const activeBuyerEntries = dailyEntries.filter(s => s.buyerId === buyerId);
+        if (activeBuyerEntries.length > 0) window.print();
     };
 
     const onKey = (e, nextRef) => {
@@ -488,14 +494,14 @@ const SalesEntry = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {todayEntries.length === 0 ? (
+                            {dailyEntries.length === 0 ? (
                                 <tr>
                                     <td colSpan={8} style={{ padding: '60px 20px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '14px' }}>
                                         {t('noItemsYet')}
                                     </td>
                                 </tr>
                             ) : (
-                                todayEntries.map((sale, idx) => {
+                                dailyEntries.map((sale, idx) => {
                                     const buyer = buyers.find(b => b.id === sale.buyerId);
                                     const isHighlighted = mainTableSelectedIndex === idx;
                                     return (
@@ -506,7 +512,7 @@ const SalesEntry = () => {
                                             onKeyDown={(e) => {
                                                 if (e.key === 'ArrowDown') {
                                                     e.preventDefault();
-                                                    const nextIdx = Math.min(idx + 1, todayEntries.length - 1);
+                                                    const nextIdx = Math.min(idx + 1, dailyEntries.length - 1);
                                                     setMainTableSelectedIndex(nextIdx);
                                                     mainTableRowRefs.current[nextIdx]?.focus();
                                                 } else if (e.key === 'ArrowUp') {
@@ -592,11 +598,11 @@ const SalesEntry = () => {
                                 })
                             )}
                         </tbody>
-                        {todayEntries.length > 0 && (
+                        {dailyEntries.length > 0 && (
                             <tfoot>
                                 <tr style={{ background: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
                                     <td colSpan={6} style={{...TD_S, textAlign: 'right', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', fontSize: '12px'}}>{t('todayTotal')}</td>
-                                    <td style={{...TD_S, textAlign: 'right', fontWeight: 900, fontSize: '18px', color: '#16a34a'}}>{fmt(financialStats.todayTotal)}</td>
+                                    <td style={{...TD_S, textAlign: 'right', fontWeight: 900, fontSize: '18px', color: '#16a34a'}}>{fmt(dailyEntries.reduce((s, e) => s + (e.grandTotal || 0), 0))}</td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -613,7 +619,7 @@ const SalesEntry = () => {
                             {t('totalQuantity')}
                         </span>
                         <div style={{ fontSize: '20px', fontWeight: 800, color: '#fff' }}>
-                            {todayEntries.reduce((s, e) => s + parseFloat(e.items[0]?.quantity || 0), 0).toFixed(1)}
+                            {dailyEntries.reduce((s, e) => s + parseFloat(e.items[0]?.quantity || 0), 0).toFixed(1)}
                         </div>
                     </div>
                     <div>
@@ -621,7 +627,7 @@ const SalesEntry = () => {
                             {t('todayTotal')}
                         </span>
                         <div style={{ fontSize: '20px', fontWeight: 800, color: '#3b82f6' }}>
-                            {fmt(financialStats.todayTotal)}
+                            {fmt(dailyEntries.reduce((s, e) => s + (e.grandTotal || 0), 0))}
                         </div>
                     </div>
                 </div>
@@ -701,7 +707,7 @@ const SalesEntry = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {todayEntries.map((s, i) => (
+                        {dailyEntries.filter(s => s.buyerId === buyerId).map((s, i) => (
                             <tr key={i}>
                                 <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{i + 1}</td>
                                 <td style={{ border: '1px solid #000', padding: '8px', fontWeight: 'bold' }}>{lang === 'ta' ? (s.items[0].flowerTypeTa || s.items[0].flowerType) : s.items[0].flowerType}</td>
