@@ -164,7 +164,7 @@ const DailyReport = () => {
                 <table>
                     <thead>
                         <tr>
-                            <th align="center">${t('customerNo')}</th>
+                            <th align="center">${t('sNo')}</th>
                             <th align="left">${t('name')}</th>
                             <th align="center">Contact No</th>
                             <th align="right">${t('balance')}</th>
