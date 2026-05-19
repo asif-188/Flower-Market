@@ -281,7 +281,7 @@ const Reports = () => {
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 80px;">${t('sNo')}</th>
+                            <th style="width: 100px;">${t('date')}</th>
                             <th>${t('particulars')}</th>
                             <th style="text-align: center">${t('weight')}</th>
                             <th style="text-align: center">${t('rate')}</th>
@@ -307,7 +307,7 @@ const Reports = () => {
                                 const showDate = i === 0 || item.date !== arr[i-1].date;
                                 return `
                                     <tr>
-                                        <td align="center">${i + 1}</td>
+                                        <td align="center" style="font-weight: 700;">${showDate ? displayDate(item.date) : ''}</td>
                                         <td>${item.desc}</td>
                                         <td align="center">${item.type === 'SALE' ? parseFloat(item.qty).toFixed(3) : '0.000'}</td>
                                         <td align="center">${item.type === 'SALE' ? item.price : '0'}</td>
@@ -491,9 +491,8 @@ const Reports = () => {
             const paymentsTotal  = buyerPayments.reduce((s, p) => s + (p.amount || 0), 0);
             const cashLessTotal  = buyerPayments.reduce((s, p) => s + (p.cashLess || 0), 0);
 
-            // prevBalance = current DB balance - sales + payments + cashLess (reverse the period)
-            const buyer = buyers.find(b => b.id === row.id);
-            const prevBalance = (buyer?.balance || 0) - row.sales + paymentsTotal + cashLessTotal;
+            // prevBalance should be the opening balance at the start of the period
+            const prevBalance = row.opening;
 
             const dateLabel = appliedFrom === appliedTo 
                 ? displayDate(appliedFrom)
@@ -525,6 +524,7 @@ const Reports = () => {
                     grandTotalLabel: t('finalBalance'),
                     sNo: t('sNo'),
                     salesLabel: t('sales'),
+                    totalSalesLabel: t('totalSales'),
                 },
                 lang: lang
             });
@@ -691,14 +691,14 @@ const Reports = () => {
             {/* ── Stat Cards + Search Row ── */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '18px', flexWrap: 'wrap', alignItems: 'stretch' }}>
                 {STAT_CARDS.map(card => (
-                    <div key={card.label} style={{ flex: 1, minWidth: '120px', borderRadius: '10px', border: `1.5px solid ${card.accent}22`, background: card.bg, padding: '12px 16px' }}>
+                    <div key={card.label} style={{ flex: '1 1 auto', minWidth: '130px', borderRadius: '10px', border: `1.5px solid ${card.accent}22`, background: card.bg, padding: '12px 16px' }}>
                         <div style={{ fontSize: '10px', fontWeight: 700, color: card.accent, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>{card.label}</div>
-                        <div style={{ fontSize: '16px', fontWeight: 800, color: card.textColor }}>{fmt(card.value)}</div>
+                        <div style={{ fontSize: '15px', fontWeight: 800, color: card.textColor, wordBreak: 'break-word' }}>{fmt(card.value)}</div>
                     </div>
                 ))}
 
                 {/* Search */}
-                <div style={{ flex: 1.5, minWidth: '220px', position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <div style={{ flex: '1 1 220px', minWidth: '220px', position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <Search size={14} style={{ position: 'absolute', left: '12px', color: '#9ca3af', pointerEvents: 'none' }} />
                     <input type="text" placeholder="Search by name or ID..."
                         value={search} onChange={e => setSearch(e.target.value)}

@@ -302,7 +302,7 @@ const SalesEntry = () => {
                     cashRec: t('cashRec'), cashLess: t('cashLess'), balance: t('balance'),
                     particulars: t('particulars'), weight: t('weight'), rate: t('rate'),
                     total: t('total'), grandTotalLabel: t('grandTotal'), sNo: t('sNo'),
-                    salesLabel: t('sales'),
+                    salesLabel: t('sales'), totalSalesLabel: t('totalSales'),
                 }
             });
 

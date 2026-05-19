@@ -232,6 +232,13 @@ export async function generateBuyerReceiptCanvas({
     // Outer border for the entire data area
     rect(PAD, tableStartY, W - PAD*2, y - tableStartY);
 
+    // 5b. Total Sales
+    ctx.lineWidth = 1.5;
+    rect(PAD, y, W - PAD*2, 50);
+    drawText(labels.totalSalesLabel || 'Total Sales', PAD + 20, y + 25, { size: 24, weight: '800' });
+    drawText(fmtNum(salesTotal), W - PAD - 20, y + 25, { size: 28, weight: '800', align: 'right' });
+    y += 70;
+
     // 6. Grand Total
     ctx.lineWidth = 3.0;
     rect(PAD, y, W - PAD*2, 70);
@@ -282,6 +289,7 @@ export async function generateLedgerCanvas({
         thankYou   = '🌹 Thank you! 🌹',
         sNoLabel   = 'S.No',
         dateLabel  = '',
+
     } = labels;
 
     const W      = 800;
@@ -386,7 +394,7 @@ export async function generateLedgerCanvas({
     // Table Setup
     const colStarts = [PAD, PAD+85, PAD+220, PAD+280, PAD+340, PAD+430, PAD+585];
     const colWidths = [85, 135, 60, 60, 90, 155, 135];
-    const colHeaders = [sNoLabel, particulars, weight, rate, total, cashRec, cashLess];
+    const colHeaders = [date, particulars, weight, rate, total, cashRec, cashLess];
 
     // Header Row
     rect(PAD, y, W - PAD*2, 40);
@@ -421,8 +429,9 @@ export async function generateLedgerCanvas({
     y += LINE_H;
 
     // Data Rows
-    ledgerRows.forEach((row, idx) => {
-        drawRow(y, { ...row, date: String(idx + 1) });
+    ledgerRows.forEach((row, idx, arr) => {
+        const showDate = idx === 0 || row.date !== arr[idx-1].date;
+        drawRow(y, { ...row, date: showDate ? row.date : '' });
         y += LINE_H;
     });
 
