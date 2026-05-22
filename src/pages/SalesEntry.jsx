@@ -137,6 +137,11 @@ const SalesEntry = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [mainTableSelectedIndex, setMainTableSelectedIndex] = useState(-1);
 
+    // Reset selected index when customer selection changes
+    useEffect(() => {
+        setMainTableSelectedIndex(-1);
+    }, [buyerId]);
+
     // Refs
     const refDate     = useRef(null);
     const refCustomer = useRef(null);
@@ -183,36 +188,53 @@ const SalesEntry = () => {
     }, [dailyEntries, buyerId]);
 
     const financialStats = React.useMemo(() => {
-        const activeBuyerEntries = buyerId ? dailyEntries.filter(s => s.buyerId === buyerId) : [];
-        
-        // 1. Today's Total (calculated from activeBuyerEntries)
+        // 1. Today's Total (sales on the selected date for this buyer)
+        const activeBuyerEntries = buyerId ? allSales.filter(s => s.buyerId === buyerId && (s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null)) === date) : [];
         const todayTotal = activeBuyerEntries.reduce((s, e) => s + (e.grandTotal || 0), 0);
         
-        // 2. Filter payments for the selected date (and buyer if present)
+        // 2. Payments for the selected date for this buyer
         const dayPayments = allPayments.filter(p => {
-            if (!buyerId || p.entityId !== buyerId) return false;
+            if (!buyerId || p.entityId !== buyerId || p.type !== 'buyer') return false;
             const d = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
             return d === date;
         });
         const cashRec  = dayPayments.reduce((s, p) => s + (p.amount || 0), 0);
         const cashLess = dayPayments.reduce((s, p) => s + (p.cashLess || 0), 0);
         
-        // 3. Determine Balance (Individual or Aggregate)
-        let finalBalance = 0;
+        // 3. Live balance from database (representing current balance right now)
+        let liveBalance = 0;
         if (buyerId) {
             const buyer = buyers.find(b => b.id === buyerId);
-            finalBalance = buyer?.balance || 0;
-        } else {
-            // Default to 0 if no customer is selected
-            finalBalance = 0;
+            liveBalance = buyer?.balance || 0;
         }
 
-        // 4. Calculate Old Balance and Ledger Balance
-        const oldBalance = finalBalance - todayTotal + cashRec + cashLess;
+        // 4. Calculate future transactions relative to the selected date (strictly after selected date)
+        const futureSales = buyerId ? allSales.filter(s => {
+            if (s.buyerId !== buyerId) return false;
+            const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+            return dt && dt > date;
+        }) : [];
+        const futurePayments = buyerId ? allPayments.filter(p => {
+            if (p.entityId !== buyerId || p.type !== 'buyer') return false;
+            const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+            return dt && dt > date;
+        }) : [];
+        
+        const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+        const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
+
+        // 5. Old Balance (at start of selected date)
+        // OB(D) = liveBalance - sales(on or after D) + payments(on or after D)
+        const oldBalance = buyerId ? (liveBalance - (futureSalesAmt + todayTotal) + (futurePayAmt + cashRec + cashLess)) : 0;
+        
+        // 6. Ledger Balance (after payments on D, before sales on D)
         const ledgerBalance = oldBalance - cashRec - cashLess;
+        
+        // 7. Final Balance (at the end of selected date)
+        const finalBalance = ledgerBalance + todayTotal;
 
         return { oldBalance, cashRec, cashLess, todayTotal, finalBalance, ledgerBalance };
-    }, [buyers, buyerId, dailyEntries, allPayments, date]);
+    }, [buyers, buyerId, allSales, allPayments, date]);
 
     const handleAddItem = async () => {
         if (!buyerId || !currentItem.flowerType || !currentItem.quantity || !currentItem.price || isSaving) return;
@@ -301,7 +323,7 @@ const SalesEntry = () => {
                     date: t('date'), nameLabel: t('name'), oldBalance: t('oldBalance'),
                     cashRec: t('cashRec'), cashLess: t('cashLess'), balance: t('balance'),
                     particulars: t('particulars'), weight: t('weight'), rate: t('rate'),
-                    total: t('total'), grandTotalLabel: t('grandTotal'), sNo: t('sNo'),
+                    total: t('total'), grandTotalLabel: t('balance'), sNo: t('sNo'),
                     salesLabel: t('sales'), totalSalesLabel: t('totalSales'),
                 }
             });
@@ -494,14 +516,14 @@ const SalesEntry = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {dailyEntries.length === 0 ? (
+                            {buyerTodayEntries.length === 0 ? (
                                 <tr>
                                     <td colSpan={8} style={{ padding: '60px 20px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '14px' }}>
                                         {t('noItemsYet')}
                                     </td>
                                 </tr>
                             ) : (
-                                dailyEntries.map((sale, idx) => {
+                                buyerTodayEntries.map((sale, idx) => {
                                     const buyer = buyers.find(b => b.id === sale.buyerId);
                                     const isHighlighted = mainTableSelectedIndex === idx;
                                     return (
@@ -512,7 +534,7 @@ const SalesEntry = () => {
                                             onKeyDown={(e) => {
                                                 if (e.key === 'ArrowDown') {
                                                     e.preventDefault();
-                                                    const nextIdx = Math.min(idx + 1, dailyEntries.length - 1);
+                                                    const nextIdx = Math.min(idx + 1, buyerTodayEntries.length - 1);
                                                     setMainTableSelectedIndex(nextIdx);
                                                     mainTableRowRefs.current[nextIdx]?.focus();
                                                 } else if (e.key === 'ArrowUp') {
@@ -598,11 +620,11 @@ const SalesEntry = () => {
                                 })
                             )}
                         </tbody>
-                        {dailyEntries.length > 0 && (
+                        {buyerTodayEntries.length > 0 && (
                             <tfoot>
                                 <tr style={{ background: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
                                     <td colSpan={6} style={{...TD_S, textAlign: 'right', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', fontSize: '12px'}}>{t('todayTotal')}</td>
-                                    <td style={{...TD_S, textAlign: 'right', fontWeight: 900, fontSize: '18px', color: '#16a34a'}}>{fmt(dailyEntries.reduce((s, e) => s + (e.grandTotal || 0), 0))}</td>
+                                    <td style={{...TD_S, textAlign: 'right', fontWeight: 900, fontSize: '18px', color: '#16a34a'}}>{fmt(buyerTodayEntries.reduce((s, e) => s + (e.grandTotal || 0), 0))}</td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -619,7 +641,7 @@ const SalesEntry = () => {
                             {t('totalQuantity')}
                         </span>
                         <div style={{ fontSize: '20px', fontWeight: 800, color: '#fff' }}>
-                            {dailyEntries.reduce((s, e) => s + parseFloat(e.items[0]?.quantity || 0), 0).toFixed(1)}
+                            {buyerTodayEntries.reduce((s, e) => s + parseFloat(e.items[0]?.quantity || 0), 0).toFixed(1)}
                         </div>
                     </div>
                     <div>
@@ -627,7 +649,7 @@ const SalesEntry = () => {
                             {t('todayTotal')}
                         </span>
                         <div style={{ fontSize: '20px', fontWeight: 800, color: '#3b82f6' }}>
-                            {fmt(dailyEntries.reduce((s, e) => s + (e.grandTotal || 0), 0))}
+                            {fmt(buyerTodayEntries.reduce((s, e) => s + (e.grandTotal || 0), 0))}
                         </div>
                     </div>
                 </div>
@@ -721,7 +743,7 @@ const SalesEntry = () => {
 
                 {/* 6. Grand Total Box */}
                 <div style={{ border: '3px solid #000', padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <span style={{ fontSize: '24px', fontWeight: '900', textTransform: 'uppercase' }}>{t('grandTotal')}</span>
+                    <span style={{ fontSize: '24px', fontWeight: '900', textTransform: 'uppercase' }}>{t('balance')}</span>
                     <span style={{ fontSize: '30px', fontWeight: '900' }}>₹{Number(financialStats.finalBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
 
