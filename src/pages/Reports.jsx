@@ -123,7 +123,7 @@ const Reports = () => {
                 sales: salesAmt,
                 paid: paidAmt,
                 less: lessAmt,
-                balance: buyer.balance || 0
+                balance: openingBal + salesAmt - paidAmt - lessAmt
             };
         });
 
@@ -195,7 +195,8 @@ const Reports = () => {
         });
         const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
         const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
-        const openingBalance = (detailBuyer.balance || 0) - futureSalesAmt + futurePayAmt;
+        const buyer = buyers.find(b => b.id === detailBuyer.id) || detailBuyer;
+        const openingBalance = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
 
         // 2. Prepare Detailed Entries for period
         const periodSales = sales.filter(s => {
@@ -899,6 +900,7 @@ const Reports = () => {
                                             {(() => {
                                                 // Pre-calculate ledger logic for system view
                                                 const d = detailBuyer;
+                                                const buyerObj = buyers.find(b => b.id === d.id) || d;
                                                 const futureSales = sales.filter(s => {
                                                     if (s.buyerId !== d.id) return false;
                                                     const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
@@ -911,7 +913,7 @@ const Reports = () => {
                                                 });
                                                 const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
                                                 const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
-                                                let runningBal = (d.balance || 0) - futureSalesAmt + futurePayAmt;
+                                                let runningBal = (buyerObj.balance || 0) - futureSalesAmt + futurePayAmt;
 
                                                 // Interleave sales items and payments
                                                 const periodSales = sales.filter(s => s.buyerId === d.id && (s.date || toDateStr(s.timestamp?.toDate ? s.timestamp.toDate() : new Date())) >= appliedFrom && (s.date || toDateStr(s.timestamp?.toDate ? s.timestamp.toDate() : new Date())) <= appliedTo);
