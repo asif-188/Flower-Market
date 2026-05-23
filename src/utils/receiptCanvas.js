@@ -292,9 +292,9 @@ export async function generateLedgerCanvas({
 
     } = labels;
 
-    const W      = 800;
-    const PAD    = 40;
-    const LINE_H = 35;
+    const W      = 950;
+    const PAD    = 50;
+    const LINE_H = 48;
     
     const {
         name    = 'S.V.M',
@@ -305,9 +305,9 @@ export async function generateLedgerCanvas({
     } = bizInfo;
 
     const fmtNum = (n, dec = 0) =>
-        new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
+        new Intl.NumberFormat('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n || 0);
 
-    const H = 750 + (ledgerRows.length * LINE_H);
+    const H = 850 + (ledgerRows.length * LINE_H);
     const canvas  = document.createElement('canvas');
     canvas.width  = W;
     canvas.height = H;
@@ -353,36 +353,36 @@ export async function generateLedgerCanvas({
     let y = 30;
 
     // Header
-    drawText(name, W/2, y, { size: 42, weight: '900', align: 'center' });
-    y += 40;
-    drawText(type, W/2, y, { size: 22, weight: '700', align: 'center' });
-    y += 25;
-    drawText(address, W/2, y, { size: 18, align: 'center' });
-    y += 30;
+    drawText(name, W/2, y, { size: 48, weight: '900', align: 'center' });
+    y += 45;
+    drawText(type, W/2, y, { size: 24, weight: '700', align: 'center' });
+    y += 28;
+    drawText(address, W/2, y, { size: 20, align: 'center' });
+    y += 32;
 
     // Phones
     ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
     y += 18;
-    drawText(`CELL : ${phone1}`, PAD + 10, y, { size: 18, weight: '700' });
-    drawText(`CELL : ${phone2}`, W - PAD - 10, y, { size: 18, weight: '700', align: 'right' });
+    drawText(`CELL : ${phone1}`, PAD + 10, y, { size: 20, weight: '700' });
+    drawText(`CELL : ${phone2}`, W - PAD - 10, y, { size: 20, weight: '700', align: 'right' });
     y += 22;
     ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
     y += 40;
 
     // Title
-    drawText(statementTitle, W/2, y, { size: 26, weight: '900', align: 'center' });
+    drawText(statementTitle, W/2, y, { size: 30, weight: '900', align: 'center' });
     y += 40;
 
     // Customer Info
-    drawText(`${customerNoLabel} : ${buyer.displayId || '---'}`, PAD + 10, y, { size: 20, weight: '700' });
-    drawText(`${date} : ${dateLabel}`, W - PAD - 10, y, { size: 20, weight: '700', align: 'right' });
-    y += 25;
-    ctx.font = '700 20px sans-serif';
+    drawText(`${customerNoLabel} : ${buyer.displayId || '---'}`, PAD + 10, y, { size: 22, weight: '700' });
+    drawText(`${date} : ${dateLabel}`, W - PAD - 10, y, { size: 22, weight: '700', align: 'right' });
+    y += 28;
+    ctx.font = '700 22px sans-serif';
     const nameStr = `${nameLabel} : ${buyer.name || '---'}`;
     const nameWidth = ctx.measureText(nameStr).width;
     const isNameWrapped = nameWidth > (W - PAD*2 - 20);
     
-    drawText(nameStr, PAD + 10, y, { size: 20, weight: '700', wrapWidth: W - PAD*2 - 20, lineHeight: 28 });
+    drawText(nameStr, PAD + 10, y, { size: 22, weight: '700', wrapWidth: W - PAD*2 - 20, lineHeight: 28 });
     y += isNameWrapped ? 58 : 30;
     
     // Double Border before table
@@ -392,15 +392,24 @@ export async function generateLedgerCanvas({
     y += 2;
 
     // Table Setup
-    const colStarts = [PAD, PAD+85, PAD+220, PAD+280, PAD+340, PAD+430, PAD+585];
-    const colWidths = [85, 135, 60, 60, 90, 155, 135];
+    const colWidths = [135, 220, 85, 75, 105, 115, 115];
+    const colStarts = [
+        PAD, 
+        PAD + colWidths[0], 
+        PAD + colWidths[0] + colWidths[1], 
+        PAD + colWidths[0] + colWidths[1] + colWidths[2], 
+        PAD + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], 
+        PAD + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + colWidths[4], 
+        PAD + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + colWidths[4] + colWidths[5]
+    ];
     const colHeaders = [date, particulars, weight, rate, total, cashRec, cashLess];
 
     // Header Row
     rect(PAD, y, W - PAD*2, 40);
     colHeaders.forEach((lab, i) => {
         const x = colStarts[i] + colWidths[i]/2;
-        drawText(lab, x, y + 20, { size: 12, weight: '800', align: 'center' });
+        const maxW = colWidths[i] - 10;
+        drawText(lab, x, y + 20, { size: 18, weight: '900', align: 'center', maxWidth: maxW });
         if (i > 0) { ctx.beginPath(); ctx.moveTo(colStarts[i], y); ctx.lineTo(colStarts[i], y + 40); ctx.stroke(); }
     });
     y += 40;
@@ -419,7 +428,8 @@ export async function generateLedgerCanvas({
             if (i === 0 || i === 2 || i === 3) { x = colStarts[i] + colWidths[i]/2; align = 'center'; }
 
             const displayVal = (i === 0 && isOpening) ? '' : String(v || (i >= 2 && !isOpening ? '0' : ''));
-            drawText(displayVal, x, rowY + LINE_H/2, { size: 13, align, weight: isOpening ? '700' : 'normal' });
+            const maxW = colWidths[i] - (i === 1 ? 20 : 15);
+            drawText(displayVal, x, rowY + LINE_H/2, { size: 22, align, weight: '700', maxWidth: maxW });
             if (i > 0) { ctx.beginPath(); ctx.moveTo(colStarts[i], rowY); ctx.lineTo(colStarts[i], rowY + LINE_H); ctx.stroke(); }
         });
         ctx.beginPath(); ctx.moveTo(PAD, rowY + LINE_H); ctx.lineTo(W - PAD, rowY + LINE_H); ctx.stroke();
@@ -443,31 +453,31 @@ export async function generateLedgerCanvas({
 
     // Summary Box
     const sumW = W - PAD*2;
-    rect(PAD, y, sumW, 110);
+    rect(PAD, y, sumW, 130);
     const drawSumRow = (sy, label, val) => {
-        drawText(label, PAD + 15, sy + 18, { size: 18, weight: '700' });
-        drawText(fmtNum(val), W - PAD - 15, sy + 18, { size: 18, weight: '800', align: 'right' });
+        drawText(label, PAD + 15, sy + 22, { size: 22, weight: '800' });
+        drawText(fmtNum(val), W - PAD - 15, sy + 22, { size: 22, weight: '900', align: 'right' });
     };
     drawSumRow(y,      totalSalesLabel, summary.sales);
-    drawSumRow(y + 35, cashRecLabel,    summary.paid);
-    drawSumRow(y + 70, cashLessLabel,   summary.less);
+    drawSumRow(y + 42, cashRecLabel,    summary.paid);
+    drawSumRow(y + 84, cashLessLabel,   summary.less);
     
     // Final Balance Row (with different styling to stand out)
     const finalBal = openingBalance + summary.sales - summary.paid - summary.less;
-    y += 105;
+    y += 125;
     ctx.beginPath(); ctx.moveTo(PAD + 10, y); ctx.lineTo(W - PAD - 10, y); ctx.stroke();
-    drawText(finalBalLabel, PAD + 15, y + 18, { size: 20, weight: '800' });
-    drawText(fmtNum(finalBal), W - PAD - 15, y + 18, { size: 20, weight: '900', align: 'right' });
+    drawText(finalBalLabel, PAD + 15, y + 20, { size: 26, weight: '900' });
+    drawText(fmtNum(finalBal), W - PAD - 15, y + 20, { size: 26, weight: '900', align: 'right' });
     
     // Explicit Formula Line
-    y += 40;
+    y += 45;
     const formulaText = `[ ${openingBalLabel.replace(':','')} + ${totalSalesLabel.replace(':','')} - ${cashRecLabel.replace(':','')} - ${cashLessLabel.replace(':','')} ]`;
-    drawText(formulaText, W/2, y, { size: 14, align: 'center', color: '#64748b', weight: '600' });
+    drawText(formulaText, W/2, y, { size: 15, align: 'center', color: '#64748b', weight: '700' });
     
-    y += 40;
+    y += 45;
 
     // Footer
-    drawText(thankYou, W/2, y, { size: 24, align: 'center' });
+    drawText(thankYou, W/2, y, { size: 28, align: 'center' });
 
     return new Promise((resolve) => {
         canvas.toBlob((blob) => {

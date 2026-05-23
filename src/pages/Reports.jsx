@@ -243,97 +243,101 @@ const Reports = () => {
             <html>
             <head>
                 <title>Ledger - ${detailBuyer.name}</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
-                    @page { size: auto; margin: 0; }
-                    body { font-family: serif; padding: 15mm; line-height: 1.2; margin: 0; }
-                    .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
-                    .shop-name { font-size: 32px; font-weight: 900; }
-                    .report-title { font-size: 18px; font-weight: 800; margin: 10px 0; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                    th, td { border: 1px solid #000; padding: 6px 8px; font-size: 14px; }
-                    th { background: #f2f2f2; text-transform: uppercase; }
-                    .summary { margin-top: 20px; border: 2px solid #000; padding: 10px; break-inside: avoid; }
-                    .summary-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 16px; font-weight: 700; }
+                    @page { size: A4; margin: 0; }
+                    body { font-family: serif; line-height: 1.3; margin: 0; padding: 0; width: 100%; }
+                    .print-wrapper { padding: 15mm; box-sizing: border-box; width: 100%; }
+                    .header { text-align: center; margin-bottom: 25px; border-bottom: 2px solid #000; padding-bottom: 12px; }
+                    .shop-name { font-size: 42px; font-weight: 900; }
+                    .report-title { font-size: 26px; font-weight: 900; margin: 12px 0; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                    th, td { border: 1.5px solid #000; padding: 10px 12px; font-size: 20px; font-weight: 700; }
+                    th { background: #f2f2f2; text-transform: uppercase; font-weight: 900; }
+                    .summary { margin-top: 25px; border: 3px solid #000; padding: 15px; break-inside: avoid; }
+                    .summary-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 22px; font-weight: 800; }
                     @media print { .no-print { display: none; } }
                 </style>
             </head>
             <body onload="window.print(); window.close();">
-                <div class="header">
-                    <div style="font-size: 14px; font-style: italic; margin-bottom: 4px;">${bizInfo.motto || ''}</div>
-                    <div class="shop-name">${bizInfo.name || 'S.V.M'}</div>
-                    <div style="font-size: 16px; font-weight: 700;">${bizInfo.type || ''}</div>
-                    <div style="font-size: 14px;">${bizInfo.address || ''}</div>
-                    <div style="display: flex; justify-content: space-between; border-top: 1px solid #000; padding-top: 5px; margin-top: 5px;">
-                        <span>CELL : ${bizInfo.phone1 || ''}</span>
-                        <span>CELL : ${bizInfo.phone2 || ''}</span>
-                    </div>
-                    <div class="report-title">${t('statementTitle')}</div>
-                    <div style="text-align: left; font-size: 16px; font-weight: 700; display: flex; justify-content: space-between;">
-                        <div>
-                            ${t('customerNo')} : ${detailBuyer.displayId}<br/>
-                            ${t('name')} : ${lang === 'ta' ? (detailBuyer.nameTa || detailBuyer.name) : detailBuyer.name}
+                <div class="print-wrapper">
+                    <div class="header">
+                        <div style="font-size: 18px; font-style: italic; margin-bottom: 4px;">${bizInfo.motto || ''}</div>
+                        <div class="shop-name">${bizInfo.name || 'S.V.M'}</div>
+                        <div style="font-size: 22px; font-weight: 800;">${bizInfo.type || ''}</div>
+                        <div style="font-size: 18px;">${bizInfo.address || ''}</div>
+                        <div style="display: flex; justify-content: space-between; border-top: 1px solid #000; padding-top: 6px; margin-top: 6px; font-size: 18px; font-weight: 800;">
+                            <span>CELL : ${bizInfo.phone1 || ''}</span>
+                            <span>CELL : ${bizInfo.phone2 || ''}</span>
                         </div>
-                        <div style="text-align: right;">
-                            ${t('date')} : ${rangeText}
+                        <div class="report-title">${t('statementTitle')}</div>
+                        <div style="text-align: left; font-size: 20px; font-weight: 800; display: flex; justify-content: space-between; line-height: 1.4;">
+                            <div>
+                                ${t('customerNo')} : ${detailBuyer.displayId}<br/>
+                                ${t('name')} : ${lang === 'ta' ? (detailBuyer.nameTa || detailBuyer.name) : detailBuyer.name}
+                            </div>
+                            <div style="text-align: right;">
+                                ${t('date')} : ${rangeText}
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 100px;">${t('date')}</th>
-                            <th>${t('particulars')}</th>
-                            <th style="text-align: center">${t('weight')}</th>
-                            <th style="text-align: center">${t('rate')}</th>
-                            <th style="text-align: right">${t('total')}</th>
-                            <th style="text-align: right">${t('cashRec')}</th>
-                            <th style="text-align: right">${t('cashLess')}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td align="center"></td>
-                            <td style="font-weight: 700">${t('openingBalance')}</td>
-                            <td align="center">0.000</td>
-                            <td align="center">0</td>
-                            <td align="right" style="font-weight: 700">${openingBalance.toFixed(0)}</td>
-                            <td align="right">0</td>
-                            <td align="right">0</td>
-                        </tr>
-                        ${(() => {
-                            let rBal = openingBalance;
-                            return ledgerItems.map((item, i, arr) => {
-                                rBal = rBal + (item.total || 0) - (item.credit || 0);
-                                const showDate = i === 0 || item.date !== arr[i-1].date;
-                                return `
-                                    <tr>
-                                        <td align="center" style="font-weight: 700;">${showDate ? displayDate(item.date) : ''}</td>
-                                        <td>${item.desc}</td>
-                                        <td align="center">${item.type === 'SALE' ? parseFloat(item.qty).toFixed(3) : '0.000'}</td>
-                                        <td align="center">${item.type === 'SALE' ? item.price : '0'}</td>
-                                        <td align="right" style="font-weight: 700">${item.total > 0 ? item.total.toFixed(0) : '0'}</td>
-                                        <td align="right" style="font-weight: 700; color: #16a34a">${item.type === 'PAY' ? item.credit.toFixed(0) : '0'}</td>
-                                        <td align="right" style="font-weight: 700; color: #f59e0b">${item.type === 'LESS' ? item.credit.toFixed(0) : '0'}</td>
-                                    </tr>
-                                `;
-                            }).join('');
-                        })()}
-                    </tbody>
-                </table>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 130px;">${t('date')}</th>
+                                <th>${t('particulars')}</th>
+                                <th style="text-align: center">${t('weight')}</th>
+                                <th style="text-align: center">${t('rate')}</th>
+                                <th style="text-align: right">${t('total')}</th>
+                                <th style="text-align: right">${t('cashRec')}</th>
+                                <th style="text-align: right">${t('cashLess')}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td align="center"></td>
+                                <td style="font-weight: 700">${t('openingBalance')}</td>
+                                <td align="center">0.000</td>
+                                <td align="center">0</td>
+                                <td align="right" style="font-weight: 700">${openingBalance.toFixed(0)}</td>
+                                <td align="right">0</td>
+                                <td align="right">0</td>
+                            </tr>
+                            ${(() => {
+                                let rBal = openingBalance;
+                                return ledgerItems.map((item, i, arr) => {
+                                    rBal = rBal + (item.total || 0) - (item.credit || 0);
+                                    const showDate = i === 0 || item.date !== arr[i-1].date;
+                                    return `
+                                        <tr>
+                                            <td align="center" style="font-weight: 700;">${showDate ? displayDate(item.date) : ''}</td>
+                                            <td>${item.desc}</td>
+                                            <td align="center">${item.type === 'SALE' ? parseFloat(item.qty).toFixed(3) : '0.000'}</td>
+                                            <td align="center">${item.type === 'SALE' ? item.price : '0'}</td>
+                                            <td align="right" style="font-weight: 700">${item.total > 0 ? item.total.toFixed(0) : '0'}</td>
+                                            <td align="right" style="font-weight: 700; color: #16a34a">${item.type === 'PAY' ? item.credit.toFixed(0) : '0'}</td>
+                                            <td align="right" style="font-weight: 700; color: #f59e0b">${item.type === 'LESS' ? item.credit.toFixed(0) : '0'}</td>
+                                        </tr>
+                                    `;
+                                }).join('');
+                            })()}
+                        </tbody>
+                    </table>
 
-                <div class="summary">
-                    <div class="summary-row"><span>${t('totalSales')} :</span> <span>${totalSales.toFixed(2)}</span></div>
-                    <div class="summary-row"><span>${t('cashRec')} :</span> <span>${totalReceived.toFixed(2)}</span></div>
-                    <div class="summary-row"><span>${t('cashLess')} :</span> <span>${totalLess.toFixed(2)}</span></div>
-                    <div class="summary-row" style="border-top: 1px solid #000; margin-top: 5px; padding-top: 5px; font-weight: 900; font-size: 18px;">
-                        <span>${t('finalBalance')} :</span> <span>${closingBalance.toFixed(2)}</span>
+                    <div class="summary">
+                        <div class="summary-row"><span>${t('totalSales')} :</span> <span>${totalSales.toFixed(2)}</span></div>
+                        <div class="summary-row"><span>${t('cashRec')} :</span> <span>${totalReceived.toFixed(2)}</span></div>
+                        <div class="summary-row"><span>${t('cashLess')} :</span> <span>${totalLess.toFixed(2)}</span></div>
+                        <div class="summary-row" style="border-top: 2px solid #000; margin-top: 5px; padding-top: 6px; font-weight: 900; font-size: 28px;">
+                            <span>${t('finalBalance')} :</span> <span>${closingBalance.toFixed(2)}</span>
+                        </div>
+                        <div style="font-size: 15px; text-align: center; margin-top: 12px; color: #666; font-weight: 700;">
+                            [ ${t('openingBalance')} + ${t('totalSales')} - ${t('cashRec')} - ${t('cashLess')} ]
+                        </div>
                     </div>
-                    <div style="font-size: 11px; text-align: center; margin-top: 10px; color: #666; font-weight: 700;">
-                        [ ${t('openingBalance')} + ${t('totalSales')} - ${t('cashRec')} - ${t('cashLess')} ]
-                    </div>
+                    <div style="text-align: center; margin-top: 30px; font-size: 26px; font-weight: 800;">🌹 ${t('thankYou')} 🌹</div>
                 </div>
-                <div style="text-align: center; margin-top: 30px; font-size: 18px;">🌹 ${t('thankYou')} 🌹</div>
             </body>
             </html>
         `;
