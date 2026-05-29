@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useContext, useMemo } from 'react';
-import { Trash2, Plus, History, IndianRupee, Save, X, ChevronLeft, Printer, FileText, Search, Download, MessageCircle, Pencil, Users, Camera, Scan, Upload, FileSpreadsheet, Download as DownloadIcon } from 'lucide-react';
+import { Trash2, Plus, History, IndianRupee, Save, X, ChevronLeft, Printer, FileText, Search, Download, MessageCircle, Pencil, Users, Upload, FileSpreadsheet, Download as DownloadIcon } from 'lucide-react';
 import { db, subscribeToCollection, saveOutsidePurchase, saveVendor, deleteVendor, getTenant } from '../utils/storage';
 import { doc, updateDoc, increment, serverTimestamp, deleteDoc, collection, addDoc, getDoc } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
@@ -26,7 +26,7 @@ const TH_S = { padding: '12px 14px', textAlign: 'left', fontSize: '11px', fontWe
 const TD_S = { padding: '14px', fontSize: '14px', verticalAlign: 'middle' };
 
 /* ── Keyboard-navigable Searchable Dropdown (Clone from Sales) ── */
-const SearchSelect = ({ items, value, onChange, onKeyDown, inputRef, placeholder, lang, idPrefix = '#' }) => {
+const SearchSelect = ({ items, value, onChange, onKeyDown, inputRef, placeholder, lang, idPrefix = '#', onClear }) => {
     const [query, setQuery]         = useState('');
     const [open, setOpen]           = useState(false);
     const [cursor, setCursor]       = useState(0);
@@ -62,6 +62,16 @@ const SearchSelect = ({ items, value, onChange, onKeyDown, inputRef, placeholder
         else if (e.key === 'Tab') { if (open && filtered[cursor]) choose(filtered[cursor]); setOpen(false); if (onKeyDown) onKeyDown(e); }
     };
 
+    const handleClear = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setQuery('');
+        setOpen(true);
+        setCursor(0);
+        if (onClear) onClear();
+        setTimeout(() => inputRef?.current?.focus(), 30);
+    };
+
     return (
         <div style={{ position: 'relative' }}>
             <input
@@ -70,8 +80,29 @@ const SearchSelect = ({ items, value, onChange, onKeyDown, inputRef, placeholder
                 onFocus={() => { setQuery(''); setOpen(true); setCursor(0); }}
                 onBlur={() => setTimeout(() => setOpen(false), 200)}
                 onChange={e => { setQuery(e.target.value); setCursor(0); }}
-                onKeyDown={handleKey} autoComplete="off" style={INPUT_S}
+                onKeyDown={handleKey} autoComplete="off" 
+                style={{ ...INPUT_S, paddingRight: (selectedItem && !open && onClear) ? '32px' : '12px' }}
             />
+            {selectedItem && !open && onClear && (
+                <button
+                    onMouseDown={handleClear}
+                    title="Clear & search again"
+                    style={{
+                        position: 'absolute', right: '8px', top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: '#f1f5f9', border: 'none', borderRadius: '50%',
+                        width: '20px', height: '20px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', color: '#64748b',
+                        transition: 'background 0.15s, color 0.15s',
+                        padding: 0,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#ef4444'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}
+                >
+                    <X size={12} strokeWidth={2.5} />
+                </button>
+            )}
             {open && filtered.length > 0 && (
                 <ul ref={listRef} style={{
                     position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
@@ -173,6 +204,7 @@ const OutsideShop = () => {
 
     // Refs
     const refFlower = useRef(null);
+    const refVendor = useRef(null);
     const refQty = useRef(null);
     const refRate = useRef(null);
     const refPayAmount = useRef(null);
@@ -188,6 +220,8 @@ const OutsideShop = () => {
     const [bulkMode, setBulkMode] = useState('blank'); // 'blank' or 'filled'
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [viewingVendor, setViewingVendor] = useState(null);
+    const [draftSelectedIndex, setDraftSelectedIndex] = useState(-1);
+    const [purchaseSelectedIndex, setPurchaseSelectedIndex] = useState(-1);
 
     useEffect(() => {
         const u1 = subscribeToCollection('vendors', setVendors, true);
@@ -252,7 +286,7 @@ const OutsideShop = () => {
         return filtered.sort((a,b) => {
             const tA = (a.timestamp?.toMillis?.() || a.createdAt?.toMillis?.() || 0);
             const tB = (b.timestamp?.toMillis?.() || b.createdAt?.toMillis?.() || 0);
-            return tB - tA;
+            return tA - tB;
         });
     }, [purchases, date, vendorId]);
 
@@ -554,7 +588,7 @@ const OutsideShop = () => {
         const qty = parseFloat(currentItem.quantity);
         const rate = parseFloat(currentItem.price);
         const newItem = { ...currentItem, total: qty * rate, id: Date.now(), time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) };
-        setDraftItems(p => [newItem, ...p]);
+        setDraftItems(p => [...p, newItem]);
         setCurrentItem({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
         refFlower.current?.focus();
     };
@@ -608,7 +642,10 @@ const OutsideShop = () => {
             
             setCurrentItem({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
             setDraftItems([]);
-            setTimeout(() => refFlower.current?.focus(), 50);
+            setVendorId('');
+            setDraftSelectedIndex(-1);
+            setPurchaseSelectedIndex(-1);
+            setTimeout(() => refVendor.current?.focus(), 50);
         } catch (err) { alert(err.message); }
         finally { setIsSaving(false); }
     };
@@ -1019,8 +1056,25 @@ const OutsideShop = () => {
                         <SearchSelect 
                             items={vendors} 
                             value={vendorId} 
-                            onChange={v => setVendorId(v.id)} 
-                            onKeyDown={e => { if(e.key==='Enter') refFlower.current?.focus() }}
+                            onChange={v => {
+                                setVendorId(v.id);
+                                const defaultFlower = flowers.find(f => f.name.toLowerCase() === 'todaytotel');
+                                if (defaultFlower) {
+                                    setCurrentItem(p => ({...p, flowerType: defaultFlower.name, flowerTypeTa: defaultFlower.taName || ''}));
+                                }
+                            }}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                    const hasTodaytotel = flowers.some(f => f.name.toLowerCase() === 'todaytotel');
+                                    if (hasTodaytotel) refQty.current?.focus();
+                                    else refFlower.current?.focus();
+                                }
+                            }}
+                            onClear={() => {
+                                setVendorId('');
+                                setCurrentItem({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
+                            }}
+                            inputRef={refVendor}
                             placeholder={t('vendorName')} 
                             idPrefix="V" 
                             lang={lang} 
@@ -1064,9 +1118,6 @@ const OutsideShop = () => {
                             <Printer size={18}/> {t('bulkPrint') || 'Bulk Print'}
                         </button>
                         <input type="file" ref={refFile} style={{ display: 'none' }} accept="image/*" onChange={handleImageScan} />
-                        <button onClick={() => refFile.current?.click()} disabled={isScanning} style={{ width: '42px', height: '42px', background: '#fff', border: '1.5px solid #fed7aa', color: '#d97706', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title={t('scanBill')}>
-                            {isScanning ? <div style={{ width: '18px', height: '18px', border: '2px solid #d97706', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> : <Camera size={20}/>}
-                        </button>
                         <button onClick={handleDownloadTemplate} style={{ width: '42px', height: '42px', background: '#fff', border: '1.5px solid #64748b', color: '#64748b', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Download Import Template">
                             <DownloadIcon size={20}/>
                         </button>
@@ -1119,20 +1170,30 @@ const OutsideShop = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {draftItems.map((item, idx) => (
-                                    <tr key={item.id || idx} style={{ borderBottom: '1px solid #fff7ed' }}>
-                                        <td style={{ padding: '8px' }}>
-                                            <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700 }}>{item.time || '--:--'}</span>
-                                        </td>
-                                        <td style={{ padding: '8px', fontWeight: 600 }}>{lang === 'ta' ? (item.flowerTypeTa || item.flowerType) : item.flowerType}</td>
-                                        <td style={{ padding: '8px', textAlign: 'center' }}>{item.quantity}</td>
-                                        <td style={{ padding: '8px', textAlign: 'center' }}>{item.price}</td>
-                                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700 }}>{fmt(item.total)}</td>
-                                        <td style={{ padding: '8px', textAlign: 'center' }}>
-                                            <button onClick={() => setDraftItems(p => p.filter((_, i) => i !== idx))} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={14}/></button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {draftItems.map((item, idx) => {
+                                    const isDraftSel = draftSelectedIndex === idx;
+                                    return (
+                                        <tr key={item.id || idx}
+                                            tabIndex={0}
+                                            onClick={() => setDraftSelectedIndex(idx)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'ArrowDown') { e.preventDefault(); setDraftSelectedIndex(i => Math.min(i + 1, draftItems.length - 1)); }
+                                                else if (e.key === 'ArrowUp') { e.preventDefault(); setDraftSelectedIndex(i => Math.max(i - 1, 0)); }
+                                            }}
+                                            style={{ borderBottom: '1px solid #fff7ed', background: isDraftSel ? '#d97706' : 'transparent', color: isDraftSel ? '#fff' : 'inherit', cursor: 'pointer', outline: 'none', transition: 'background 0.15s' }}>
+                                            <td style={{ padding: '8px' }}>
+                                                <span style={{ fontSize: '10px', color: isDraftSel ? 'rgba(255,255,255,0.85)' : '#94a3b8', fontWeight: 700 }}>{item.time || '--:--'}</span>
+                                            </td>
+                                            <td style={{ padding: '8px', fontWeight: 600 }}>{lang === 'ta' ? (item.flowerTypeTa || item.flowerType) : item.flowerType}</td>
+                                            <td style={{ padding: '8px', textAlign: 'center' }}>{item.quantity}</td>
+                                            <td style={{ padding: '8px', textAlign: 'center' }}>{item.price}</td>
+                                            <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700 }}>{fmt(item.total)}</td>
+                                            <td style={{ padding: '8px', textAlign: 'center' }}>
+                                                <button onClick={(e) => { e.stopPropagation(); setDraftItems(p => p.filter((_, i) => i !== idx)); }} style={{ color: isDraftSel ? '#fff' : '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={14}/></button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -1165,53 +1226,67 @@ const OutsideShop = () => {
                             {todayPurchases.length === 0 ? (
                                 <tr><td colSpan={8} style={{ padding: '60px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>{t('noRecords')}</td></tr>
                             ) : todayPurchases.flatMap((p, pIdx) => (
-                                p.items.map((item, iIdx) => (
-                                    <tr key={`${p.id}-${iIdx}`} style={{ borderBottom: iIdx === p.items.length - 1 ? '1px solid #e2e8f0' : '1px solid #f8fafc', background: pIdx%2===0 ? '#fff' : '#fafafa' }}>
-                                        <td style={TD_S}>
-                                            {iIdx === 0 && (
-                                                <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
-                                                    {formatTime(p.timestamp || p.createdAt)}
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td style={TD_S}>
-                                            {iIdx === 0 && (
-                                                <span style={{ fontSize: '11px', fontWeight: 800, color: '#d97706', background: '#fffbeb', border: '1px solid #fed7aa', padding: '3px 8px', borderRadius: '6px' }}>
-                                                    #{vendors.find(v => v.id === p.vendorId)?.displayId || '---'}
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td style={{ ...TD_S, fontWeight: 700 }}>{iIdx === 0 ? p.vendorName : ''}</td>
-                                        <td style={{ ...TD_S, fontWeight: 700, color: '#92400e' }}>
-                                            {lang === 'ta' ? (item.flowerTypeTa || item.flowerType) : item.flowerType}
-                                        </td>
-                                        <td style={{ ...TD_S, textAlign: 'center', color: '#64748b' }}>
-                                            {parseFloat(item.quantity || 0).toFixed(2)}
-                                        </td>
-                                        <td style={{ ...TD_S, textAlign: 'center', color: '#64748b' }}>
-                                            {item.price || (item.quantity > 0 ? (item.total / item.quantity).toFixed(2) : 0)}
-                                        </td>
-                                        <td style={{ ...TD_S, textAlign: 'right', fontWeight: 700, color: '#d97706' }}>
-                                            {fmt(item.total)}
-                                        </td>
-                                        <td style={{ ...TD_S, textAlign: 'center' }}>
-                                            {iIdx === 0 && (
-                                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                                                    <button onClick={() => handleEditPurchase(p)} title="Edit" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e0e7ff', background: '#fff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                                        <Pencil size={14}/>
-                                                    </button>
-                                                    <button onClick={() => handleWhatsAppPurchase(p)} title="WhatsApp" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #dcfce7', background: '#fff', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                                        <WhatsAppIcon size={16}/>
-                                                    </button>
-                                                    <button onClick={() => handlePrintPurchase(p)} title="Print" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                                        <Printer size={14}/>
-                                                    </button>
-                                                    <button onClick={() => handleDeletePurchase(p)} style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #fee2e2', background: '#fff', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Trash2 size={14}/></button>
-                                                </div>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))
+                                p.items.map((item, iIdx) => {
+                                    const isPurchaseSel = purchaseSelectedIndex === pIdx;
+                                    return (
+                                        <tr key={`${p.id}-${iIdx}`}
+                                            tabIndex={iIdx === 0 ? 0 : -1}
+                                            onClick={() => setPurchaseSelectedIndex(pIdx)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'ArrowDown') { e.preventDefault(); setPurchaseSelectedIndex(i => Math.min(i + 1, todayPurchases.length - 1)); }
+                                                else if (e.key === 'ArrowUp') { e.preventDefault(); setPurchaseSelectedIndex(i => Math.max(i - 1, 0)); }
+                                            }}
+                                            style={{ 
+                                                borderBottom: iIdx === p.items.length - 1 ? '1px solid #e2e8f0' : '1px solid #f8fafc', 
+                                                background: isPurchaseSel ? '#fff3e0' : (pIdx%2===0 ? '#fff' : '#fafafa'),
+                                                cursor: 'pointer', outline: 'none', transition: 'background 0.15s'
+                                            }}>
+                                            <td style={TD_S}>
+                                                {iIdx === 0 && (
+                                                    <span style={{ fontSize: '11px', fontWeight: 700, color: isPurchaseSel ? '#92400e' : '#94a3b8', background: isPurchaseSel ? '#fed7aa' : '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>
+                                                        {formatTime(p.timestamp || p.createdAt)}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td style={TD_S}>
+                                                {iIdx === 0 && (
+                                                    <span style={{ fontSize: '11px', fontWeight: 800, color: isPurchaseSel ? '#92400e' : '#d97706', background: isPurchaseSel ? '#fed7aa' : '#fffbeb', border: `1px solid ${isPurchaseSel ? '#f59e0b' : '#fed7aa'}`, padding: '3px 8px', borderRadius: '6px' }}>
+                                                        #{vendors.find(v => v.id === p.vendorId)?.displayId || '---'}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td style={{ ...TD_S, fontWeight: 700, color: isPurchaseSel ? '#92400e' : 'inherit' }}>{iIdx === 0 ? p.vendorName : ''}</td>
+                                            <td style={{ ...TD_S, fontWeight: 700, color: '#92400e' }}>
+                                                {lang === 'ta' ? (item.flowerTypeTa || item.flowerType) : item.flowerType}
+                                            </td>
+                                            <td style={{ ...TD_S, textAlign: 'center', color: isPurchaseSel ? '#92400e' : '#64748b' }}>
+                                                {parseFloat(item.quantity || 0).toFixed(2)}
+                                            </td>
+                                            <td style={{ ...TD_S, textAlign: 'center', color: isPurchaseSel ? '#92400e' : '#64748b' }}>
+                                                {item.price || (item.quantity > 0 ? (item.total / item.quantity).toFixed(2) : 0)}
+                                            </td>
+                                            <td style={{ ...TD_S, textAlign: 'right', fontWeight: 700, color: '#d97706' }}>
+                                                {fmt(item.total)}
+                                            </td>
+                                            <td style={{ ...TD_S, textAlign: 'center' }}>
+                                                {iIdx === 0 && (
+                                                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                                        <button onClick={() => handleEditPurchase(p)} title="Edit" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e0e7ff', background: '#fff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                                            <Pencil size={14}/>
+                                                        </button>
+                                                        <button onClick={() => handleWhatsAppPurchase(p)} title="WhatsApp" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #dcfce7', background: '#fff', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                                            <WhatsAppIcon size={16}/>
+                                                        </button>
+                                                        <button onClick={() => handlePrintPurchase(p)} title="Print" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                                            <Printer size={14}/>
+                                                        </button>
+                                                        <button onClick={() => handleDeletePurchase(p)} style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #fee2e2', background: '#fff', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Trash2 size={14}/></button>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             ))}
                         </tbody>
                             <tfoot>
