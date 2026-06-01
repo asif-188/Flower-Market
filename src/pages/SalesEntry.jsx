@@ -676,8 +676,9 @@ const SalesEntry = () => {
             </style>
             <div id="print-bill" style={{ display: 'none', width: '210mm', padding: '10mm', background: '#fff', color: '#000', fontFamily: 'serif' }}>
                 {/* 1. Mottos */}
-                <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '18px', marginBottom: '4px' }}>SRI RAMA JAYAM</div>
-                <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '18px', marginBottom: '15px' }}>SRI PERIYANDAVAR THUNAI</div>
+                {settings.motto && (
+                    <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '18px', marginBottom: '15px' }}>{settings.motto}</div>
+                )}
 
                 {/* 2. Shop Info Box */}
                 <div style={{ border: '2px solid #000', padding: '15px', textAlign: 'center', marginBottom: '10px', position: 'relative' }}>

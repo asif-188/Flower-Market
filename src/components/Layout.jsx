@@ -2,6 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, ChevronLeft, Globe, User } from 'lucide-react';
 import Petals from './Petals';
+import { useTenant } from '../utils/TenantContext';
 
 // ── Language Context ──────────────────────────────────────────────────────────
 export const LangContext = createContext({ lang: 'en', t: (k) => k });
@@ -267,6 +268,7 @@ import { auth } from '../firebase';
 const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { tenantData } = useTenant();
 
   // ── Language state (persisted) ──
   const [lang, setLang] = useState(() => sessionStorage.getItem('fm_lang') || 'en');
@@ -378,7 +380,7 @@ const Layout = () => {
               <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
                 <span style={{fontSize:'22px'}}>🌿</span>
                 <span style={{fontFamily:'var(--font-display)', fontWeight:800, fontSize:'16px', color:'#047857', letterSpacing:'-0.02em'}}>
-                  Poovanam Market
+                  {tenantData?.name || 'Poovanam Market'}
                 </span>
               </div>
             )}
