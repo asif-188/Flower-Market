@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useContext, useMemo } from 'react';
-import { Trash2, Plus, History, IndianRupee, Save, X, ChevronLeft, Printer, FileText, Search, Download, MessageCircle, Pencil, Users, Upload, FileSpreadsheet, Download as DownloadIcon } from 'lucide-react';
+import { Trash2, Plus, History, IndianRupee, Save, X, ChevronLeft, Printer, FileText, Search, Download, MessageCircle, Pencil, Users, Upload, FileSpreadsheet, Download as DownloadIcon, Scan } from 'lucide-react';
 import { db, subscribeToCollection, saveOutsidePurchase, saveVendor, deleteVendor, getTenant } from '../utils/storage';
 import { doc, updateDoc, increment, serverTimestamp, deleteDoc, collection, addDoc, getDoc } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
