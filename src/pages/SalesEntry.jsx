@@ -506,6 +506,7 @@ const SalesEntry = () => {
                         <thead>
                             <tr style={{ background: '#fff', borderBottom: '1.5px solid #f1f5f9' }}>
                                 <th style={TH_S}><Clock size={12} style={{marginRight: '6px'}}/>{t('time')}</th>
+                                <th style={{...TH_S, textAlign: 'center'}}>{t('sNo')}</th>
                                 <th style={TH_S}>{t('customerId')}</th>
                                 <th style={TH_S}>{t('customerName')}</th>
                                 <th style={TH_S}>{t('flower')}</th>
@@ -518,7 +519,7 @@ const SalesEntry = () => {
                         <tbody>
                             {buyerTodayEntries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} style={{ padding: '60px 20px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '14px' }}>
+                                    <td colSpan={9} style={{ padding: '60px 20px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '14px' }}>
                                         {t('noItemsYet')}
                                     </td>
                                 </tr>
@@ -562,6 +563,9 @@ const SalesEntry = () => {
                                                 }}>
                                                     {formatTime(sale.timestamp || sale.createdAt)}
                                                 </span>
+                                            </td>
+                                            <td style={{...TD_S, textAlign: 'center', fontWeight: 600, color: isHighlighted ? '#fff' : '#64748b'}}>
+                                                {idx + 1}
                                             </td>
                                             <td style={TD_S}>
                                                 <span style={{ 
@@ -623,7 +627,7 @@ const SalesEntry = () => {
                         {buyerTodayEntries.length > 0 && (
                             <tfoot>
                                 <tr style={{ background: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
-                                    <td colSpan={6} style={{...TD_S, textAlign: 'right', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', fontSize: '12px'}}>{t('todayTotal')}</td>
+                                    <td colSpan={7} style={{...TD_S, textAlign: 'right', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', fontSize: '12px'}}>{t('todayTotal')}</td>
                                     <td style={{...TD_S, textAlign: 'right', fontWeight: 900, fontSize: '18px', color: '#16a34a'}}>{fmt(buyerTodayEntries.reduce((s, e) => s + (e.grandTotal || 0), 0))}</td>
                                     <td></td>
                                 </tr>
