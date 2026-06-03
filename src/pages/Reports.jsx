@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
-import { Search, MessageCircle, BarChart2, X, User, ChevronRight } from 'lucide-react';
+import { Search, MessageCircle, BarChart2, X, User, ChevronRight, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { subscribeToCollection, db } from '../utils/storage';
 import { doc, getDoc } from 'firebase/firestore';
@@ -7,6 +7,7 @@ import { LangContext } from '../components/Layout';
 import { generateBuyerReceiptCanvas, generateLedgerCanvas } from '../utils/receiptCanvas';
 import WhatsAppIcon from '../components/WhatsAppIcon';
 import { useTenant } from '../utils/TenantContext';
+import { jsPDF } from 'jspdf';
 
 const fmt = (n) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n || 0);
@@ -47,6 +48,7 @@ const Reports = () => {
     const [showFullLedger, setShowFullLedger] = useState(false);
     const [isDownloading, setIsDownloading]  = useState(false);
     const [sharingRowId, setSharingRowId]    = useState(null);
+    const [downloadingRowId, setDownloadingRowId] = useState(null);
     const [mainTableSelectedIndex, setMainTableSelectedIndex] = useState(-1);
     const mainTableRowRefs = React.useRef([]);
 
@@ -344,6 +346,144 @@ const Reports = () => {
 
         printWindow.document.write(content);
         printWindow.document.close();
+    };
+
+    const handleDownloadLedgerPDF = async (buyerRow) => {
+        setDownloadingRowId(buyerRow.id);
+        const buyer = buyers.find(b => b.id === buyerRow.id) || buyerRow;
+        try {
+            // 1. Calculate Opening Balance (Backward from current balance)
+            const futureSales = sales.filter(s => {
+                if (s.buyerId !== buyer.id) return false;
+                const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+                return dt && dt >= appliedFrom;
+            });
+            const futurePayments = payments.filter(p => {
+                if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
+                const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+                return dt && dt >= appliedFrom;
+            });
+            const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+            const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
+            const openingBalance = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
+
+            // 2. Period Rows
+            const periodSales = sales.filter(s => {
+                if (s.buyerId !== buyer.id) return false;
+                const d = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+                return d && d >= appliedFrom && d <= appliedTo;
+            });
+            const periodPayments = payments.filter(p => {
+                if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
+                const d = p.timestamp ? (p.timestamp.substring ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+                return d && d >= appliedFrom && d <= appliedTo;
+            });
+
+            const ledgerRows = [];
+            const displayDate = d => d ? d.split('-').reverse().join('/') : '';
+
+            // Map and then sort properly by ISO date
+            const items = [];
+            periodSales.forEach(s => {
+                const dateIso = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : '');
+                (s.items || []).forEach(item => {
+                    let descLocalized = item.flowerType;
+                    if (lang === 'ta') {
+                        const foundFlower = products.find(f => f.name?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase());
+                        descLocalized = item.flowerTypeTa || foundFlower?.taName || item.flowerType;
+                    }
+                    items.push({ dateIso, date: displayDate(dateIso), particulars: descLocalized, weight: parseFloat(item.quantity).toFixed(3), rate: item.price, total: item.total, cashRec: 0, cashLess: 0 });
+                });
+            });
+            periodPayments.forEach(p => {
+                const dateIso = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : '';
+                if (p.amount > 0) items.push({ dateIso, date: displayDate(dateIso), particulars: t('cashRec'), weight: '0.000', rate: 0, total: 0, cashRec: p.amount, cashLess: 0 });
+                if (p.cashLess > 0) items.push({ dateIso, date: displayDate(dateIso), particulars: t('cashLess'), weight: '0.000', rate: 0, total: 0, cashRec: 0, cashLess: p.cashLess });
+            });
+            items.sort((a, b) => a.dateIso.localeCompare(b.dateIso));
+            
+            // Clean up rows for canvas
+            const finalLedgerRows = items.map(({ dateIso, ...rest }) => rest);
+
+            const summary = {
+                sales: periodSales.reduce((s, x) => s + (x.grandTotal || 0), 0),
+                paid:  periodPayments.reduce((s, x) => s + (x.amount || 0), 0),
+                less:  periodPayments.reduce((s, x) => s + (x.cashLess || 0), 0)
+            };
+
+            const { blob, url } = await generateLedgerCanvas({
+                buyer: { ...buyer, name: lang === 'ta' ? (buyer.nameTa || buyer.name) : buyer.name },
+                ledgerRows: finalLedgerRows,
+                summary,
+                openingBalance,
+                bizInfo,
+                labels: {
+                    date: t('date'),
+                    particulars: t('particulars'),
+                    weight: t('weight'),
+                    rate: t('rate'),
+                    total: t('total'),
+                    cashRec: t('cashRec'),
+                    cashLess: t('cashLess'),
+                    openingBalLabel: t('openingBalance'),
+                    statementTitle: t('statementTitle'),
+                    customerNoLabel: t('customerNo'),
+                    nameLabel: t('name'),
+                    totalSalesLabel: t('totalSales') + ' :',
+                    cashRecLabel: t('cashRec') + ' :',
+                    cashLessLabel: t('cashLess') + ' :',
+                    finalBalLabel: t('finalBalance') + ' :',
+                    thankYou: '🌹 ' + t('thankYou') + ' 🌹',
+                    sNoLabel: t('sNo'),
+                    dateLabel: appliedFrom === appliedTo ? displayDate(appliedFrom) : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`,
+                },
+                lang: lang
+            });
+
+            // Convert blob to Data URL for jsPDF
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            reader.onloadend = () => {
+                const base64data = reader.result;
+                
+                // Read image size to compute aspect ratio
+                const img = new Image();
+                img.src = base64data;
+                img.onload = () => {
+                    const canvasW = img.width;
+                    const canvasH = img.height;
+                    
+                    const doc = new jsPDF('p', 'mm', 'a4');
+                    const pageWidth = 210;
+                    const pageHeight = 297;
+                    
+                    const imgWidth = pageWidth;
+                    const imgHeight = (canvasH * pageWidth) / canvasW;
+                    
+                    let heightLeft = imgHeight;
+                    let position = 0;
+                    
+                    // Add first page
+                    doc.addImage(base64data, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                    
+                    while (heightLeft > 0) {
+                        position = heightLeft - imgHeight;
+                        doc.addPage();
+                        doc.addImage(base64data, 'PNG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= pageHeight;
+                    }
+                    
+                    const fileName = `statement_${buyer.name.replace(/\s+/g, '_')}_${appliedFrom}_to_${appliedTo}.pdf`;
+                    doc.save(fileName);
+                };
+            };
+        } catch (err) {
+            console.error('Ledger PDF Generation Error:', err);
+            alert('❌ Failed to download PDF: ' + err.message);
+        } finally {
+            setDownloadingRowId(null);
+        }
     };
 
     const handleShareLedger = async (buyerRow) => {
@@ -825,6 +965,29 @@ const Reports = () => {
                                                         : <WhatsAppIcon size={14} />
                                                     }
                                                 </button>
+
+                                                <button
+                                                    onClick={() => handleDownloadLedgerPDF(row)}
+                                                    disabled={downloadingRowId === row.id}
+                                                    title="Download PDF Ledger"
+                                                    style={{
+                                                        width: '32px', height: '32px', borderRadius: '8px',
+                                                        border: '1.5px solid ' + (isHighlighted ? 'rgba(255,255,255,0.5)' : '#3b82f6'), 
+                                                        background: isHighlighted ? 'rgba(255,255,255,0.1)' : '#fff',
+                                                        color: isHighlighted ? '#fff' : '#3b82f6', display: 'inline-flex',
+                                                        alignItems: 'center', justifyContent: 'center',
+                                                        cursor: downloadingRowId === row.id ? 'not-allowed' : 'pointer',
+                                                        opacity: downloadingRowId === row.id ? 0.5 : 1,
+                                                        flexShrink: 0,
+                                                    }}
+                                                    onMouseEnter={e => { if (!isHighlighted && downloadingRowId !== row.id) { e.currentTarget.style.background='#3b82f6'; e.currentTarget.style.color='#fff'; }}}
+                                                    onMouseLeave={e => { if (!isHighlighted) { e.currentTarget.style.background='#fff'; e.currentTarget.style.color='#3b82f6'; }}}
+                                                >
+                                                    {downloadingRowId === row.id
+                                                        ? <div style={{ width:'14px', height:'14px', border:'2px solid ' + (isHighlighted ? '#fff' : '#3b82f633'), borderTopColor: isHighlighted ? '#fff' : '#3b82f6', borderRadius:'50%', animation:'spin 0.7s linear infinite' }} />
+                                                        : <Download size={14} />
+                                                    }
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -877,6 +1040,14 @@ const Reports = () => {
                                         {sharingRowId === detailBuyer.id
                                             ? <div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
                                             : <><MessageCircle size={14} /> WhatsApp</>
+                                        }
+                                    </button>
+                                    <button onClick={() => handleDownloadLedgerPDF(detailBuyer)}
+                                        disabled={downloadingRowId === detailBuyer.id}
+                                        style={{ padding: '5px 12px', borderRadius: '7px', background: '#3b82f6', border: 'none', color: '#fff', fontSize: '11px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                        {downloadingRowId === detailBuyer.id
+                                            ? <div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                                            : <><Download size={14} /> PDF</>
                                         }
                                     </button>
                                     <button onClick={handlePrintDetailedReport}
