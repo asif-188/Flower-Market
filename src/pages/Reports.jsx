@@ -411,7 +411,7 @@ const Reports = () => {
                 less:  periodPayments.reduce((s, x) => s + (x.cashLess || 0), 0)
             };
 
-            const { blob, url } = await generateLedgerCanvas({
+            const pages = await generateLedgerCanvas({
                 buyer: { ...buyer, name: lang === 'ta' ? (buyer.nameTa || buyer.name) : buyer.name },
                 ledgerRows: finalLedgerRows,
                 summary,
@@ -437,47 +437,33 @@ const Reports = () => {
                     sNoLabel: t('sNo'),
                     dateLabel: appliedFrom === appliedTo ? displayDate(appliedFrom) : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`,
                 },
-                lang: lang
+                lang: lang,
+                multiPage: true
             });
 
-            // Convert blob to Data URL for jsPDF
-            const reader = new FileReader();
-            reader.readAsDataURL(blob);
-            reader.onloadend = () => {
-                const base64data = reader.result;
-                
-                // Read image size to compute aspect ratio
-                const img = new Image();
-                img.src = base64data;
-                img.onload = () => {
-                    const canvasW = img.width;
-                    const canvasH = img.height;
-                    
-                    const doc = new jsPDF('p', 'mm', 'a4');
-                    const pageWidth = 210;
-                    const pageHeight = 297;
-                    
-                    const imgWidth = pageWidth;
-                    const imgHeight = (canvasH * pageWidth) / canvasW;
-                    
-                    let heightLeft = imgHeight;
-                    let position = 0;
-                    
-                    // Add first page
-                    doc.addImage(base64data, 'PNG', 0, position, imgWidth, imgHeight);
-                    heightLeft -= pageHeight;
-                    
-                    while (heightLeft > 0) {
-                        position = heightLeft - imgHeight;
-                        doc.addPage();
-                        doc.addImage(base64data, 'PNG', 0, position, imgWidth, imgHeight);
-                        heightLeft -= pageHeight;
-                    }
-                    
-                    const fileName = `statement_${buyer.name.replace(/\s+/g, '_')}_${appliedFrom}_to_${appliedTo}.pdf`;
-                    doc.save(fileName);
-                };
+            const blobToDataURL = (b) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(b);
+                });
             };
+
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = 210;
+            const pageHeight = 297;
+
+            for (let i = 0; i < pages.length; i++) {
+                const base64data = await blobToDataURL(pages[i].blob);
+                if (i > 0) {
+                    doc.addPage();
+                }
+                doc.addImage(base64data, 'PNG', 0, 0, pageWidth, pageHeight);
+            }
+            
+            const fileName = `statement_${buyer.name.replace(/\s+/g, '_')}_${appliedFrom}_to_${appliedTo}.pdf`;
+            doc.save(fileName);
         } catch (err) {
             console.error('Ledger PDF Generation Error:', err);
             alert('❌ Failed to download PDF: ' + err.message);
