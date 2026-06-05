@@ -160,14 +160,14 @@ export async function generateBuyerReceiptCanvas({
     // Inner Vertical Line
     ctx.beginPath(); ctx.moveTo(balX + labelW, y); ctx.lineTo(balX + labelW, y + infoH); ctx.stroke();
     
-    const drawBalRow = (ly, label, value, isLast = false) => {
+    const drawBalRow = (ly, label, value, isLast = false, valueColor = '#000') => {
         drawText(label, balX + 10, ly + 20, { size: 18, align: 'left' });
-        drawText(fmtNum(value), W - PAD - 10, ly + 20, { size: 20, weight: '800', align: 'right' });
+        drawText(fmtNum(value), W - PAD - 10, ly + 20, { size: 20, weight: '800', align: 'right', color: valueColor });
         if (!isLast) { ctx.beginPath(); ctx.moveTo(balX, ly + 40); ctx.lineTo(W - PAD, ly + 40); ctx.stroke(); }
     };
     drawBalRow(y,       oldBalance, prevBalance);
-    drawBalRow(y + 40,  cashRec,          paymentsTotal);
-    drawBalRow(y + 80,  cashLessLabel,           cashLess);
+    drawBalRow(y + 40,  cashRec,          paymentsTotal, false, '#15803d');
+    drawBalRow(y + 80,  cashLessLabel,           cashLess, false, '#b91c1c');
     drawBalRow(y + 120, balance,        (prevBalance - paymentsTotal - cashLess), true);
     y += infoH;
 
@@ -236,7 +236,7 @@ export async function generateBuyerReceiptCanvas({
     ctx.lineWidth = 1.5;
     rect(PAD, y, W - PAD*2, 50);
     drawText(labels.totalSalesLabel || 'Total Sales', PAD + 20, y + 25, { size: 24, weight: '800' });
-    drawText(fmtNum(salesTotal), W - PAD - 20, y + 25, { size: 28, weight: '800', align: 'right' });
+    drawText(fmtNum(salesTotal), W - PAD - 20, y + 25, { size: 28, weight: '800', align: 'right', color: '#b91c1c' });
     y += 70;
 
     // 6. Grand Total
@@ -442,8 +442,21 @@ export async function generateLedgerCanvas({
                                 displayVal = Math.round(num).toString();
                             }
                         }
+                        
+                        let textColor = '#000';
+                        if (!isOpening) {
+                            if (i === 4 && Number(v) > 0) {
+                                textColor = '#b91c1c';
+                            } else if (i === 5 && Number(v) > 0) {
+                                const isVendor = buyer.displayId && String(buyer.displayId).startsWith('V');
+                                textColor = isVendor ? '#b91c1c' : '#15803d';
+                            } else if (i === 6 && Number(v) > 0) {
+                                textColor = '#b91c1c';
+                            }
+                        }
+
                         const maxW = colWidths[i] - (i === 1 ? 20 : 15);
-                        drawText(displayVal, x, rowY + LINE_H/2, { size: 22, align, weight: '700', maxWidth: maxW });
+                        drawText(displayVal, x, rowY + LINE_H/2, { size: 22, align, weight: '700', maxWidth: maxW, color: textColor });
                         if (i > 0) { ctx.beginPath(); ctx.moveTo(colStarts[i], rowY); ctx.lineTo(colStarts[i], rowY + LINE_H); ctx.stroke(); }
                     });
                     ctx.beginPath(); ctx.moveTo(PAD, rowY + LINE_H); ctx.lineTo(W - PAD, rowY + LINE_H); ctx.stroke();
@@ -541,13 +554,14 @@ export async function generateLedgerCanvas({
                     y += 30;
                     const sumW = W - PAD*2;
                     rect(PAD, y, sumW, 130);
-                    const drawSumRow = (sy, label, val) => {
+                    const drawSumRow = (sy, label, val, valueColor = '#000') => {
                         drawText(label, PAD + 15, sy + 22, { size: 22, weight: '800' });
-                        drawText(fmtNum(val), W - PAD - 15, sy + 22, { size: 22, weight: '900', align: 'right' });
+                        drawText(fmtNum(val), W - PAD - 15, sy + 22, { size: 22, weight: '900', align: 'right', color: valueColor });
                     };
-                    drawSumRow(y,      totalSalesLabel, summary.sales);
-                    drawSumRow(y + 42, cashRecLabel,    summary.paid);
-                    drawSumRow(y + 84, cashLessLabel,   summary.less);
+                    const isVendor = buyer.displayId && String(buyer.displayId).startsWith('V');
+                    drawSumRow(y,      totalSalesLabel, summary.sales, '#b91c1c');
+                    drawSumRow(y + 42, cashRecLabel,    summary.paid, isVendor ? '#b91c1c' : '#15803d');
+                    drawSumRow(y + 84, cashLessLabel,   summary.less, '#b91c1c');
                     
                     const finalBal = openingBalance + summary.sales - summary.paid - summary.less;
                     y += 125;
@@ -689,8 +703,21 @@ export async function generateLedgerCanvas({
                     displayVal = Math.round(num).toString();
                 }
             }
+            
+            let textColor = '#000';
+            if (!isOpening) {
+                if (i === 4 && Number(v) > 0) {
+                    textColor = '#b91c1c';
+                } else if (i === 5 && Number(v) > 0) {
+                    const isVendor = buyer.displayId && String(buyer.displayId).startsWith('V');
+                    textColor = isVendor ? '#b91c1c' : '#15803d';
+                } else if (i === 6 && Number(v) > 0) {
+                    textColor = '#b91c1c';
+                }
+            }
+
             const maxW = colWidths[i] - (i === 1 ? 20 : 15);
-            drawText(displayVal, x, rowY + LINE_H/2, { size: 22, align, weight: '700', maxWidth: maxW });
+            drawText(displayVal, x, rowY + LINE_H/2, { size: 22, align, weight: '700', maxWidth: maxW, color: textColor });
             if (i > 0) { ctx.beginPath(); ctx.moveTo(colStarts[i], rowY); ctx.lineTo(colStarts[i], rowY + LINE_H); ctx.stroke(); }
         });
         ctx.beginPath(); ctx.moveTo(PAD, rowY + LINE_H); ctx.lineTo(W - PAD, rowY + LINE_H); ctx.stroke();
@@ -715,13 +742,14 @@ export async function generateLedgerCanvas({
     // Summary Box
     const sumW = W - PAD*2;
     rect(PAD, y, sumW, 130);
-    const drawSumRow = (sy, label, val) => {
+    const drawSumRow = (sy, label, val, valueColor = '#000') => {
         drawText(label, PAD + 15, sy + 22, { size: 22, weight: '800' });
-        drawText(fmtNum(val), W - PAD - 15, sy + 22, { size: 22, weight: '900', align: 'right' });
+        drawText(fmtNum(val), W - PAD - 15, sy + 22, { size: 22, weight: '900', align: 'right', color: valueColor });
     };
-    drawSumRow(y,      totalSalesLabel, summary.sales);
-    drawSumRow(y + 42, cashRecLabel,    summary.paid);
-    drawSumRow(y + 84, cashLessLabel,   summary.less);
+    const isVendor = buyer.displayId && String(buyer.displayId).startsWith('V');
+    drawSumRow(y,      totalSalesLabel, summary.sales, '#b91c1c');
+    drawSumRow(y + 42, cashRecLabel,    summary.paid, isVendor ? '#b91c1c' : '#15803d');
+    drawSumRow(y + 84, cashLessLabel,   summary.less, '#b91c1c');
     
     // Final Balance Row (with different styling to stand out)
     const finalBal = openingBalance + summary.sales - summary.paid - summary.less;
@@ -811,9 +839,9 @@ export async function generatePaymentReceiptCanvas({
     ctx.lineWidth = 1;
     ctx.strokeRect(PAD, y, W - PAD*2, 210);
     
-    const drawRow = (ly, label, value, isLast = false) => {
+    const drawRow = (ly, label, value, isLast = false, valueColor = '#000') => {
         drawText(label, PAD + 20, ly + 35, { size: 22, weight: '700' });
-        drawText(`:  ${value}`, PAD + 250, ly + 35, { size: 22, weight: '800' });
+        drawText(`:  ${value}`, PAD + 250, ly + 35, { size: 22, weight: '800', color: valueColor });
         if (!isLast) {
             ctx.beginPath(); ctx.moveTo(PAD, ly + 70); ctx.lineTo(W - PAD, ly + 70); ctx.stroke();
         }
@@ -822,9 +850,12 @@ export async function generatePaymentReceiptCanvas({
     const dArr = (payment.date || '').split('-');
     const displayDate = dArr.length === 3 ? `${dArr[2]}-${dArr[1]}-${dArr[0]}` : payment.date;
 
+    const isVendor = payment.type === 'vendor' || (entity.displayId && String(entity.displayId).startsWith('V'));
+    const amountColor = isVendor ? '#b91c1c' : '#15803d';
+
     drawRow(y, dateLabel, displayDate);
     drawRow(y + 70, nameLabel, (entity.nameTa && lang === 'ta') ? entity.nameTa : entity.name);
-    drawRow(y + 140, amountLabel, `Rs. ${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(payment.amount)}`, true);
+    drawRow(y + 140, amountLabel, `Rs. ${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(payment.amount)}`, true, amountColor);
     
     y += 260;
     drawText(thankYou, W/2, y, { size: 28, align: 'center' });
@@ -931,7 +962,7 @@ export async function generatePurchaseReceiptCanvas({
         drawText(flowerName, PAD + 10, itemY + 20, { size: 18 });
         drawText(item.quantity?.toString(), PAD + 350, itemY + 20, { size: 18, align: 'center' });
         drawText(item.price?.toString(), PAD + 480, itemY + 20, { size: 18, align: 'center' });
-        drawText(fmtNum(item.total), W - PAD - 10, itemY + 20, { size: 18, weight: '700', align: 'right' });
+        drawText(fmtNum(item.total), W - PAD - 10, itemY + 20, { size: 18, weight: '700', align: 'right', color: '#b91c1c' });
     });
     
     y += items.length * 40;
@@ -940,7 +971,7 @@ export async function generatePurchaseReceiptCanvas({
     // Total
     ctx.strokeRect(PAD, y, W - PAD*2, 50);
     drawText(totalLabel, PAD + 10, y + 25, { size: 22, weight: '800' });
-    drawText(fmtNum(purchase.grandTotal), W - PAD - 10, y + 25, { size: 22, weight: '900', align: 'right' });
+    drawText(fmtNum(purchase.grandTotal), W - PAD - 10, y + 25, { size: 22, weight: '900', align: 'right', color: '#b91c1c' });
 
     y += 100;
     drawText(thankYou, W/2, y, { size: 28, align: 'center' });

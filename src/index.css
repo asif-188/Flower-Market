@@ -33,9 +33,9 @@
   --bg-base:    #f0f4f0;
   --bg-surface: #ffffff;
   --bg-subtle:  #f8faf8;
-  --text-primary:   #1e293b;
-  --text-secondary: #475569;
-  --text-muted:     #94a3b8;
+  --text-primary:   #0f172a;
+  --text-secondary: #334155;
+  --text-muted:     #4b5563;
 
   /* Shadows — Premium depth system */
   --shadow-xs:  0 1px 2px 0 rgba(0,0,0,0.04);
@@ -68,9 +68,10 @@
 }
 
 html {
+  font-size: 19.5px;
   scroll-behavior: smooth;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
   text-rendering: optimizeLegibility;
 }
 
@@ -79,7 +80,7 @@ body {
   background: var(--bg-base);
   color: var(--text-primary);
   min-height: 100vh;
-  line-height: 1.6;
+  line-height: 1.5;
   overflow-x: hidden;
 }
 
@@ -448,4 +449,60 @@ input[type=number] {
   .login-title {
     font-size: 1.3rem;
   }
+}
+
+/* ── Global Readability & Contrast Enhancements ──────────────── */
+
+/* 1. Base Font Weights: make normal text Semi-Bold (600) by default */
+body, p, span, div, input, select, textarea, button, td, th, label, a, li {
+  font-weight: 600;
+}
+
+/* 2. Bold / Heading Elements: ensure they remain bold/heavy */
+strong, b, .font-bold, .font-semibold, .font-extrabold, .font-black, h1, h2, h3, h4, h5, h6, th {
+  font-weight: 800;
+}
+
+/* 3. Inline Font-Size Scaling (Targeting React absolute pixel styles) */
+[style*="font-size: 10px"], [style*="font-size:10px"] { font-size: 14px !important; }
+[style*="font-size: 11px"], [style*="font-size:11px"] { font-size: 15px !important; }
+[style*="font-size: 12px"], [style*="font-size:12px"] { font-size: 16.5px !important; }
+[style*="font-size: 13px"], [style*="font-size:13px"] { font-size: 17.5px !important; }
+[style*="font-size: 14px"], [style*="font-size:14px"] { font-size: 18.5px !important; }
+[style*="font-size: 15px"], [style*="font-size:15px"] { font-size: 19.5px !important; }
+[style*="font-size: 16px"], [style*="font-size:16px"] { font-size: 20.5px !important; }
+[style*="font-size: 18px"], [style*="font-size:18px"] { font-size: 22.5px !important; }
+[style*="font-size: 20px"], [style*="font-size:20px"] { font-size: 24.5px !important; }
+[style*="font-size: 22px"], [style*="font-size:22px"] { font-size: 26.5px !important; }
+[style*="font-size: 24px"], [style*="font-size:24px"] { font-size: 28.5px !important; }
+
+/* 4. Inline Font-Weight Scaling */
+[style*="font-weight: 400"], [style*="font-weight:400"] { font-weight: 600 !important; }
+[style*="font-weight: 500"], [style*="font-weight:500"] { font-weight: 700 !important; }
+[style*="font-weight: 600"], [style*="font-weight:600"] { font-weight: 800 !important; }
+[style*="font-weight: 700"], [style*="font-weight:700"] { font-weight: 900 !important; }
+[style*="font-weight: 800"], [style*="font-weight:800"] { font-weight: 900 !important; }
+[style*="font-weight: 900"], [style*="font-weight:900"] { font-weight: 900 !important; }
+
+/* 5. Inline Text-Color Contrast Enhancements */
+[style*="color: #64748b"], [style*="color:#64748b"] { color: var(--text-muted) !important; }
+[style*="color: #475569"], [style*="color:#475569"] { color: var(--text-secondary) !important; }
+[style*="color: #1e293b"], [style*="color:#1e293b"] { color: var(--text-primary) !important; }
+[style*="color: #374151"], [style*="color:#374151"] { color: #111827 !important; }
+[style*="color: #94a3b8"], [style*="color:#94a3b8"] { color: var(--text-secondary) !important; }
+
+/* 6. Hide main layout header during modal screens for cleaner and larger display */
+body.modal-open header,
+.page-main:has(div[style*="position: fixed"][style*="inset: 0"]) header,
+.page-main:has(div[style*="position:fixed"][style*="inset:0"]) header,
+.page-main:has(div[style*="position: fixed"][style*="inset:0"]) header,
+.page-main:has(div[style*="position:fixed"][style*="inset: 0"]) header {
+  display: none !important;
+}
+
+body.modal-open main,
+.page-main:has(div[style*="position: fixed"][style*="inset: 0"]) main,
+.page-main:has(div[style*="position:fixed"][style*="inset:0"]) main {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
 }

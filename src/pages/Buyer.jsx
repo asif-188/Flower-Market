@@ -156,6 +156,17 @@ const Buyer = () => {
         return () => { u1(); u2(); u3(); };
     }, []);
 
+    useEffect(() => {
+        if (isModalOpen || viewingBuyer) {
+            document.body.classList.add('modal-open');
+        } else {
+            document.body.classList.remove('modal-open');
+        }
+        return () => {
+            document.body.classList.remove('modal-open');
+        };
+    }, [isModalOpen, viewingBuyer]);
+
     const [isTranslating, setIsTranslating] = useState(false);
     const transTimeout = useRef(null);
 
@@ -476,8 +487,8 @@ const Buyer = () => {
             {/* ── Add/Edit Modal ── */}
             {isModalOpen && (
                 <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.35)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100,padding:'16px'}}>
-                    <div style={{background:'#fff',borderRadius:'16px',width:'100%',maxWidth:'460px',boxShadow:'0 20px 60px rgba(0,0,0,0.15)',overflow:'hidden',fontFamily:'var(--font-sans)'}}>
-                        <div style={{padding:'22px 24px 18px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div style={{background:'#fff',borderRadius:'16px',width:'100%',maxWidth:'460px',maxHeight:'90vh',display:'flex',flexDirection:'column',boxShadow:'0 20px 60px rgba(0,0,0,0.15)',overflow:'hidden',fontFamily:'var(--font-sans)'}}>
+                        <div style={{padding:'22px 24px 18px',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
                             <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
                                 <div style={{background:'#f0fdf4',borderRadius:'10px',padding:'6px'}}>
                                     <User size={20} color="#16a34a"/>
@@ -490,8 +501,8 @@ const Buyer = () => {
                                 <X size={20}/>
                             </button>
                         </div>
-                        <form onSubmit={handleSave}>
-                            <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:'14px'}}>
+                        <form onSubmit={handleSave} style={{display:'flex',flexDirection:'column',flex:1,overflow:'hidden'}}>
+                            <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:'14px',overflowY:'auto',flex:1}}>
                                 {[
                                     {label:t('id'), key:'displayId', type:'text', disabled:true},
                                     {label:`${t('name')} (English) *`, key:'name', type:'text', required:true, autoFocus:true},
@@ -536,7 +547,7 @@ const Buyer = () => {
                                     </div>
                                 ))}
                             </div>
-                            <div style={{padding:'16px 24px',borderTop:'1px solid #f1f5f9',background:'#fafafa',display:'flex',justifyContent:'flex-end',gap:'10px'}}>
+                            <div style={{padding:'16px 24px',borderTop:'1px solid #f1f5f9',background:'#fafafa',display:'flex',justifyContent:'flex-end',gap:'10px',flexShrink:0}}>
                                 <button type="button" onClick={() => setIsModalOpen(false)}
                                     style={{padding:'9px 20px',borderRadius:'9px',border:'1.5px solid #e2e8f0',background:'#fff',color:'#64748b',fontWeight:600,fontSize:'13px',cursor:'pointer',fontFamily:'var(--font-sans)'}}>
                                     {t('cancel')}

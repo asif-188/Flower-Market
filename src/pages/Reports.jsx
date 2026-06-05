@@ -317,9 +317,9 @@ const Reports = () => {
                                             <td>${item.desc}</td>
                                             <td align="center">${item.type === 'SALE' ? parseFloat(item.qty).toFixed(3) : '0.000'}</td>
                                             <td align="center">${item.type === 'SALE' ? item.price : '0'}</td>
-                                            <td align="right" style="font-weight: 700">${item.total > 0 ? item.total.toFixed(0) : '0'}</td>
+                                            <td align="right" style="font-weight: 700; color: ${item.total > 0 ? '#b91c1c' : '#000'}">${item.total > 0 ? item.total.toFixed(0) : '0'}</td>
                                             <td align="right" style="font-weight: 700; color: #16a34a">${item.type === 'PAY' ? item.credit.toFixed(0) : '0'}</td>
-                                            <td align="right" style="font-weight: 700; color: #f59e0b">${item.type === 'LESS' ? item.credit.toFixed(0) : '0'}</td>
+                                            <td align="right" style="font-weight: 700; color: #b91c1c">${item.type === 'LESS' ? item.credit.toFixed(0) : '0'}</td>
                                         </tr>
                                     `;
                                 }).join('');
@@ -328,9 +328,9 @@ const Reports = () => {
                     </table>
 
                     <div class="summary">
-                        <div class="summary-row"><span>${t('totalSales')} :</span> <span>${totalSales.toFixed(2)}</span></div>
-                        <div class="summary-row"><span>${t('cashRec')} :</span> <span>${totalReceived.toFixed(2)}</span></div>
-                        <div class="summary-row"><span>${t('cashLess')} :</span> <span>${totalLess.toFixed(2)}</span></div>
+                        <div class="summary-row" style="color: #b91c1c"><span>${t('totalSales')} :</span> <span>${totalSales.toFixed(2)}</span></div>
+                        <div class="summary-row" style="color: #16a34a"><span>${t('cashRec')} :</span> <span>${totalReceived.toFixed(2)}</span></div>
+                        <div class="summary-row" style="color: #b91c1c"><span>${t('cashLess')} :</span> <span>${totalLess.toFixed(2)}</span></div>
                         <div class="summary-row" style="border-top: 2px solid #000; margin-top: 5px; padding-top: 6px; font-weight: 900; font-size: 28px;">
                             <span>${t('finalBalance')} :</span> <span>${closingBalance.toFixed(2)}</span>
                         </div>
@@ -725,13 +725,13 @@ const Reports = () => {
     };
 
     const STAT_CARDS = [
-        { label: t('openingBalance'), value: totalOpening, accent: '#6366f1', textColor: '#4338ca', bg: '#eef2ff' },
-        { label: t('sales'), value: totalSales, accent: '#3b82f6', textColor: '#1d4ed8', bg: '#eff6ff' },
+        { label: t('openingBalance'), value: totalOpening, accent: '#64748b', textColor: '#1e293b', bg: '#f8fafc' },
+        { label: t('sales'), value: totalSales, accent: '#ef4444', textColor: '#b91c1c', bg: '#fef2f2' },
         { label: t('paid'), value: totalPaid, accent: '#10b981', textColor: '#15803d', bg: '#f0fdf4' },
-        { label: t('cashLess'), value: totalLess, accent: '#f59e0b', textColor: '#9a3412', bg: '#fff7ed' },
-        { label: t('purchase'), value: vendorStats.purchases, accent: '#d97706', textColor: '#92400e', bg: '#fffbeb' },
-        { label: 'Vendor Paid', value: vendorStats.paid, accent: '#a78bfa', textColor: '#5b21b6', bg: '#f5f3ff' },
-        { label: t('dues'), value: totalDues, accent: '#ef4444', textColor: '#991b1b', bg: '#fef2f2' },
+        { label: t('cashLess'), value: totalLess, accent: '#ef4444', textColor: '#b91c1c', bg: '#fef2f2' },
+        { label: t('purchase'), value: vendorStats.purchases, accent: '#ef4444', textColor: '#b91c1c', bg: '#fef2f2' },
+        { label: 'Vendor Paid', value: vendorStats.paid, accent: '#ef4444', textColor: '#b91c1c', bg: '#fef2f2' },
+        { label: t('dues'), value: totalDues, accent: '#64748b', textColor: '#1e293b', bg: '#f8fafc' },
     ];
 
     return (
@@ -911,11 +911,11 @@ const Reports = () => {
                                                 </span>
                                             </div>
                                         </td>
-                                        <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#6366f1' }}>{fmt(row.opening)}</td>
-                                        <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#1d4ed8' }}>{fmt(row.sales)}</td>
+                                        <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#1e293b' }}>{fmt(row.opening)}</td>
+                                        <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#dc2626' }}>{fmt(row.sales)}</td>
                                         <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#15803d' }}>{fmt(row.paid)}</td>
-                                        <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#f97316' }}>{fmt(row.less)}</td>
-                                        <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : (row.balance > 0 ? '#dc2626' : '#15803d') }}>{fmt(row.balance)}</td>
+                                        <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#dc2626' }}>{fmt(row.less)}</td>
+                                        <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#1e293b' }}>{fmt(row.balance)}</td>
                                         <td style={{ ...S.td, textAlign: 'center' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                                                 <button onClick={() => { setDetailBuyer(row); setShowFullLedger(false); }}
@@ -1001,11 +1001,11 @@ const Reports = () => {
                         {/* Mini summary */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '8px', padding: '16px 24px 0' }}>
                             {[
-                                { l: t('openingBalance'), v: detailBuyer.opening, c: '#6366f1', bg: '#eef2ff' },
-                                { l: t('sales'), v: detailBuyer.sales, c: '#1d4ed8', bg: '#eff6ff' },
+                                { l: t('openingBalance'), v: detailBuyer.opening, c: '#64748b', bg: '#f8fafc' },
+                                { l: t('sales'), v: detailBuyer.sales, c: '#dc2626', bg: '#fef2f2' },
                                 { l: t('paid'), v: detailBuyer.paid, c: '#15803d', bg: '#f0fdf4' },
-                                { l: t('cashLess'), v: detailBuyer.less, c: '#f97316', bg: '#fff7ed' },
-                                { l: t('balance'), v: detailBuyer.balance, c: '#dc2626', bg: '#fef2f2' }
+                                { l: t('cashLess'), v: detailBuyer.less, c: '#dc2626', bg: '#fef2f2' },
+                                { l: t('balance'), v: detailBuyer.balance, c: '#64748b', bg: '#f8fafc' }
                             ].map(x => (
                                 <div key={x.l} style={{ background: x.bg, borderRadius: '10px', padding: '10px 12px', border: `1px solid ${x.c}22` }}>
                                     <div style={{ fontSize: '9px', fontWeight: 700, color: x.c, textTransform: 'uppercase', marginBottom: '3px', whiteSpace: 'nowrap' }}>{x.l}</div>
@@ -1117,9 +1117,9 @@ const Reports = () => {
                                                                     <td style={{ padding: '8px', fontWeight: 600 }}>{it.desc}</td>
                                                                     <td style={{ padding: '8px', textAlign: 'right' }}>{it.qty > 0 ? parseFloat(it.qty).toFixed(3) : '—'}</td>
                                                                     <td style={{ padding: '8px', textAlign: 'right' }}>{it.price > 0 ? it.price : '—'}</td>
-                                                                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700 }}>{it.total > 0 ? fmt(it.total) : '—'}</td>
+                                                                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: it.total > 0 ? '#dc2626' : 'inherit' }}>{it.total > 0 ? fmt(it.total) : '—'}</td>
                                                                     <td style={{ padding: '8px', textAlign: 'right', color: '#16a34a', fontWeight: 700 }}>{it.credit > 0 ? fmt(it.credit) : '—'}</td>
-                                                                    <td style={{ padding: '8px', textAlign: 'right', color: '#f59e0b', fontWeight: 700 }}>{it.less > 0 ? fmt(it.less) : '—'}</td>
+                                                                    <td style={{ padding: '8px', textAlign: 'right', color: '#dc2626', fontWeight: 700 }}>{it.less > 0 ? fmt(it.less) : '—'}</td>
                                                                     <td style={{ padding: '8px', textAlign: 'right', fontWeight: 800, background: '#fffbeb' }}>{fmt(runningBal)}</td>
                                                                 </tr>
                                                             );
@@ -1140,11 +1140,11 @@ const Reports = () => {
                                                 <div style={{ width: '40px', height: '32px', borderRadius: '7px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: '#64748b' }}>
                                                     {tx.date.split('-').slice(1).reverse().join('/')}
                                                 </div>
-                                                <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: tx.type === 'SALE' ? '#3b82f6' : tx.type === 'PAID' ? '#16a34a' : '#f59e0b' }}>
+                                                <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: tx.type === 'SALE' ? '#dc2626' : tx.type === 'PAID' ? '#16a34a' : '#dc2626' }}>
                                                     {tx.type}
                                                 </span>
                                             </div>
-                                            <span style={{ fontWeight: 700, fontSize: '14px', color: tx.type === 'SALE' ? '#1e293b' : tx.type === 'PAID' ? '#16a34a' : '#f59e0b' }}>
+                                            <span style={{ fontWeight: 700, fontSize: '14px', color: tx.type === 'SALE' ? '#dc2626' : tx.type === 'PAID' ? '#16a34a' : '#dc2626' }}>
                                                 {tx.type === 'SALE' ? '' : '-'}{fmt(tx.amount)}
                                             </span>
                                         </div>

@@ -188,12 +188,12 @@ const DailyReport = () => {
 
                 <div class="summary-box">
                     <div class="summary-row"><span>${t('openingBalance')} :</span> <span>${totals.open.toFixed(2)}</span></div>
-                    <div class="summary-row"><span>${t('cashRec')} :</span> <span>${totals.paid.toFixed(2)}</span></div>
-                    <div class="summary-row"><span>${t('cashLess')} :</span> <span>${totals.less.toFixed(2)}</span></div>
-                    <div class="summary-row"><span>${t('todayTotal')} :</span> <span>${totals.sales.toFixed(2)}</span></div>
-                    <div class="summary-row" style="color: #666; font-size: 18px;"><span>${t('outsidePurchase')} :</span> <span>${totals.purchases.toFixed(2)}</span></div>
+                    <div class="summary-row" style="color: #16a34a"><span>${t('cashRec')} :</span> <span>${totals.paid.toFixed(2)}</span></div>
+                    <div class="summary-row" style="color: #b91c1c"><span>${t('cashLess')} :</span> <span>${totals.less.toFixed(2)}</span></div>
+                    <div class="summary-row" style="color: #b91c1c"><span>${t('todayTotal')} :</span> <span>${totals.sales.toFixed(2)}</span></div>
+                    <div class="summary-row" style="color: #b91c1c; font-size: 18px;"><span>${t('outsidePurchase')} :</span> <span>${totals.purchases.toFixed(2)}</span></div>
 
-                    <div class="summary-row grand" style="background: #f0f0f0; padding: 10px;">
+                    <div class="summary-row grand" style="background: #f0f0f0; padding: 10px; color: #000">
                         <span>${t('grandTotal')} :</span> <span>${totals.end.toFixed(2)}</span>
                     </div>
 
@@ -318,11 +318,11 @@ const DailyReport = () => {
                     </div>
                     <div>
                         <div style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>{t('cashLess')}</div>
-                        <div style={{ fontSize: '24px', fontWeight: 800, color: '#f59e0b' }}>- {fmt(totals.less)}</div>
+                        <div style={{ fontSize: '24px', fontWeight: 800, color: '#ef4444' }}>- {fmt(totals.less)}</div>
                     </div>
                     <div>
                         <div style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>{t('todayTotal')}</div>
-                        <div style={{ fontSize: '24px', fontWeight: 800, color: '#3b82f6' }}>+ {fmt(totals.sales)}</div>
+                        <div style={{ fontSize: '24px', fontWeight: 800, color: '#ef4444' }}>+ {fmt(totals.sales)}</div>
                     </div>
                     <div>
                         <div style={{ color: '#f87171', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>{t('purchase')}</div>
@@ -330,8 +330,8 @@ const DailyReport = () => {
                     </div>
 
                     <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '12px 20px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                        <div style={{ color: '#fbbf24', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Buyer Balance</div>
-                        <div style={{ fontSize: '28px', fontWeight: 900, color: '#fbbf24' }}>{fmt(totals.end)}</div>
+                        <div style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>Buyer Balance</div>
+                        <div style={{ fontSize: '28px', fontWeight: 900, color: '#fff' }}>{fmt(totals.end)}</div>
                     </div>
                 </div>
             </div>
@@ -358,7 +358,7 @@ const DailyReport = () => {
                                     </span>
                                 </td>
                                 <td style={{ ...S.td, textAlign: 'center' }}>{row.contact}</td>
-                                <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: row.balance > 0 ? '#ef4440' : '#10b981' }}>{fmt(row.balance)}</td>
+                                <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: '#1e293b' }}>{fmt(row.balance)}</td>
                                 <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, minWidth: '100px' }}>
                                     {isEntryMode ? (
                                         <input 
@@ -382,7 +382,7 @@ const DailyReport = () => {
                                             style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '2px solid #f97316', textAlign: 'right', fontWeight: 800, color: '#f97316', fontSize: '14px' }}
                                         />
                                     ) : (
-                                        <div style={{ color: '#f59e0b' }}>{row.less > 0 ? fmt(row.less) : '—'}</div> 
+                                        <div style={{ color: '#ef4444' }}>{row.less > 0 ? fmt(row.less) : '—'}</div> 
                                     )}
                                 </td>
                             </tr>

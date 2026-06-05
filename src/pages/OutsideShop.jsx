@@ -1662,9 +1662,9 @@ const OutsideShop = () => {
                                                 <div style={{fontWeight: 700}}>{v.name}</div>
                                                 <div style={{fontSize: '11px', color: '#94a3b8'}}>#V{v.displayId}</div>
                                             </td>
-                                            <td style={{...TD_S, textAlign: 'right', fontWeight: 700}}>{fmt(totalP)}</td>
-                                            <td style={{...TD_S, textAlign: 'right', fontWeight: 700, color: '#16a34a'}}>{fmt(totalPaid)}</td>
-                                            <td style={{...TD_S, textAlign: 'right', fontWeight: 800, color: v.balance > 0 ? '#ef4444' : '#16a34a'}}>{fmt(v.balance || 0)}</td>
+                                            <td style={{...TD_S, textAlign: 'right', fontWeight: 700, color: '#dc2626'}}>{fmt(totalP)}</td>
+                                            <td style={{...TD_S, textAlign: 'right', fontWeight: 700, color: '#dc2626'}}>{fmt(totalPaid)}</td>
+                                            <td style={{...TD_S, textAlign: 'right', fontWeight: 800, color: '#1e293b'}}>{fmt(v.balance || 0)}</td>
                                             <td style={{...TD_S, textAlign: 'center'}}>
                                                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                                                     <button 
@@ -1721,21 +1721,21 @@ const OutsideShop = () => {
                             </thead>
                             <tbody>
                                 {ledger.map((item, idx) => (
-                                    <tr key={idx} style={{ borderBottom: '1px solid #f8fafc', background: item.type === 'PAYMENT' ? '#f0fdf4' : 'transparent' }}>
+                                    <tr key={idx} style={{ borderBottom: '1px solid #f8fafc', background: '#fef2f2' }}>
                                         <td style={TD_S}>{item.date.split('-').reverse().join('-')}</td>
                                         <td style={TD_S}>
-                                            <span style={{ fontSize: '10px', fontWeight: 800, padding: '3px 8px', borderRadius: '6px', background: item.type==='PAYMENT' ? '#dcfce7' : '#fffbeb', color: item.type==='PAYMENT' ? '#166534' : '#92400e' }}>
+                                            <span style={{ fontSize: '10px', fontWeight: 800, padding: '3px 8px', borderRadius: '6px', background: '#fee2e2', color: '#b91c1c' }}>
                                                 {item.type}
                                             </span>
                                         </td>
                                         <td style={TD_S}>
                                             {item.type === 'PURCHASE' ? (
-                                                <div style={{ fontWeight: 600 }}>{item.items.map(i => lang==='ta' ? (i.flowerTypeTa || i.flowerType) : i.flowerType).join(', ')}</div>
+                                                <div style={{ fontWeight: 600, color: '#dc2626' }}>{item.items.map(i => lang==='ta' ? (i.flowerTypeTa || i.flowerType) : i.flowerType).join(', ')}</div>
                                             ) : (
-                                                <div style={{ color: '#16a34a', fontWeight: 600 }}>{item.note || 'Cash Payment'}</div>
+                                                <div style={{ color: '#dc2626', fontWeight: 600 }}>{item.note || 'Cash Payment'}</div>
                                             )}
                                         </td>
-                                        <td style={{...TD_S, textAlign: 'right', fontWeight: 800, color: item.type === 'PAYMENT' ? '#16a34a' : '#1e293b'}}>
+                                        <td style={{...TD_S, textAlign: 'right', fontWeight: 800, color: '#dc2626'}}>
                                             {item.type === 'PAYMENT' ? '-' : ''}{fmt(item.grandTotal || item.amount)}
                                         </td>
                                     </tr>

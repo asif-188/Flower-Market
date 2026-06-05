@@ -200,8 +200,8 @@ const Flowers = () => {
             {/* Add/Edit Modal */}
             {isModalOpen && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '16px' }}>
-                    <div style={{ background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden', fontFamily: 'var(--font-sans)' }}>
-                        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '420px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden', fontFamily: 'var(--font-sans)' }}>
+                        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <div style={{ background: '#f0fdf4', borderRadius: '10px', padding: '6px' }}>
                                     <span style={{ fontSize: '18px' }}>🌸</span>
@@ -213,71 +213,73 @@ const Flowers = () => {
                             <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', display: 'flex' }}><X size={20} /></button>
                         </div>
 
-                        <form onSubmit={handleSave} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                            {/* Name */}
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>
-                                    {lang === 'ta' ? 'பூவின் பெயர் (ஆங்கிலத்தில்) *' : 'Flower Name (English) *'}
-                                </label>
-                                <input
-                                    ref={nameRef}
-                                    type="text"
-                                    required
-                                    placeholder={lang === 'ta' ? 'எ.கா. ரோஜா, மல்லி...' : 'e.g. Rose, Jasmine...'}
-                                    value={form.name}
-                                    onChange={e => {
-                                        setTouched(p => ({ ...p, name: true }));
-                                        handleAutoTranslate(e.target.value, 'name');
-                                    }}
-                                    onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
-                                    style={S.input}
-                                    onFocus={e => e.target.style.borderColor = '#16a34a'}
-                                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
-                                />
+                        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+                            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px', overflowY: 'auto', flex: 1 }}>
+                                {/* Name */}
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>
+                                        {lang === 'ta' ? 'பூவின் பெயர் (ஆங்கிலத்தில்) *' : 'Flower Name (English) *'}
+                                    </label>
+                                    <input
+                                        ref={nameRef}
+                                        type="text"
+                                        required
+                                        placeholder={lang === 'ta' ? 'எ.கா. ரோஜா, மல்லி...' : 'e.g. Rose, Jasmine...'}
+                                        value={form.name}
+                                        onChange={e => {
+                                            setTouched(p => ({ ...p, name: true }));
+                                            handleAutoTranslate(e.target.value, 'name');
+                                        }}
+                                        onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
+                                        style={S.input}
+                                        onFocus={e => e.target.style.borderColor = '#16a34a'}
+                                        onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                                    />
+                                </div>
+
+                                {/* Tamil Name */}
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>
+                                        {lang === 'ta' ? 'தமிழ் பெயர் (விருப்பமானது)' : 'Tamil Name (optional)'}
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder={lang === 'ta' ? 'எ.கா. ரோஜா, மல்லி...' : 'e.g. ரோஜா, மல்லி...'}
+                                        value={form.taName}
+                                        onChange={e => {
+                                            setTouched(p => ({ ...p, taName: true }));
+                                            handleAutoTranslate(e.target.value, 'taName');
+                                        }}
+                                        onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
+                                        style={S.input}
+                                        onFocus={e => e.target.style.borderColor = '#16a34a'}
+                                        onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                                    />
+                                </div>
+
+                                {/* Unit */}
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>
+                                        {lang === 'ta' ? 'அளவீட்டு அலகு' : 'Unit of Measurement'}
+                                    </label>
+                                    <select
+                                        value={form.unit}
+                                        onChange={e => setForm(p => ({ ...p, unit: e.target.value }))}
+                                        style={S.input}
+                                        onFocus={e => e.target.style.borderColor = '#16a34a'}
+                                        onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                                    >
+                                        <option value="kg">{lang === 'ta' ? 'கிலோ (kg)' : 'kg'}</option>
+                                        <option value="g">{lang === 'ta' ? 'கிராம் (g)' : 'grams'}</option>
+                                        <option value="bunch">{lang === 'ta' ? 'கட்டு' : 'bunch'}</option>
+                                        <option value="piece">{lang === 'ta' ? 'பீஸ்' : 'piece'}</option>
+                                        <option value="dozen">{lang === 'ta' ? 'டஜன்' : 'dozen'}</option>
+                                        <option value="meter">{lang === 'ta' ? 'மீட்டர்' : 'meter'}</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            {/* Tamil Name */}
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>
-                                    {lang === 'ta' ? 'தமிழ் பெயர் (விருப்பமானது)' : 'Tamil Name (optional)'}
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder={lang === 'ta' ? 'எ.கா. ரோஜா, மல்லி...' : 'e.g. ரோஜா, மல்லி...'}
-                                    value={form.taName}
-                                    onChange={e => {
-                                        setTouched(p => ({ ...p, taName: true }));
-                                        handleAutoTranslate(e.target.value, 'taName');
-                                    }}
-                                    onKeyDown={e => e.key === 'Enter' && e.preventDefault()}
-                                    style={S.input}
-                                    onFocus={e => e.target.style.borderColor = '#16a34a'}
-                                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
-                                />
-                            </div>
-
-                            {/* Unit */}
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>
-                                    {lang === 'ta' ? 'அளவீட்டு அலகு' : 'Unit of Measurement'}
-                                </label>
-                                <select
-                                    value={form.unit}
-                                    onChange={e => setForm(p => ({ ...p, unit: e.target.value }))}
-                                    style={S.input}
-                                    onFocus={e => e.target.style.borderColor = '#16a34a'}
-                                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
-                                >
-                                    <option value="kg">{lang === 'ta' ? 'கிலோ (kg)' : 'kg'}</option>
-                                    <option value="g">{lang === 'ta' ? 'கிராம் (g)' : 'grams'}</option>
-                                    <option value="bunch">{lang === 'ta' ? 'கட்டு' : 'bunch'}</option>
-                                    <option value="piece">{lang === 'ta' ? 'பீஸ்' : 'piece'}</option>
-                                    <option value="dozen">{lang === 'ta' ? 'டஜன்' : 'dozen'}</option>
-                                    <option value="meter">{lang === 'ta' ? 'மீட்டர்' : 'meter'}</option>
-                                </select>
-                            </div>
-
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '16px 24px', borderTop: '1px solid #f1f5f9', background: '#fafafa', flexShrink: 0 }}>
                                 <button type="button" onClick={() => setIsModalOpen(false)}
                                     style={{ padding: '9px 20px', borderRadius: '9px', border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontWeight: 600, fontSize: '13px', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
                                     {t('cancel')}
