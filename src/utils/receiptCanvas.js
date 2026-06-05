@@ -270,6 +270,7 @@ export async function generateLedgerCanvas({
     labels         = {},
     lang           = 'en',
     multiPage      = false,
+    startDate      = '',
 }) {
     const {
         date        = 'DATE',
@@ -335,8 +336,9 @@ export async function generateLedgerCanvas({
         const isNameWrapped = nameWidth > (W - PAD*2 - 20);
         const firstPageTableStartY = 30 + 45 + 28 + 32 + 18 + 22 + 40 + 40 + 28 + (isNameWrapped ? 58 : 30) + 3 + 2;
 
+        const displayStartDate = startDate ? startDate.split('-').reverse().join('/') : '';
         const allRows = [
-            { date: '', particulars: openingBalLabel, weight: '0.000', rate: '0', total: openingBalance, cashRec: 0, cashLess: 0, isOpening: true },
+            { date: displayStartDate, particulars: openingBalLabel, weight: '0.000', rate: '0', total: openingBalance, cashRec: 0, cashLess: 0, isOpening: true },
             ...ledgerRows
         ];
 
@@ -433,7 +435,7 @@ export async function generateLedgerCanvas({
                         if (i === 1) { x = colStarts[i] + 10; }
                         if (i === 0 || i === 2 || i === 3) { x = colStarts[i] + colWidths[i]/2; align = 'center'; }
 
-                        let displayVal = (i === 0 && isOpening) ? '' : String(v || (i >= 2 && !isOpening ? '0' : ''));
+                        let displayVal = (i === 0 && isOpening) ? String(v || '') : String(v || (i >= 2 && !isOpening ? '0' : ''));
                         if (!isOpening && (i === 3 || i === 4 || i === 5 || i === 6)) {
                             const num = Number(v);
                             if (!isNaN(num) && v !== '') {
@@ -680,7 +682,7 @@ export async function generateLedgerCanvas({
             if (i === 1) { x = colStarts[i] + 10; }
             if (i === 0 || i === 2 || i === 3) { x = colStarts[i] + colWidths[i]/2; align = 'center'; }
 
-            let displayVal = (i === 0 && isOpening) ? '' : String(v || (i >= 2 && !isOpening ? '0' : ''));
+            let displayVal = (i === 0 && isOpening) ? String(v || '') : String(v || (i >= 2 && !isOpening ? '0' : ''));
             if (!isOpening && (i === 3 || i === 4 || i === 5 || i === 6)) {
                 const num = Number(v);
                 if (!isNaN(num) && v !== '') {
@@ -694,7 +696,8 @@ export async function generateLedgerCanvas({
         ctx.beginPath(); ctx.moveTo(PAD, rowY + LINE_H); ctx.lineTo(W - PAD, rowY + LINE_H); ctx.stroke();
     };
 
-    drawRow(y, { date: '', particulars: openingBalLabel, weight: '0.000', rate: '0', total: fmtNum(openingBalance), cashRec: '0', cashLess: '0' }, true);
+    const displayStartDate = startDate ? startDate.split('-').reverse().join('/') : '';
+    drawRow(y, { date: displayStartDate, particulars: openingBalLabel, weight: '0.000', rate: '0', total: fmtNum(openingBalance), cashRec: '0', cashLess: '0' }, true);
     y += LINE_H;
 
     // Data Rows

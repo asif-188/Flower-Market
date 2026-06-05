@@ -115,6 +115,26 @@ const S = {
     },
 };
 
+const toDateStr = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dd}`;
+};
+
+const getBuyerBalanceDate = (buyer) => {
+    if (buyer.balanceDate) return buyer.balanceDate;
+    if (buyer.createdAt) {
+        try {
+            const d = buyer.createdAt.toDate ? buyer.createdAt.toDate() : new Date(buyer.createdAt);
+            if (!isNaN(d.getTime())) return toDateStr(d);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+    return toDateStr(new Date());
+};
+
 const Buyer = () => {
     const { t, lang } = useContext(LangContext);
     const [buyers, setBuyers] = useState([]);
@@ -123,7 +143,7 @@ const Buyer = () => {
     const [viewingBuyer, setViewingBuyer] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [currentBuyer, setCurrentBuyer] = useState({ id: '', name: '', contact: '', balance: 0 });
+    const [currentBuyer, setCurrentBuyer] = useState({ id: '', name: '', nameTa: '', contact: '', balance: 0, balanceDate: toDateStr(new Date()) });
     const [isSaving, setIsSaving] = useState(false);
     const [tableSelectedIndex, setTableSelectedIndex] = useState(-1);
     const importRef = useRef(null);
@@ -173,12 +193,7 @@ const Buyer = () => {
         }
     };
 
-    const toDateStr = (d) => {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${dd}`;
-    };
+    // toDateStr is declared globally above
 
     const buyerTransactions = React.useMemo(() => {
         if (!viewingBuyer) return [];
@@ -197,6 +212,10 @@ const Buyer = () => {
                 : null;
             if (d && d >= startDate) res.push({ date: d, type: 'PAID', amount: p.amount || 0 });
         });
+        const balDate = viewingBuyer.balanceDate || (viewingBuyer.createdAt?.toDate ? toDateStr(viewingBuyer.createdAt.toDate()) : null);
+        if (viewingBuyer.balance && balDate && balDate >= startDate) {
+            res.push({ date: balDate, type: 'OLD BALANCE', amount: viewingBuyer.balance });
+        }
         return res.sort((a, b) => b.date.localeCompare(a.date));
     }, [viewingBuyer, sales, payments]);
 
@@ -204,9 +223,12 @@ const Buyer = () => {
         setTouched({ name: false, nameTa: false });
         if (!buyer) {
             const nextId = buyers.length > 0 ? Math.max(...buyers.map(b => parseInt(b.displayId) || 0)) + 1 : 101;
-            setCurrentBuyer({ id: '', name: '', nameTa: '', contact: '', balance: 0, displayId: nextId });
+            setCurrentBuyer({ id: '', name: '', nameTa: '', contact: '', balance: 0, balanceDate: toDateStr(new Date()), displayId: nextId });
         } else {
-            setCurrentBuyer({ ...buyer });
+            setCurrentBuyer({ 
+                ...buyer,
+                balanceDate: getBuyerBalanceDate(buyer)
+            });
         }
         setIsModalOpen(true);
     };
@@ -219,12 +241,13 @@ const Buyer = () => {
             const buyerToSave = { 
                 ...currentBuyer, 
                 balance: parseFloat(currentBuyer.balance) || 0,
+                balanceDate: currentBuyer.balance ? (currentBuyer.balanceDate || toDateStr(new Date())) : '',
                 nameTa: currentBuyer.nameTa || currentBuyer.name
             };
             if (!buyerToSave.id) delete buyerToSave.id;
             await saveBuyer(buyerToSave);
             setIsModalOpen(false);
-            setCurrentBuyer({ id: '', name: '', nameTa: '', contact: '', balance: 0 });
+            setCurrentBuyer({ id: '', name: '', nameTa: '', contact: '', balance: 0, balanceDate: toDateStr(new Date()) });
         } catch (err) {
             alert('❌ Failed to save: ' + err.message);
         } finally {
@@ -264,7 +287,13 @@ const Buyer = () => {
                 try {
                     const rowId = parseInt(row.id) || (currentMax + 1);
                     if (rowId > currentMax) currentMax = rowId;
-                    await saveBuyer({ name: row.name || '', contact: row.contact || '', balance: parseFloat(row.balance) || 0, displayId: rowId });
+                    await saveBuyer({ 
+                        name: row.name || '', 
+                        contact: row.contact || '', 
+                        balance: parseFloat(row.balance) || 0, 
+                        balanceDate: row.balance ? toDateStr(new Date()) : '',
+                        displayId: rowId 
+                    });
                     imported++;
                 } catch { failed++; }
             }
@@ -469,6 +498,7 @@ const Buyer = () => {
                                     {label:`பெயர் (தமிழ்) *`, key:'nameTa', type:'text', required:true},
                                     {label:`WhatsApp Number / வாட்ஸ்அப் *`, key:'contact', type:'tel', required:true, maxLength: 10, pattern: '[0-9]{10}'},
                                     {label:t('initialDues'), key:'balance', type:'number'},
+                                    {label:t('oldBalanceDate'), key:'balanceDate', type:'date'},
                                 ].map(f => (
                                     <div key={f.key}>
                                         <label style={{display:'block',marginBottom:'5px',fontSize:'12px',fontWeight:600,color:'#64748b'}}>{f.label}</label>
@@ -546,10 +576,22 @@ const Buyer = () => {
                                                 <div style={{width:'44px',height:'36px',borderRadius:'8px',background:'#f1f5f9',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',fontWeight:700,color:'#64748b'}}>
                                                     {tx.date.split('-').slice(1).reverse().join('/')}
                                                 </div>
-                                                <span style={{fontSize:'11px',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:tx.type==='SALE'?'#3b82f6':'#16a34a'}}>{tx.type}</span>
+                                                <span style={{
+                                                    fontSize: '11px',
+                                                    fontWeight: 700,
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.06em',
+                                                    color: tx.type === 'SALE' ? '#3b82f6' : (tx.type === 'OLD BALANCE' ? '#64748b' : '#16a34a')
+                                                }}>
+                                                    {tx.type === 'SALE' ? (t('sales') || 'SALE') : (tx.type === 'PAID' ? (t('paid') || 'PAID') : (t('initialDues') || 'OLD BALANCE'))}
+                                                </span>
                                             </div>
-                                            <span style={{fontWeight:700,fontSize:'14px',color:tx.type==='SALE'?'#1e293b':'#16a34a'}}>
-                                                {tx.type==='PAID'?'-':''}{fmt(tx.amount)}
+                                            <span style={{
+                                                fontWeight: 700,
+                                                fontSize: '14px',
+                                                color: tx.type === 'SALE' ? '#1e293b' : (tx.type === 'OLD BALANCE' ? '#e11d48' : '#16a34a')
+                                            }}>
+                                                {tx.type === 'PAID' ? '-' : ''}{fmt(tx.amount)}
                                             </span>
                                         </div>
                                     ))}

@@ -417,6 +417,7 @@ const Reports = () => {
                 summary,
                 openingBalance,
                 bizInfo,
+                startDate: appliedFrom,
                 labels: {
                     date: t('date'),
                     particulars: t('particulars'),
@@ -541,6 +542,7 @@ const Reports = () => {
                 summary,
                 openingBalance,
                 bizInfo,
+                startDate: appliedFrom,
                 labels: {
                     date: t('date'),
                     particulars: t('particulars'),
@@ -1102,7 +1104,7 @@ const Reports = () => {
                                                 return (
                                                     <>
                                                         <tr style={{ background: '#fef3c7', fontWeight: 700 }}>
-                                                            <td style={{ padding: '8px' }}>—</td>
+                                                            <td style={{ padding: '8px' }}>{displayDate(appliedFrom)}</td>
                                                             <td style={{ padding: '8px' }}>{t('openingBalance')}</td>
                                                             <td colSpan={5}></td>
                                                             <td style={{ padding: '8px', textAlign: 'right' }}>{fmt(runningBal)}</td>
