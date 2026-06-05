@@ -328,14 +328,11 @@ const Reports = () => {
                     </table>
 
                     <div class="summary">
-                        <div class="summary-row" style="color: #b91c1c"><span>${t('totalSales')} :</span> <span>${totalSales.toFixed(2)}</span></div>
+                        <div class="summary-row" style="color: #b91c1c"><span>${t('totalSales')} :</span> <span>${(openingBalance + totalSales).toFixed(2)}</span></div>
                         <div class="summary-row" style="color: #16a34a"><span>${t('cashRec')} :</span> <span>${totalReceived.toFixed(2)}</span></div>
                         <div class="summary-row" style="color: #b91c1c"><span>${t('cashLess')} :</span> <span>${totalLess.toFixed(2)}</span></div>
                         <div class="summary-row" style="border-top: 2px solid #000; margin-top: 5px; padding-top: 6px; font-weight: 900; font-size: 28px;">
                             <span>${t('finalBalance')} :</span> <span>${closingBalance.toFixed(2)}</span>
-                        </div>
-                        <div style="font-size: 15px; text-align: center; margin-top: 12px; color: #666; font-weight: 700;">
-                            [ ${t('openingBalance')} + ${t('totalSales')} - ${t('cashRec')} - ${t('cashLess')} ]
                         </div>
                     </div>
                     <div style="text-align: center; margin-top: 30px; font-size: 26px; font-weight: 800;">🌹 ${t('thankYou')} 🌹</div>

@@ -554,12 +554,15 @@ export async function generateLedgerCanvas({
                     y += 30;
                     const sumW = W - PAD*2;
                     rect(PAD, y, sumW, 130);
-                    const drawSumRow = (sy, label, val, valueColor = '#000') => {
+                    const drawSumRow = (sy, label, val, valueColor = '#000', isTotalSales = false) => {
                         drawText(label, PAD + 15, sy + 22, { size: 22, weight: '800' });
-                        drawText(fmtNum(val), W - PAD - 15, sy + 22, { size: 22, weight: '900', align: 'right', color: valueColor });
+                        const displayVal = isTotalSales 
+                            ? fmtNum(openingBalance + val)
+                            : fmtNum(val);
+                        drawText(displayVal, W - PAD - 15, sy + 22, { size: 22, weight: '900', align: 'right', color: valueColor });
                     };
                     const isVendor = buyer.displayId && String(buyer.displayId).startsWith('V');
-                    drawSumRow(y,      totalSalesLabel, summary.sales, '#b91c1c');
+                    drawSumRow(y,      totalSalesLabel, summary.sales, '#b91c1c', true);
                     drawSumRow(y + 42, cashRecLabel,    summary.paid, isVendor ? '#b91c1c' : '#15803d');
                     drawSumRow(y + 84, cashLessLabel,   summary.less, '#b91c1c');
                     
@@ -568,10 +571,6 @@ export async function generateLedgerCanvas({
                     ctx.beginPath(); ctx.moveTo(PAD + 10, y); ctx.lineTo(W - PAD - 10, y); ctx.stroke();
                     drawText(finalBalLabel, PAD + 15, y + 20, { size: 26, weight: '900' });
                     drawText(fmtNum(finalBal), W - PAD - 15, y + 20, { size: 26, weight: '900', align: 'right' });
-                    
-                    y += 45;
-                    const formulaText = `[ ${openingBalLabel.replace(':','')} + ${totalSalesLabel.replace(':','')} - ${cashRecLabel.replace(':','')} - ${cashLessLabel.replace(':','')} ]`;
-                    drawText(formulaText, W/2, y, { size: 15, align: 'center', color: '#64748b', weight: '700' });
                     
                     y += 45;
                     drawText(thankYou, W/2, y, { size: 28, align: 'center' });
@@ -742,12 +741,15 @@ export async function generateLedgerCanvas({
     // Summary Box
     const sumW = W - PAD*2;
     rect(PAD, y, sumW, 130);
-    const drawSumRow = (sy, label, val, valueColor = '#000') => {
+    const drawSumRow = (sy, label, val, valueColor = '#000', isTotalSales = false) => {
         drawText(label, PAD + 15, sy + 22, { size: 22, weight: '800' });
-        drawText(fmtNum(val), W - PAD - 15, sy + 22, { size: 22, weight: '900', align: 'right', color: valueColor });
+        const displayVal = isTotalSales 
+            ? fmtNum(openingBalance + val)
+            : fmtNum(val);
+        drawText(displayVal, W - PAD - 15, sy + 22, { size: 22, weight: '900', align: 'right', color: valueColor });
     };
     const isVendor = buyer.displayId && String(buyer.displayId).startsWith('V');
-    drawSumRow(y,      totalSalesLabel, summary.sales, '#b91c1c');
+    drawSumRow(y,      totalSalesLabel, summary.sales, '#b91c1c', true);
     drawSumRow(y + 42, cashRecLabel,    summary.paid, isVendor ? '#b91c1c' : '#15803d');
     drawSumRow(y + 84, cashLessLabel,   summary.less, '#b91c1c');
     
@@ -757,11 +759,6 @@ export async function generateLedgerCanvas({
     ctx.beginPath(); ctx.moveTo(PAD + 10, y); ctx.lineTo(W - PAD - 10, y); ctx.stroke();
     drawText(finalBalLabel, PAD + 15, y + 20, { size: 26, weight: '900' });
     drawText(fmtNum(finalBal), W - PAD - 15, y + 20, { size: 26, weight: '900', align: 'right' });
-    
-    // Explicit Formula Line
-    y += 45;
-    const formulaText = `[ ${openingBalLabel.replace(':','')} + ${totalSalesLabel.replace(':','')} - ${cashRecLabel.replace(':','')} - ${cashLessLabel.replace(':','')} ]`;
-    drawText(formulaText, W/2, y, { size: 15, align: 'center', color: '#64748b', weight: '700' });
     
     y += 45;
 
