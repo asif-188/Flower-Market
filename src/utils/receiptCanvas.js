@@ -444,7 +444,11 @@ export async function generateLedgerCanvas({
                         }
                         
                         let textColor = '#000';
-                        if (!isOpening) {
+                        if (isOpening) {
+                            if (i === 1 || i === 4) {
+                                textColor = '#78350f';
+                            }
+                        } else {
                             if (i === 4 && Number(v) > 0) {
                                 textColor = '#b91c1c';
                             } else if (i === 5 && Number(v) > 0) {
@@ -704,7 +708,11 @@ export async function generateLedgerCanvas({
             }
             
             let textColor = '#000';
-            if (!isOpening) {
+            if (isOpening) {
+                if (i === 1 || i === 4) {
+                    textColor = '#78350f';
+                }
+            } else {
                 if (i === 4 && Number(v) > 0) {
                     textColor = '#b91c1c';
                 } else if (i === 5 && Number(v) > 0) {
