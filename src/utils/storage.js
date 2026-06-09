@@ -11,6 +11,7 @@ import {
   orderBy,
   where,
   setDoc,
+  getDoc,
   serverTimestamp
 } from "firebase/firestore";
 import { db } from "../firebase";
@@ -28,6 +29,11 @@ export const COLLECTIONS = {
   TENANTS: 'tenants',
   PAYMENTS: 'payments',
   SYSTEM: 'system',
+  // ── Power Buy (fully isolated) ──
+  PB_BUYERS: 'pb_buyers',
+  PB_SALES: 'pb_sales',
+  PB_PAYMENTS: 'pb_payments',
+  PB_PRODUCTS: 'pb_products',
 };
 
 // Helper to get current tenant
@@ -244,3 +250,91 @@ export const getOutsidePurchases = async () => {
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── POWER BUY — Fully Isolated Collections ────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+// --- PB BUYERS ---
+export const getPbBuyers = async () => {
+  const tenantId = getTenant();
+  const q = query(collection(db, COLLECTIONS.PB_BUYERS), where('tenantId', '==', tenantId));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+export const savePbBuyer = async (buyer) => {
+  const { id, ...data } = buyer;
+  if (id) {
+    await updateData(COLLECTIONS.PB_BUYERS, id, data);
+  } else {
+    await addData(COLLECTIONS.PB_BUYERS, {
+      ...data,
+      balance: data.balance || 0
+    });
+  }
+};
+
+export const deletePbBuyer = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.PB_BUYERS, id));
+};
+
+// --- PB PRODUCTS (Flowers) ---
+export const getPbProducts = async () => {
+  const tenantId = getTenant();
+  const q = query(collection(db, COLLECTIONS.PB_PRODUCTS), where('tenantId', '==', tenantId));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+export const savePbProduct = async (product) => {
+  const { id, ...data } = product;
+  if (id) {
+    await updateData(COLLECTIONS.PB_PRODUCTS, id, data);
+  } else {
+    await addData(COLLECTIONS.PB_PRODUCTS, data);
+  }
+};
+
+export const deletePbProduct = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.PB_PRODUCTS, id));
+};
+
+// --- PB SALES ---
+export const savePbSale = async (saleData) => {
+  const docRef = await addData(COLLECTIONS.PB_SALES, saleData);
+  return { id: docRef.id, ...saleData };
+};
+
+export const getPbSales = async () => {
+  const tenantId = getTenant();
+  const q = query(collection(db, COLLECTIONS.PB_SALES), where('tenantId', '==', tenantId), orderBy('createdAt', 'desc'));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+// --- PB PAYMENTS ---
+export const savePbPayment = async (paymentData) => {
+  const docRef = await addData(COLLECTIONS.PB_PAYMENTS, paymentData);
+  return { id: docRef.id, ...paymentData };
+};
+
+export const getPbPayments = async () => {
+  const tenantId = getTenant();
+  const q = query(collection(db, COLLECTIONS.PB_PAYMENTS), where('tenantId', '==', tenantId), orderBy('createdAt', 'desc'));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+// --- PB INVOICE COUNTER ---
+// Uses a Firestore counter doc at system/pb_{tenantId}_counter with field `lastInvoice`
+export const getNextPbInvoiceNo = async () => {
+  const tenantId = getTenant();
+  const counterRef = doc(db, 'system', `pb_${tenantId}_counter`);
+  const snap = await getDoc(counterRef);
+  const last = snap.exists() ? (snap.data().lastInvoice || 0) : 0;
+  const next = last + 1;
+  await setDoc(counterRef, { lastInvoice: next }, { merge: true });
+  return `PB-${String(next).padStart(6, '0')}`;
+};
+

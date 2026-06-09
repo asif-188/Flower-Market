@@ -18,6 +18,14 @@ import Flowers from './pages/Flowers';
 import Settings from './pages/Settings';
 import OutsideShop from './pages/OutsideShop';
 import AdminPanel from './pages/AdminPanel';
+// ── Power Buy Module ──
+import PowerBuyMenu from './pages/powerbuy/PowerBuyMenu';
+import PbBuyer from './pages/powerbuy/PbBuyer';
+import PbPayments from './pages/powerbuy/PbPayments';
+import PbSalesEntry from './pages/powerbuy/PbSalesEntry';
+import PbReports from './pages/powerbuy/PbReports';
+import PbFlowers from './pages/powerbuy/PbFlowers';
+import PbDailyReport from './pages/powerbuy/PbDailyReport';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useTenant();
@@ -69,6 +77,14 @@ const AppRoutes = () => {
           <Route path="flowers" element={<Flowers />} />
           <Route path="settings" element={<Settings />} />
           <Route path="outside-shop" element={<OutsideShop />} />
+          {/* ── Power Buy Module ── */}
+          <Route path="power-buy" element={<PowerBuyMenu />} />
+          <Route path="pb-buyer" element={<PbBuyer />} />
+          <Route path="pb-payments" element={<PbPayments />} />
+          <Route path="pb-sales" element={<PbSalesEntry />} />
+          <Route path="pb-reports" element={<PbReports />} />
+          <Route path="pb-flowers" element={<PbFlowers />} />
+          <Route path="pb-daily-report" element={<PbDailyReport />} />
       </Route>
       <Route path="/admin" element={<AdminPanel />} />
     </Routes>

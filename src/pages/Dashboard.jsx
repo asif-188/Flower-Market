@@ -37,6 +37,19 @@ const Dashboard = () => {
                     <span className="text-5xl font-black text-indigo-700 tracking-tighter italic">{t('sales')}</span>
                 </button>
 
+                {/* PowerBuy button — hidden, uncomment to restore
+                <button
+                    onClick={() => navigate('/app/power-buy')}
+                    className="group relative overflow-hidden border-4 p-10 rounded-[40px] shadow-2xl transition-all transform hover:-translate-y-2 active:scale-95 flex items-center justify-center gap-8"
+                    style={{ background: 'linear-gradient(135deg, #f5f3ff, #ede9fe)', borderColor: '#c4b5fd', boxShadow: '0 20px 48px rgba(124,58,237,0.12)' }}
+                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 28px 64px rgba(124,58,237,0.25)'; e.currentTarget.style.borderColor = '#7c3aed'; }}
+                    onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 20px 48px rgba(124,58,237,0.12)'; e.currentTarget.style.borderColor = '#c4b5fd'; }}
+                >
+                    <div className="text-6xl group-hover:rotate-12 transition-transform">⚡</div>
+                    <span className="text-5xl font-black tracking-tighter italic" style={{ color: '#7c3aed' }}>Power Buy</span>
+                </button>
+                */}
+
                 <button
                     onClick={() => navigate('/app/outside-shop')}
                     className="group relative overflow-hidden bg-amber-50 border-4 border-amber-100 hover:border-amber-300 p-10 rounded-[40px] shadow-2xl hover:shadow-amber-200 transition-all transform hover:-translate-y-2 active:scale-95 flex items-center justify-center gap-8"

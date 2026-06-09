@@ -1,0 +1,529 @@
+import React, { useState, useEffect, useRef, useContext } from 'react';
+import { Plus, Trash2, Printer, MessageCircle, Clock, Pencil, History } from 'lucide-react';
+import { savePbSale, getNextPbInvoiceNo, subscribeToCollection, db } from '../../utils/storage';
+import { doc, updateDoc, increment, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { useTenant } from '../../utils/TenantContext';
+import { LangContext } from '../../components/Layout';
+import { generateBuyerReceiptCanvas } from '../../utils/receiptCanvas';
+import WhatsAppIcon from '../../components/WhatsAppIcon';
+
+const PB = {
+  primary: '#7c3aed',
+  light: '#f5f3ff',
+  border: '#c4b5fd',
+  badge: '#ede9fe',
+  badgeText: '#5b21b6',
+  hover: '#6d28d9',
+};
+
+const INPUT_S = {
+  width: '100%', padding: '9px 12px', borderRadius: '8px',
+  border: '1.5px solid #e2e8f0', background: '#fff',
+  fontSize: '14px', fontWeight: 600, color: '#1e293b',
+  outline: 'none', fontFamily: 'var(--font-sans)',
+  transition: 'border-color 0.15s', boxSizing: 'border-box',
+};
+const LABEL_S = {
+  display: 'block', fontSize: '10px', fontWeight: 700,
+  color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px',
+};
+const TH_S = {
+  padding: '10px 14px', textAlign: 'left', fontSize: '11px', fontWeight: 700,
+  color: PB.primary, textTransform: 'uppercase', letterSpacing: '0.08em',
+  borderBottom: '1.5px solid #f1f5f9', whiteSpace: 'nowrap',
+};
+const TD_S = { padding: '12px 14px', fontSize: '14px', color: '#374151', borderBottom: '1px solid #f8fafc', verticalAlign: 'middle' };
+
+/* ── Keyboard-navigable Searchable Dropdown ── */
+const SearchSelect = ({ items, value, onChange, onKeyDown, inputRef, placeholder, lang }) => {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [cursor, setCursor] = useState(0);
+  const listRef = useRef(null);
+
+  const selectedItem = items.find(i => i.id === value || i.name === value);
+  const selectedName = selectedItem ? (lang === 'ta' ? (selectedItem.taName || selectedItem.name) : selectedItem.name) : '';
+
+  const filtered = query.trim() ? items.filter(i => {
+    const n = i.name?.toLowerCase() || '';
+    const tn = i.taName?.toLowerCase() || '';
+    const q = query.toLowerCase();
+    return n.includes(q) || tn.includes(q) || (i.displayId && String(i.displayId).includes(query));
+  }) : items;
+
+  const choose = (item) => {
+    onChange(item);
+    setQuery(lang === 'ta' ? (item.taName || item.name) : item.name);
+    setOpen(false);
+  };
+
+  const handleKey = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setCursor(c => Math.min(c + 1, filtered.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setCursor(c => Math.max(c - 1, 0)); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (open && filtered[cursor]) { choose(filtered[cursor]); if (onKeyDown) onKeyDown(e); }
+      else if (onKeyDown) onKeyDown(e);
+    }
+    else if (e.key === 'Escape') setOpen(false);
+    else if (e.key === 'Tab') { if (open && filtered[cursor]) choose(filtered[cursor]); setOpen(false); if (onKeyDown) onKeyDown(e); }
+  };
+
+  useEffect(() => {
+    if (listRef.current) { const els = listRef.current.querySelectorAll('li'); els[cursor]?.scrollIntoView({ block: 'nearest' }); }
+  }, [cursor]);
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <input ref={inputRef} type="text" placeholder={placeholder} value={open ? query : selectedName}
+        onFocus={() => { setQuery(''); setOpen(true); setCursor(0); }}
+        onBlur={() => setTimeout(() => setOpen(false), 200)}
+        onChange={e => { setQuery(e.target.value); setCursor(0); }}
+        onKeyDown={handleKey} autoComplete="off" style={INPUT_S} />
+      {open && filtered.length > 0 && (
+        <ul ref={listRef} style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200, background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.10)', maxHeight: '200px', overflowY: 'auto', listStyle: 'none', margin: '4px 0', padding: '4px' }}>
+          {filtered.map((item, i) => (
+            <li key={item.id || item.name} onMouseDown={() => choose(item)}
+              style={{ padding: '8px 12px', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', background: i === cursor ? PB.light : 'transparent', color: i === cursor ? PB.primary : '#374151' }}
+              onMouseEnter={() => setCursor(i)}>
+              {item.displayId && <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>#{item.displayId}</span>}
+              {lang === 'ta' ? (item.taName || item.name) : item.name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+const PbSalesEntry = () => {
+  const { t, lang } = useContext(LangContext);
+  const { tenantData } = useTenant();
+  const [flowers, setFlowers] = useState([]);
+  const [buyers, setBuyers] = useState([]);
+  const [allSales, setAllSales] = useState([]);
+  const [allPayments, setAllPayments] = useState([]);
+  const settings = tenantData || { motto: 'SRI RAMA JAYAM', name: 'S.V.M', type: 'SRI VALLI FLOWER MERCHANT', address: 'B-7, FLOWER MARKET, TINDIVANAM.', phone1: '9443247771', phone2: '9952535057' };
+
+  const [buyerId, setBuyerId] = useState('');
+  const [date, setDate] = useState(new Date().toLocaleDateString('en-CA'));
+  const [currentItem, setCurrentItem] = useState({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
+  const [isSaving, setIsSaving] = useState(false);
+  const [mainTableSelectedIndex, setMainTableSelectedIndex] = useState(-1);
+
+  useEffect(() => { setMainTableSelectedIndex(-1); }, [buyerId]);
+
+  const refDate = useRef(null);
+  const refCustomer = useRef(null);
+  const refFlower = useRef(null);
+  const refQty = useRef(null);
+  const refRate = useRef(null);
+  const refAddBtn = useRef(null);
+  const mainTableRowRefs = useRef([]);
+
+  useEffect(() => {
+    const u1 = subscribeToCollection('pb_products', (data) => {
+      setFlowers(data.length === 0
+        ? [{ name: 'Rose' }, { name: 'Jasmine' }, { name: 'Marigold' }]
+        : data.map(f => ({ name: f.name, taName: f.taName })));
+    });
+    const u2 = subscribeToCollection('pb_buyers', setBuyers);
+    const u3 = subscribeToCollection('pb_sales', setAllSales);
+    const u4 = subscribeToCollection('pb_payments', setAllPayments);
+    return () => { u1(); u2(); u3(); u4(); };
+  }, []);
+
+  const toDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  const getPaymentDate = (p) => {
+    if (p.date && typeof p.date === 'string' && p.date.match(/^\d{4}-\d{2}-\d{2}/)) {
+      return p.date.substring(0, 10);
+    }
+    if (p.timestamp) {
+      if (typeof p.timestamp === 'string') return p.timestamp.substring(0, 10);
+      if (p.timestamp.toDate) return toDateStr(p.timestamp.toDate());
+      return toDateStr(new Date(p.timestamp));
+    }
+    if (p.createdAt?.toDate) return toDateStr(p.createdAt.toDate());
+    return null;
+  };
+
+  const dailyEntries = React.useMemo(() => {
+    return allSales.filter(s => { const d = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null); return d === date; })
+      .sort((a, b) => {
+        const tA = (a.timestamp?.toMillis?.() || a.createdAt?.toMillis?.() || 0);
+        const tB = (b.timestamp?.toMillis?.() || b.createdAt?.toMillis?.() || 0);
+        return tA - tB;
+      });
+  }, [allSales, date]);
+
+  const buyerTodayEntries = React.useMemo(() => dailyEntries.filter(s => !buyerId || s.buyerId === buyerId), [dailyEntries, buyerId]);
+
+  const financialStats = React.useMemo(() => {
+    const activeBuyerEntries = buyerId ? allSales.filter(s => s.buyerId === buyerId && (s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null)) === date) : [];
+    const todayTotal = activeBuyerEntries.reduce((s, e) => s + (e.grandTotal || 0), 0);
+    const dayPayments = allPayments.filter(p => {
+      if (!buyerId || p.entityId !== buyerId) return false;
+      const d = getPaymentDate(p);
+      return d === date;
+    });
+    const cashRec = dayPayments.reduce((s, p) => s + (p.amount || 0), 0);
+    const cashLess = dayPayments.reduce((s, p) => s + (p.cashLess || 0), 0);
+    let liveBalance = 0;
+    if (buyerId) { const buyer = buyers.find(b => b.id === buyerId); liveBalance = buyer?.balance || 0; }
+    const futureSales = buyerId ? allSales.filter(s => { if (s.buyerId !== buyerId) return false; const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null); return dt && dt > date; }) : [];
+    const futurePayments = buyerId ? allPayments.filter(p => { if (p.entityId !== buyerId) return false; const dt = getPaymentDate(p); return dt && dt > date; }) : [];
+    const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+    const futurePayAmt = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
+    const oldBalance = buyerId ? (liveBalance - (futureSalesAmt + todayTotal) + (futurePayAmt + cashRec + cashLess)) : 0;
+    const ledgerBalance = oldBalance - cashRec - cashLess;
+    const finalBalance = ledgerBalance + todayTotal;
+    return { oldBalance, cashRec, cashLess, todayTotal, finalBalance, ledgerBalance };
+  }, [buyers, buyerId, allSales, allPayments, date]);
+
+  const handleAddItem = async () => {
+    if (!buyerId || !currentItem.flowerType || !currentItem.quantity || !currentItem.price || isSaving) return;
+    setIsSaving(true);
+    const qty = parseFloat(currentItem.quantity);
+    const rate = parseFloat(currentItem.price);
+    const total = qty * rate;
+    try {
+      const buyer = buyers.find(b => b.id === buyerId);
+      let invoiceNo;
+      try { invoiceNo = await getNextPbInvoiceNo(); } catch { invoiceNo = `PB-${Date.now()}`; }
+      await savePbSale({ buyerId, date, buyerName: buyer?.name || 'Unknown', items: [{ ...currentItem, total }], grandTotal: total, invoiceNo, timestamp: serverTimestamp() });
+      await updateDoc(doc(db, 'pb_buyers', buyerId), { balance: increment(total) });
+      setCurrentItem({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
+      setTimeout(() => refFlower.current?.focus(), 50);
+    } catch (err) { alert('Error saving item: ' + err.message); }
+    finally { setIsSaving(false); }
+  };
+
+  const handleDeleteItem = async (sale) => {
+    if (!window.confirm(t('delete') + '?')) return;
+    try {
+      await deleteDoc(doc(db, 'pb_sales', sale.id));
+      await updateDoc(doc(db, 'pb_buyers', sale.buyerId), { balance: increment(-(sale.grandTotal || 0)) });
+    } catch (err) { alert('Delete failed: ' + err.message); }
+  };
+
+  const handleEditItem = async (sale) => {
+    setBuyerId(sale.buyerId);
+    setCurrentItem(sale.items[0]);
+    try {
+      await deleteDoc(doc(db, 'pb_sales', sale.id));
+      await updateDoc(doc(db, 'pb_buyers', sale.buyerId), { balance: increment(-(sale.grandTotal || 0)) });
+      setTimeout(() => refFlower.current?.focus(), 100);
+    } catch (err) { console.error('Edit init failed:', err); }
+  };
+
+  const handleShareWhatsApp = async () => {
+    const activeBuyerEntries = dailyEntries.filter(s => s.buyerId === buyerId);
+    if (!buyerId || activeBuyerEntries.length === 0) return alert('No items to share for today.');
+    const buyer = buyers.find(b => b.id === buyerId);
+    const { oldBalance, cashRec, cashLess, todayTotal } = financialStats;
+
+    try {
+      const { blob, url } = await generateBuyerReceiptCanvas({
+        buyer: {
+          id: buyer.id,
+          displayId: buyer.displayId,
+          name: lang === 'ta' ? (buyer.nameTa || buyer.name) : buyer.name,
+        },
+        salesItems: activeBuyerEntries.flatMap(s => s.items || []),
+        salesTotal: todayTotal,
+        paymentsTotal: cashRec,
+        cashLess: cashLess,
+        prevBalance: oldBalance,
+        dateLabel: date.split('-').reverse().join('/'),
+        bizInfo: settings,
+        lang: lang,
+        labels: {
+          date: t('date'), nameLabel: t('name'), oldBalance: t('oldBalance'),
+          cashRec: t('cashRec'), cashLess: t('cashLess'), balance: t('balance'),
+          particulars: t('particulars'), weight: t('weight'), rate: t('rate'),
+          total: t('total'), grandTotalLabel: t('balance'), sNo: t('sNo'),
+          salesLabel: t('sales'), totalSalesLabel: t('totalSales'),
+        }
+      });
+
+      const file = new File([blob], 'bill.png', { type: 'image/png' });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: `Bill – ${buyer.name}` });
+      } else {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `bill_${buyer.name.replace(/\s+/g,'_')}.png`;
+        a.click();
+      }
+    } catch (err) { alert('Share failed: ' + err.message); }
+  };
+
+  const handlePrint = () => {
+    const activeBuyerEntries = dailyEntries.filter(s => s.buyerId === buyerId);
+    if (activeBuyerEntries.length > 0) window.print();
+  };
+
+  const fmt = (n) => `₹${Number(n).toLocaleString('en-IN')}`;
+  const formatTime = (ts) => {
+    if (!ts) return '--:--';
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    if (isNaN(d.getTime())) return '--:--';
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+  const onKey = (e, nextRef) => { if (e.key === 'Enter') { e.preventDefault(); nextRef.current?.focus(); if (nextRef.current?.select) nextRef.current.select(); } };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', fontFamily: 'var(--font-sans)' }}>
+      {/* ── Entry Card ── */}
+      <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', padding: '24px' }}>
+        {/* Header Row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '20px', marginBottom: '32px', paddingBottom: '20px', borderBottom: '1px solid #f1f5f9' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '15px' }}>⚡</span>
+              <span style={{ fontSize: '12px', fontWeight: 800, color: PB.primary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {t('newPurchaseEntry')}
+              </span>
+            </div>
+            <div style={{ width: '150px' }}>
+              <input ref={refDate} type="date" value={date} onChange={e => setDate(e.target.value)}
+                style={{ ...INPUT_S, padding: '6px 12px', border: `1.5px solid ${PB.border}`, borderRadius: '10px', fontSize: '13px', color: '#475569' }} />
+              <div style={{ fontSize: '11px', fontWeight: 700, color: PB.primary, marginTop: '6px', textAlign: 'center' }}>{date.split('-').reverse().join('-')}</div>
+            </div>
+          </div>
+          <h1 style={{ fontSize: '32px', fontWeight: 900, color: PB.primary, fontFamily: 'var(--font-display)', letterSpacing: '0.05em', margin: 0, textTransform: 'uppercase' }}>⚡ Power Buy</h1>
+          {/* Financial Box */}
+          <div style={{ justifySelf: 'end', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '16px', padding: '16px 20px', minWidth: '260px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {[
+              { label: t('oldBalance'), value: financialStats.oldBalance, color: '#1e293b' },
+              { label: `${t('cashRec')} (-)`, value: financialStats.cashRec, color: '#3b82f6' },
+              { label: `${t('cashLess')} (-)`, value: financialStats.cashLess, color: '#ef4444' },
+            ].map(r => (
+              <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: r.color, textTransform: 'uppercase' }}>{r.label}</span>
+                <span style={{ fontSize: '15px', fontWeight: 700, color: r.color }}>{fmt(r.value)}</span>
+              </div>
+            ))}
+            <div style={{ height: '1.5px', background: '#e2e8f0', margin: '4px 0' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: PB.primary, textTransform: 'uppercase' }}>{t('balance')}</span>
+              <span style={{ fontSize: '20px', fontWeight: 900, color: PB.primary }}>{fmt(financialStats.ledgerBalance)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Entry Controls */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', alignItems: 'flex-end' }}>
+          <div><label style={LABEL_S}>{t('selectCustomer')}</label>
+            <SearchSelect items={buyers} value={buyerId} onChange={b => setBuyerId(b.id)} inputRef={refCustomer} onKeyDown={e => onKey(e, refFlower)} placeholder={t('selectCustomer')} lang={lang} />
+          </div>
+          <div><label style={LABEL_S}>{t('flowerVariety')}</label>
+            <SearchSelect items={flowers} value={currentItem.flowerType} onChange={f => setCurrentItem(p => ({ ...p, flowerType: f.name, flowerTypeTa: f.taName || '' }))} inputRef={refFlower} onKeyDown={e => onKey(e, refQty)} placeholder={t('flowerVariety')} lang={lang} />
+          </div>
+          <div><label style={LABEL_S}>{t('qty')}</label>
+            <input ref={refQty} type="number" placeholder="0.00" value={currentItem.quantity} onChange={e => setCurrentItem(p => ({ ...p, quantity: e.target.value }))} onKeyDown={e => onKey(e, refRate)} style={INPUT_S} />
+          </div>
+          <div><label style={LABEL_S}>{t('rate')}</label>
+            <input ref={refRate} type="number" placeholder="0.00" value={currentItem.price} onChange={e => setCurrentItem(p => ({ ...p, price: e.target.value }))} onKeyDown={e => e.key === 'Enter' && handleAddItem()} style={INPUT_S} />
+          </div>
+          <button ref={refAddBtn} onClick={handleAddItem}
+            disabled={!buyerId || !currentItem.flowerType || !currentItem.quantity || !currentItem.price || isSaving}
+            style={{ height: '42px', padding: '0 20px', borderRadius: '10px', border: 'none', background: `linear-gradient(135deg, ${PB.primary}, ${PB.hover})`, color: '#fff', fontWeight: 700, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s', opacity: (!buyerId || !currentItem.flowerType || !currentItem.quantity || !currentItem.price || isSaving) ? 0.6 : 1 }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            {isSaving ? '...' : <><Plus size={18} /> {t('addNew')}</>}
+          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={handlePrint} style={{ height: '42px', width: '42px', borderRadius: '10px', border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Printer size={18} /></button>
+            <button onClick={handleShareWhatsApp} style={{ height: '42px', width: '42px', borderRadius: '10px', border: '1.5px solid #22c55e', background: '#fff', color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><WhatsAppIcon size={20} /></button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── History Table ── */}
+      <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '10px', background: '#f8fafc' }}>
+          <History size={18} color="#64748b" />
+          <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#1e293b', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('todayLiveEntries')}</h3>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#fff', borderBottom: '1.5px solid #f1f5f9' }}>
+                <th style={TH_S}><Clock size={12} style={{ marginRight: '6px' }} />{t('time')}</th>
+                <th style={{ ...TH_S, textAlign: 'center' }}>{t('sNo')}</th>
+                <th style={TH_S}>{t('customerId')}</th>
+                <th style={TH_S}>{t('customerName')}</th>
+                <th style={TH_S}>{t('flower')}</th>
+                <th style={{ ...TH_S, textAlign: 'center' }}>{t('qty')}</th>
+                <th style={{ ...TH_S, textAlign: 'center' }}>{t('rate')}</th>
+                <th style={{ ...TH_S, textAlign: 'right' }}>{t('total')}</th>
+                <th style={{ ...TH_S, textAlign: 'center' }}>{t('action')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {buyerTodayEntries.length === 0 ? (
+                <tr><td colSpan={9} style={{ padding: '60px 20px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '14px' }}>{t('noItemsYet')}</td></tr>
+              ) : (
+                buyerTodayEntries.map((sale, idx) => {
+                  const buyer = buyers.find(b => b.id === sale.buyerId);
+                  const isHighlighted = mainTableSelectedIndex === idx;
+                  return (
+                    <tr key={sale.id}
+                      ref={el => mainTableRowRefs.current[idx] = el}
+                      tabIndex={0}
+                      onClick={() => setMainTableSelectedIndex(idx)}
+                      onKeyDown={e => {
+                        if (e.key === 'ArrowDown') { e.preventDefault(); const n = Math.min(idx + 1, buyerTodayEntries.length - 1); setMainTableSelectedIndex(n); mainTableRowRefs.current[n]?.focus(); }
+                        else if (e.key === 'ArrowUp') { e.preventDefault(); const p = Math.max(idx - 1, 0); setMainTableSelectedIndex(p); mainTableRowRefs.current[p]?.focus(); }
+                      }}
+                      style={{ background: isHighlighted ? PB.primary : (idx % 2 === 0 ? '#fff' : '#fafafa'), color: isHighlighted ? '#fff' : '#374151', cursor: 'pointer', outline: 'none' }}
+                      onMouseEnter={e => !isHighlighted && (e.currentTarget.style.background = PB.light)}
+                      onMouseLeave={e => !isHighlighted && (e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa')}
+                    >
+                      <td style={TD_S}><span style={{ fontSize: '11px', fontWeight: 700, color: isHighlighted ? '#fff' : '#94a3b8', background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>{formatTime(sale.timestamp || sale.createdAt)}</span></td>
+                      <td style={{ ...TD_S, textAlign: 'center', fontWeight: 600, color: isHighlighted ? '#fff' : '#64748b' }}>{idx + 1}</td>
+                      <td style={TD_S}><span style={{ fontSize: '12px', fontWeight: 800, color: isHighlighted ? '#fff' : PB.primary, background: isHighlighted ? 'rgba(255,255,255,0.2)' : PB.badge, border: `1px solid ${isHighlighted ? 'rgba(255,255,255,0.4)' : PB.border}`, padding: '3px 10px', borderRadius: '8px' }}>#{buyer?.displayId || '---'}</span></td>
+                      <td style={{ ...TD_S, fontWeight: 700, color: isHighlighted ? '#fff' : '#334155' }}>{buyer ? (lang === 'ta' ? (buyer.nameTa || buyer.name) : buyer.name) : (sale.buyerName || '---')}</td>
+                      <td style={{ ...TD_S, fontWeight: 700, color: isHighlighted ? '#fff' : PB.primary }}>{lang === 'ta' ? (sale.items[0]?.flowerTypeTa || sale.items[0]?.flowerType) : sale.items[0]?.flowerType}</td>
+                      <td style={{ ...TD_S, textAlign: 'center', color: isHighlighted ? '#fff' : '#64748b', fontWeight: 600 }}>{sale.items[0]?.quantity}</td>
+                      <td style={{ ...TD_S, textAlign: 'center', color: isHighlighted ? '#fff' : '#64748b', fontWeight: 600 }}>{sale.items[0]?.price}</td>
+                      <td style={{ ...TD_S, textAlign: 'right', fontWeight: 800, color: isHighlighted ? '#fff' : PB.primary }}>{fmt(sale.grandTotal)}</td>
+                      <td style={{ ...TD_S, textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button onClick={() => handleEditItem(sale)} style={{ width: '28px', height: '28px', borderRadius: '6px', border: `1px solid ${isHighlighted ? 'rgba(255,255,255,0.4)' : '#e2e8f0'}`, background: isHighlighted ? 'rgba(255,255,255,0.1)' : '#fff', color: isHighlighted ? '#fff' : '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Pencil size={14} /></button>
+                          <button onClick={() => handleDeleteItem(sale)} style={{ width: '28px', height: '28px', borderRadius: '6px', border: `1px solid ${isHighlighted ? 'rgba(255,255,255,0.4)' : '#fee2e2'}`, background: isHighlighted ? 'rgba(255,255,255,0.1)' : '#fff', color: isHighlighted ? '#fff' : '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Trash2 size={14} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+            {buyerTodayEntries.length > 0 && (
+              <tfoot>
+                <tr style={{ background: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
+                  <td colSpan={7} style={{ ...TD_S, textAlign: 'right', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', fontSize: '12px' }}>{t('todayTotal')}</td>
+                  <td style={{ ...TD_S, textAlign: 'right', fontWeight: 900, fontSize: '18px', color: PB.primary }}>{fmt(buyerTodayEntries.reduce((s, e) => s + (e.grandTotal || 0), 0))}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+
+      {/* ── Floating Grand Total Bar ── */}
+      <div style={{ position: 'sticky', bottom: '20px', background: '#1e293b', borderRadius: '16px', padding: '16px 32px', display: 'flex', gap: '30px', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.2)', zIndex: 100 }}>
+        <div style={{ display: 'flex', gap: '40px' }}>
+          <div>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{t('totalQuantity')}</span>
+            <div style={{ fontSize: '20px', fontWeight: 800, color: '#fff' }}>{buyerTodayEntries.reduce((s, e) => s + parseFloat(e.items[0]?.quantity || 0), 0).toFixed(1)}</div>
+          </div>
+          <div>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{t('todayTotal')}</span>
+            <div style={{ fontSize: '20px', fontWeight: 800, color: '#a78bfa' }}>{fmt(buyerTodayEntries.reduce((s, e) => s + (e.grandTotal || 0), 0))}</div>
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <span style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>⚡ {t('net')} {t('finalBalance')} ({t('balance')} + {t('todayTotal')})</span>
+          <div style={{ fontSize: '28px', fontWeight: 900, color: '#a78bfa' }}>{fmt(financialStats.finalBalance)}</div>
+        </div>
+      </div>
+
+      {/* ── PRINT TEMPLATE (Hidden) ── */}
+      <style>
+        {`
+          @media print {
+            @page { size: A4; margin: 15mm; }
+            body * { visibility: hidden; }
+            #print-bill, #print-bill * { visibility: visible; }
+            #print-bill { position: absolute; left: 0; top: 0; width: 100%; display: block !important; }
+          }
+        `}
+      </style>
+      <div id="print-bill" style={{ display: 'none', width: '210mm', padding: '10mm', background: '#fff', color: '#000', fontFamily: 'serif' }}>
+        {/* 1. Mottos */}
+        {settings.motto && (
+          <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '18px', marginBottom: '15px' }}>{settings.motto}</div>
+        )}
+
+        {/* 2. Shop Box */}
+        <div style={{ border: '2px solid #000', padding: '15px', textAlign: 'center', marginBottom: '10px', position: 'relative' }}>
+          <h1 style={{ fontSize: '48px', fontWeight: '900', margin: '0 0 5px 0' }}>{settings.name || 'S.V.M'}</h1>
+          <div style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase' }}>{settings.type || 'SRI VALLI FLOWER MERCHANT'}</div>
+          <div style={{ fontSize: '16px' }}>{settings.address || 'B-7, FLOWER MARKET, TINDIVANAM.'}</div>
+          <div style={{ borderTop: '1px solid #000', marginTop: '10px', paddingTop: '5px', display: 'flex', justifycontent: 'space-between', fontSize: '16px', fontWeight: 'bold' }}>
+            <span>CELL : {settings.phone1 || '9443247771'}</span>
+            <span style={{ flex: 1 }} />
+            <span>CELL : {settings.phone2 || '9952535057'}</span>
+          </div>
+        </div>
+
+        {/* 3. Sales | Date Row */}
+        <div style={{ border: '2px solid #000', display: 'flex', justifyContent: 'space-between', padding: '8px 15px', fontWeight: 'bold', fontSize: '18px', marginBottom: '10px' }}>
+          <span>{t('date')} : {date.split('-').reverse().join('-')}</span>
+          <span style={{ textTransform: 'uppercase' }}>⚡ POWER BUY SALES</span>
+        </div>
+
+        {/* 4. Customer & Balance Box */}
+        <div style={{ border: '2px solid #000', display: 'grid', gridTemplateColumns: '1fr 280px', marginBottom: '10px' }}>
+          <div style={{ padding: '15px', display: 'flex', flexDirection: 'column', gap: '8px', borderRight: '2px solid #000' }}>
+            <div style={{ fontWeight: 'bold', fontSize: '18px' }}>CODE : {buyers.find(b => b.id === buyerId)?.displayId || '---'}</div>
+            <div style={{ fontWeight: 'bold', fontSize: '18px', textTransform: 'uppercase' }}>{t('name')} : {lang === 'ta' ? (buyers.find(b => b.id === buyerId)?.nameTa || buyers.find(b => b.id === buyerId)?.name) : buyers.find(b => b.id === buyerId)?.name}</div>
+          </div>
+          <div>
+            {[
+              { label: t('oldBalance'), val: financialStats.oldBalance },
+              { label: t('cashRec'), val: financialStats.cashRec },
+              { label: t('cashLess'), val: financialStats.cashLess },
+              { label: t('balance'), val: (financialStats.oldBalance - financialStats.cashRec - financialStats.cashLess), last: true }
+            ].map((row, i) => (
+              <div key={i} style={{ display: 'flex', borderBottom: row.last ? 'none' : '1px solid #000' }}>
+                <div style={{ width: '150px', padding: '5px 10px', fontSize: '14px', borderRight: '1px solid #000' }}>{row.label}</div>
+                <div style={{ flex: 1, padding: '5px 10px', textAlign: 'right', fontWeight: 'bold', fontSize: '16px' }}>{Number(row.val).toLocaleString('en-IN')}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 5. Items Table */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', border: '2px solid #000', marginBottom: '10px' }}>
+          <thead>
+            <tr style={{ background: '#eee' }}>
+              <th style={{ border: '1px solid #000', padding: '8px', width: '50px' }}>{t('sNo')}</th>
+              <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>{t('particulars')}</th>
+              <th style={{ border: '1px solid #000', padding: '8px', width: '100px' }}>{t('weight')}</th>
+              <th style={{ border: '1px solid #000', padding: '8px', width: '100px' }}>{t('rate')}</th>
+              <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', width: '120px' }}>{t('total')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {dailyEntries.filter(s => s.buyerId === buyerId).map((s, i) => (
+              <tr key={i}>
+                <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{i + 1}</td>
+                <td style={{ border: '1px solid #000', padding: '8px', fontWeight: 'bold' }}>{lang === 'ta' ? (s.items[0].flowerTypeTa || s.items[0].flowerType) : s.items[0].flowerType}</td>
+                <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{parseFloat(s.items[0].quantity).toFixed(3)}</td>
+                <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{s.items[0].price}</td>
+                <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>{Number(s.grandTotal).toLocaleString('en-IN')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* 6. Grand Total Box */}
+        <div style={{ border: '3px solid #000', padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <span style={{ fontSize: '24px', fontWeight: '900', textTransform: 'uppercase' }}>{t('balance')}</span>
+          <span style={{ fontSize: '30px', fontWeight: '900' }}>₹{Number(financialStats.finalBalance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+        </div>
+
+        {/* 7. Footer */}
+        <div style={{ textAlign: 'center', fontSize: '22px', fontWeight: 'bold' }}>🌹 நன்றி (Thank You) 🌹</div>
+      </div>
+    </div>
+  );
+};
+
+export default PbSalesEntry;

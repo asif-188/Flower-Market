@@ -288,6 +288,15 @@ const Layout = () => {
   // ── Smart Back Navigation ──
   const getParentRoute = () => {
     const p = location.pathname;
+    // ── Power Buy routes ──
+    if (p.includes('/pb-buyer'))        return '/app/power-buy';
+    if (p.includes('/pb-payments'))     return '/app/power-buy';
+    if (p.includes('/pb-sales'))        return '/app/power-buy';
+    if (p.includes('/pb-reports'))      return '/app/power-buy';
+    if (p.includes('/pb-flowers'))      return '/app/power-buy';
+    if (p.includes('/pb-daily-report')) return '/app/power-buy';
+    if (p.includes('/power-buy'))       return '/app/dashboard';
+    // ── Sales routes ──
     if (p.includes('/buyer'))        return '/app/sales';
     if (p.includes('/payments'))     return '/app/sales';
     if (p.includes('/direct-sales')) return '/app/sales';
@@ -306,18 +315,27 @@ const Layout = () => {
   // ── Page title ──
   const getTitle = () => {
     const p = location.pathname;
+    // Power Buy pages (check pb- prefix first to avoid conflict)
+    if (p.includes('/pb-buyer'))        return `⚡ Power Buy — Customer`;
+    if (p.includes('/pb-payments'))     return `⚡ Power Buy — Cash Receive`;
+    if (p.includes('/pb-sales'))        return `⚡ Power Buy — Sales`;
+    if (p.includes('/pb-reports'))      return `⚡ Power Buy — Customer Report`;
+    if (p.includes('/pb-flowers'))      return `⚡ Power Buy — Flowers`;
+    if (p.includes('/pb-daily-report')) return `⚡ Power Buy — Daily Report`;
+    if (p.includes('/power-buy'))       return `⚡ Power Buy`;
+    // Sales pages
     if (p.includes('/buyer'))        return `☘️ Sales — ${t('customer')}`;
     if (p.includes('/payments'))     return `☘️ Sales — ${t('cashReceive')}`;
     if (p.includes('/direct-sales')) return `☘️ Sales — ${t('directSales')}`;
     if (p.includes('/sales-entry'))  return `☘️ Sales — ${t('sales')}`;
     if (p.includes('/reports'))      return `☘️ Sales — ${t('reports')}`;
     if (p.includes('/flowers'))      return `☘️ Sales — ${t('flowers')}`;
+    if (p.includes('/daily-report')) return `☘️ Sales — ${t('dailyReport')}`;
     if (p.includes('/settings'))     return `☘️ Business Settings`;
     if (p.includes('/intake'))       return `☘️ ${t('intake')}`;
     if (p.includes('/accounts'))     return `☘️ ${t('accounts')}`;
     if (p.includes('/sales'))        return `☘️ ${t('sales')}`;
     if (p.includes('/farmer'))       return `☘️ ${t('farmer')}`;
-    if (p.includes('/daily-report')) return `☘️ Sales — ${t('dailyReport')}`;
     if (p.includes('/outside-shop')) return `☘️ ${t('outsideShop')}`;
     return '';
   };

@@ -179,6 +179,7 @@ const OutsideShop = () => {
     const [payFilterFrom, setPayFilterFrom] = useState(new Date().toLocaleDateString('en-CA'));
     const [payFilterTo, setPayFilterTo] = useState(new Date().toLocaleDateString('en-CA'));
     const [usePayRange, setUsePayRange] = useState(false);
+    const [payFilterVendorId, setPayFilterVendorId] = useState('all');
 
     // Purchase Form State
     const [vendorId, setVendorId] = useState('');
@@ -1450,13 +1451,26 @@ const OutsideShop = () => {
             </div>
 
             <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-                <div style={{ padding: '20px 24px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ padding: '16px 24px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <History size={18} color="#64748b" />
                         <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>{t('recentPayments')}</h3>
                     </div>
                     
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        {/* Vendor filter */}
+                        <select
+                            value={payFilterVendorId}
+                            onChange={e => setPayFilterVendorId(e.target.value)}
+                            style={{ ...INPUT_S, width: 'auto', minWidth: '140px', padding: '6px 10px', fontSize: '12px', borderColor: payFilterVendorId !== 'all' ? '#7c3aed' : '#e2e8f0', color: payFilterVendorId !== 'all' ? '#5b21b6' : '#1e293b' }}
+                        >
+                            <option value="all">{t('allVendors') || 'All Vendors'}</option>
+                            {vendors.map(v => (
+                                <option key={v.id} value={v.id}>{v.name}</option>
+                            ))}
+                        </select>
+
+                        {/* Date range filter */}
                         {!usePayRange ? (
                              <button onClick={() => setUsePayRange(true)} style={{ fontSize: '12px', fontWeight: 800, color: '#3b82f6', background: '#eff6ff', border: '1px solid #dbeafe', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer' }}>
                                  {t('custom')} {t('filter') || 'Filter'}
@@ -1470,6 +1484,7 @@ const OutsideShop = () => {
                                     setUsePayRange(false);
                                     setPayFilterFrom(paymentForm.date);
                                     setPayFilterTo(paymentForm.date);
+                                    setPayFilterVendorId('all');
                                 }} style={{ fontSize: '12px', fontWeight: 800, color: '#ef4444', background: '#fef2f2', border: '1px solid #fee2e2', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer' }}>
                                     {t('close')}
                                 </button>
@@ -1498,41 +1513,89 @@ const OutsideShop = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {payments.filter(p => {
-                                const isVendor = p.type === 'vendor';
-                                const d = p.date || '';
-                                const inRange = d >= payFilterFrom && d <= payFilterTo;
-                                return isVendor && inRange;
-                            }).sort((a,b) => b.date.localeCompare(a.date)).slice(0, 20).map((p, idx) => (
-                                <tr key={p.id} style={{ borderBottom: '1px solid #f8fafc', background: idx%2===0 ? '#fff' : '#fafafa' }}>
-                                    <td style={TD_S}>{p.date || '---'}</td>
-                                    <td style={{ ...TD_S, fontWeight: 700 }}>{vendors.find(v => v.id === p.entityId)?.name || '---'}</td>
-                                    <td style={{ ...TD_S, color: '#64748b' }}>{p.note || '---'}</td>
-                                    <td style={{ ...TD_S, textAlign: 'right', fontWeight: 800, color: '#16a34a' }}>{fmt(p.amount)}</td>
-                                    <td style={{ ...TD_S, textAlign: 'center' }}>
-                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                                            <button onClick={() => handleEditPayment(p)} title="Edit" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e0e7ff', background: '#fff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                                <Pencil size={14}/>
-                                            </button>
-                                            <button onClick={() => handleWhatsAppPayment(p)} title="WhatsApp" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #dcfce7', background: '#fff', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                                <WhatsAppIcon size={16}/>
-                                            </button>
-                                            <button onClick={() => handlePrintPayment(p)} title="Print" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                                <Printer size={14}/>
-                                            </button>
-                                            <button onClick={async () => {
-                                                if(window.confirm(t('delete') + '?')) {
-                                                    await deleteDoc(doc(p.tenantId ? db : db, 'payments', p.id));
-                                                    await updateDoc(doc(db, 'vendors', p.entityId), { balance: increment(p.amount) });
-                                                }
-                                            }} style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #fee2e2', background: '#fff', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                                <Trash2 size={14}/>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                            {(() => {
+                                const filteredPayments = payments.filter(p => {
+                                    const isVendor = p.type === 'vendor';
+                                    const d = p.date || '';
+                                    const vendorMatch = payFilterVendorId === 'all' || p.entityId === payFilterVendorId;
+                                    // When a specific vendor is chosen, show ALL their records (no date cap)
+                                    const inRange = payFilterVendorId !== 'all'
+                                        ? true
+                                        : (d >= payFilterFrom && d <= payFilterTo);
+                                    return isVendor && inRange && vendorMatch;
+                                }).sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+
+                                if (filteredPayments.length === 0) {
+                                    return (
+                                        <tr>
+                                            <td colSpan={5} style={{ padding: '60px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>
+                                                {t('noRecords')}
+                                            </td>
+                                        </tr>
+                                    );
+                                }
+
+                                return filteredPayments.map((p, idx) => (
+                                    <tr key={p.id} style={{ borderBottom: '1px solid #f8fafc', background: idx%2===0 ? '#fff' : '#fafafa' }}>
+                                        <td style={TD_S}>{p.date || '---'}</td>
+                                        <td style={{ ...TD_S, fontWeight: 700 }}>{vendors.find(v => v.id === p.entityId)?.name || '---'}</td>
+                                        <td style={{ ...TD_S, color: '#64748b' }}>{p.note || '---'}</td>
+                                        <td style={{ ...TD_S, textAlign: 'right', fontWeight: 800, color: '#16a34a' }}>{fmt(p.amount)}</td>
+                                        <td style={{ ...TD_S, textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                                <button onClick={() => handleEditPayment(p)} title="Edit" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e0e7ff', background: '#fff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                                    <Pencil size={14}/>
+                                                </button>
+                                                <button onClick={() => handleWhatsAppPayment(p)} title="WhatsApp" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #dcfce7', background: '#fff', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                                    <WhatsAppIcon size={16}/>
+                                                </button>
+                                                <button onClick={() => handlePrintPayment(p)} title="Print" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                                    <Printer size={14}/>
+                                                </button>
+                                                <button onClick={async () => {
+                                                    if(window.confirm(t('delete') + '?')) {
+                                                        await deleteDoc(doc(p.tenantId ? db : db, 'payments', p.id));
+                                                        await updateDoc(doc(db, 'vendors', p.entityId), { balance: increment(p.amount) });
+                                                    }
+                                                }} style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #fee2e2', background: '#fff', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                                    <Trash2 size={14}/>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ));
+                            })()}
                         </tbody>
+                        <tfoot>
+                            {(() => {
+                                const filteredPayments = payments.filter(p => {
+                                    const isVendor = p.type === 'vendor';
+                                    const d = p.date || '';
+                                    const vendorMatch = payFilterVendorId === 'all' || p.entityId === payFilterVendorId;
+                                    const inRange = payFilterVendorId !== 'all'
+                                        ? true
+                                        : (d >= payFilterFrom && d <= payFilterTo);
+                                    return isVendor && inRange && vendorMatch;
+                                });
+                                if (filteredPayments.length === 0) return null;
+                                const grandTotal = filteredPayments.reduce((acc, p) => acc + (p.amount || 0), 0);
+                                const count = filteredPayments.length;
+                                return (
+                                    <tr style={{ background: '#f0fdf4', borderTop: '2px solid #86efac' }}>
+                                        <td colSpan={3} style={{ ...TD_S, textAlign: 'right', fontWeight: 800, color: '#14532d' }}>
+                                            {t('grandTotal') || 'Grand Total'}
+                                            <span style={{ opacity: 0.65, fontWeight: 600, marginLeft: '8px', fontSize: '11px' }}>
+                                                ({count} {count === 1 ? 'entry' : 'entries'})
+                                            </span>
+                                        </td>
+                                        <td style={{ ...TD_S, textAlign: 'right', fontWeight: 900, fontSize: '18px', color: '#15803d' }}>
+                                            {fmt(grandTotal)}
+                                        </td>
+                                        <td />
+                                    </tr>
+                                );
+                            })()}
+                        </tfoot>
                     </table>
                 </div>
             </div>

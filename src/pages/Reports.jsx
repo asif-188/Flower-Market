@@ -299,10 +299,10 @@ const Reports = () => {
                         <tbody>
                             <tr>
                                 <td align="center"></td>
-                                <td style="font-weight: 700">${t('openingBalance')}</td>
+                                <td style="font-weight: 700; color: #78350f;">${t('openingBalance')}</td>
                                 <td align="center">0.000</td>
                                 <td align="center">0</td>
-                                <td align="right" style="font-weight: 700">${openingBalance.toFixed(0)}</td>
+                                <td align="right" style="font-weight: 700; color: #78350f;">${openingBalance.toFixed(0)}</td>
                                 <td align="right">0</td>
                                 <td align="right">0</td>
                             </tr>
