@@ -178,8 +178,14 @@ const OutsideShop = () => {
 
     const [payFilterFrom, setPayFilterFrom] = useState(new Date().toLocaleDateString('en-CA'));
     const [payFilterTo, setPayFilterTo] = useState(new Date().toLocaleDateString('en-CA'));
-    const [usePayRange, setUsePayRange] = useState(false);
+    const [payFilterAllDates, setPayFilterAllDates] = useState(false);
     const [payFilterVendorId, setPayFilterVendorId] = useState('all');
+
+    // Purchase Table Filter States
+    const [purchaseFilterFrom, setPurchaseFilterFrom] = useState(new Date().toLocaleDateString('en-CA'));
+    const [purchaseFilterTo, setPurchaseFilterTo] = useState(new Date().toLocaleDateString('en-CA'));
+    const [purchaseFilterAllDates, setPurchaseFilterAllDates] = useState(false);
+    const [purchaseFilterVendorId, setPurchaseFilterVendorId] = useState('all');
 
     // Purchase Form State
     const [vendorId, setVendorId] = useState('');
@@ -197,6 +203,13 @@ const OutsideShop = () => {
     // Vendor Payment State
     const [paymentForm, setPaymentForm] = useState({ vendorId: '', amount: '', date: new Date().toLocaleDateString('en-CA'), note: '' });
     const [editingPaymentId, setEditingPaymentId] = useState(null);
+    const [calcPurchaseFrom, setCalcPurchaseFrom] = useState(new Date().toLocaleDateString('en-CA'));
+    const [calcPurchaseTo, setCalcPurchaseTo] = useState(new Date().toLocaleDateString('en-CA'));
+
+    useEffect(() => {
+        setCalcPurchaseFrom(paymentForm.date);
+        setCalcPurchaseTo(paymentForm.date);
+    }, [paymentForm.date]);
 
     // Auto-translation state
     const [isTranslating, setIsTranslating] = useState(false);
@@ -280,16 +293,19 @@ const OutsideShop = () => {
 
     // Computed
     const todayPurchases = useMemo(() => {
-        let filtered = purchases.filter(p => p.date === date);
-        if (vendorId) {
-            filtered = filtered.filter(p => p.vendorId === vendorId);
+        let filtered = purchases;
+        if (!purchaseFilterAllDates) {
+            filtered = filtered.filter(p => p.date >= purchaseFilterFrom && p.date <= purchaseFilterTo);
+        }
+        if (purchaseFilterVendorId !== 'all') {
+            filtered = filtered.filter(p => p.vendorId === purchaseFilterVendorId);
         }
         return filtered.sort((a,b) => {
             const tA = (a.timestamp?.toMillis?.() || a.createdAt?.toMillis?.() || 0);
             const tB = (b.timestamp?.toMillis?.() || b.createdAt?.toMillis?.() || 0);
             return tA - tB;
         });
-    }, [purchases, date, vendorId]);
+    }, [purchases, purchaseFilterFrom, purchaseFilterTo, purchaseFilterAllDates, purchaseFilterVendorId]);
 
     const stats = useMemo(() => {
         const vendor = vendors.find(v => v.id === vendorId);
@@ -306,6 +322,25 @@ const OutsideShop = () => {
             vendorBalance: vendor?.balance || 0
         };
     }, [todayPurchases, payments, vendors, vendorId, date]);
+
+    const purchaseTotalForPayment = useMemo(() => {
+        if (!paymentForm.vendorId || !calcPurchaseFrom || !calcPurchaseTo) return 0;
+        return purchases
+            .filter(p => p.vendorId === paymentForm.vendorId && p.date >= calcPurchaseFrom && p.date <= calcPurchaseTo)
+            .reduce((sum, p) => sum + (p.grandTotal || 0), 0);
+    }, [purchases, paymentForm.vendorId, calcPurchaseFrom, calcPurchaseTo]);
+
+    // Auto-fill payment amount from purchase total when vendor or calculate range changes
+    useEffect(() => {
+        if (paymentForm.vendorId && calcPurchaseFrom && calcPurchaseTo) {
+            const purchaseTotal = purchases
+                .filter(p => p.vendorId === paymentForm.vendorId && p.date >= calcPurchaseFrom && p.date <= calcPurchaseTo)
+                .reduce((sum, p) => sum + (p.grandTotal || 0), 0);
+            if (purchaseTotal > 0 && !editingPaymentId) {
+                setPaymentForm(p => ({ ...p, amount: purchaseTotal.toString() }));
+            }
+        }
+    }, [paymentForm.vendorId, calcPurchaseFrom, calcPurchaseTo, purchases, editingPaymentId]);
 
     // Excel Operations
     const handleDownloadTemplate = () => {
@@ -705,7 +740,7 @@ const OutsideShop = () => {
 
         const { url } = await generatePurchaseReceiptCanvas({ entity: vendor, purchase: p, bizInfo, labels, lang });
         const win = window.open('', '_blank');
-        win.document.write(`<html><head><style>@media print{body{margin:0}}body{margin:0;display:flex;justify-content:center;align-items:flex-start;background:#fff}img{max-width:100%;height:auto}</style></head><body><img src="${url}"><script>window.onload=function(){window.print();}</script></body></html>`);
+        win.document.write(`<html><head><title>Purchase Receipt - ${p.id}</title><style>body { margin: 0; display: flex; justify-content: center; align-items: center; background: #f3f4f6; min-height: 100vh; } img { max-width: 100%; max-height: 100vh; display: block; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.1); } @page { size: A4 portrait; margin: 0; } @media print { html, body { margin: 0; padding: 0; background: #fff; display: block; width: 100%; height: auto; } .print-container { display: block; width: 100%; height: 297mm; box-sizing: border-box; overflow: hidden; } img { width: 100%; height: 100%; display: block; box-shadow: none; } }</style><script>window.onload = function() { window.print(); }</script></head><body><div class="print-container"><img src="${url}"></div></body></html>`);
         win.document.close();
     };
 
@@ -930,7 +965,7 @@ const OutsideShop = () => {
 
         const { url } = await generatePaymentReceiptCanvas({ entity: vendor, payment: p, bizInfo, labels, lang });
         const win = window.open('', '_blank');
-        win.document.write(`<html><head><style>@media print{body{margin:0}}body{margin:0;display:flex;justify-content:center;align-items:flex-start;background:#fff}img{max-width:100%;height:auto}</style></head><body><img src="${url}"><script>window.onload=function(){window.print();}</script></body></html>`);
+        win.document.write(`<html><head><title>Payment Receipt - ${p.id}</title><style>body { margin: 0; display: flex; justify-content: center; align-items: center; background: #f3f4f6; min-height: 100vh; } img { max-width: 100%; max-height: 100vh; display: block; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.1); } @page { size: A4 portrait; margin: 0; } @media print { html, body { margin: 0; padding: 0; background: #fff; display: block; width: 100%; height: auto; } .print-container { display: block; width: 100%; height: 297mm; box-sizing: border-box; overflow: hidden; } img { width: 100%; height: 100%; display: block; box-shadow: none; } }</style><script>window.onload = function() { window.print(); }</script></head><body><div class="print-container"><img src="${url}"></div></body></html>`);
         win.document.close();
     };
 
@@ -1202,12 +1237,59 @@ const OutsideShop = () => {
             </div>
 
             <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-                <div style={{ padding: '20px 24px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <History size={18} color="#64748b" />
-                    <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
-                        {date === new Date().toLocaleDateString('en-CA') ? t('todayPurchases') : `${date.split('-').reverse().join('-')} ${t('purchase')}`}
-                        {vendorId && ` - ${vendors.find(v => v.id === vendorId)?.name || ''}`}
-                    </h3>
+                <div style={{ padding: '16px 24px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <History size={18} color="#64748b" />
+                        <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>{t('recentPurchases') || 'Recent Purchases'}</h3>
+                    </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        {/* Vendor filter */}
+                        <select
+                            value={purchaseFilterVendorId}
+                            onChange={e => setPurchaseFilterVendorId(e.target.value)}
+                            style={{ ...INPUT_S, width: 'auto', minWidth: '140px', padding: '6px 10px', fontSize: '12px', borderColor: purchaseFilterVendorId !== 'all' ? '#d97706' : '#e2e8f0', color: purchaseFilterVendorId !== 'all' ? '#92400e' : '#1e293b' }}
+                        >
+                            <option value="all">{t('allVendors') || 'All Vendors'}</option>
+                            {vendors.map(v => (
+                                <option key={v.id} value={v.id}>{v.name}</option>
+                            ))}
+                        </select>
+
+                        {/* All Dates Checkbox */}
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b', cursor: 'pointer', fontWeight: 700 }}>
+                            <input 
+                                type="checkbox" 
+                                checked={purchaseFilterAllDates} 
+                                onChange={e => setPurchaseFilterAllDates(e.target.checked)} 
+                                style={{ width: '15px', height: '15px', accentColor: '#d97706' }} 
+                            />
+                            {t('allDates') || 'All Dates'}
+                        </label>
+
+                        {/* Date range inputs */}
+                        {!purchaseFilterAllDates && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700 }}>{t('from') || 'From'}:</span>
+                                <input type="date" value={purchaseFilterFrom} onChange={e => setPurchaseFilterFrom(e.target.value)} style={{ ...INPUT_S, width: '130px', padding: '6px 10px', fontSize: '12px' }} />
+                                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700 }}>{t('to') || 'To'}:</span>
+                                <input type="date" value={purchaseFilterTo} onChange={e => setPurchaseFilterTo(e.target.value)} style={{ ...INPUT_S, width: '130px', padding: '6px 10px', fontSize: '12px' }} />
+                            </div>
+                        )}
+
+                        <button 
+                            onClick={() => {
+                                const today = new Date().toLocaleDateString('en-CA');
+                                setPurchaseFilterFrom(today);
+                                setPurchaseFilterTo(today);
+                                setPurchaseFilterAllDates(false);
+                                setPurchaseFilterVendorId('all');
+                            }} 
+                            style={{ fontSize: '12px', fontWeight: 800, color: '#ef4444', background: '#fef2f2', border: '1px solid #fee2e2', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer' }}
+                        >
+                            {t('reset') || 'Reset'}
+                        </button>
+                    </div>
                 </div>
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -1402,10 +1484,6 @@ const OutsideShop = () => {
                     <input type="date" value={paymentForm.date} onChange={e => {
                         const d = e.target.value;
                         setPaymentForm(p=>({...p, date: d}));
-                        if (!usePayRange) {
-                            setPayFilterFrom(d);
-                            setPayFilterTo(d);
-                        }
                     }} style={{ ...INPUT_S, width: '150px' }} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', alignItems: 'flex-end' }}>
@@ -1420,7 +1498,20 @@ const OutsideShop = () => {
                         />
                     </div>
                     <div>
-                        <label style={LABEL_S}>{t('amount')}</label>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <label style={LABEL_S}>{t('amount')}</label>
+                            {purchaseTotalForPayment > 0 && (
+                                <span 
+                                    onClick={() => setPaymentForm(p => ({ ...p, amount: purchaseTotalForPayment.toString() }))}
+                                    style={{ fontSize: '11px', fontWeight: 800, color: '#7c3aed', cursor: 'pointer', background: '#f5f3ff', border: '1px solid #c4b5fd', padding: '2px 8px', borderRadius: '6px', marginBottom: '4px', transition: 'all 0.2s' }}
+                                    onMouseEnter={e => Object.assign(e.currentTarget.style, { background: '#ede9fe' })}
+                                    onMouseLeave={e => Object.assign(e.currentTarget.style, { background: '#f5f3ff' })}
+                                    title="Click to auto-fill this amount"
+                                >
+                                    {t('purchase') || 'Purchase'}: ₹{purchaseTotalForPayment}
+                                </span>
+                            )}
+                        </div>
                         <input ref={refPayAmount} type="number" value={paymentForm.amount} onChange={e => setPaymentForm(p=>({...p, amount: e.target.value}))} onKeyDown={e => { if(e.key==='Enter') refPayNote.current?.focus() }} style={INPUT_S} placeholder="0.00" />
                     </div>
                     <div>
@@ -1448,6 +1539,35 @@ const OutsideShop = () => {
                         )}
                     </div>
                 </div>
+                {paymentForm.vendorId && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '16px', background: '#f5f3ff', padding: '10px 16px', borderRadius: '12px', border: '1px solid #ddd6fe', width: 'fit-content' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#5b21b6', textTransform: 'uppercase' }}>
+                            {t('calculatePurchaseForRange') || 'Calculate Purchase for Range'}:
+                        </span>
+                        <input 
+                            type="date" 
+                            value={calcPurchaseFrom} 
+                            onChange={e => setCalcPurchaseFrom(e.target.value)} 
+                            style={{ ...INPUT_S, width: '130px', padding: '4px 8px', fontSize: '12px', border: '1px solid #c4b5fd', margin: 0 }} 
+                        />
+                        <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700 }}>{t('to') || 'to'}</span>
+                        <input 
+                            type="date" 
+                            value={calcPurchaseTo} 
+                            onChange={e => setCalcPurchaseTo(e.target.value)} 
+                            style={{ ...INPUT_S, width: '130px', padding: '4px 8px', fontSize: '12px', border: '1px solid #c4b5fd', margin: 0 }} 
+                        />
+                        <button 
+                            onClick={() => {
+                                setCalcPurchaseFrom(paymentForm.date);
+                                setCalcPurchaseTo(paymentForm.date);
+                            }}
+                            style={{ fontSize: '10px', fontWeight: 800, color: '#7c3aed', background: '#fff', border: '1px solid #c4b5fd', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer' }}
+                        >
+                            {t('resetToEntryDate') || 'Reset to Entry Date'}
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
@@ -1470,35 +1590,39 @@ const OutsideShop = () => {
                             ))}
                         </select>
 
-                        {/* Date range filter */}
-                        {!usePayRange ? (
-                             <button onClick={() => setUsePayRange(true)} style={{ fontSize: '12px', fontWeight: 800, color: '#3b82f6', background: '#eff6ff', border: '1px solid #dbeafe', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer' }}>
-                                 {t('custom')} {t('filter') || 'Filter'}
-                             </button>
-                        ) : (
+                        {/* All Dates Checkbox */}
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b', cursor: 'pointer', fontWeight: 700 }}>
+                            <input 
+                                type="checkbox" 
+                                checked={payFilterAllDates} 
+                                onChange={e => setPayFilterAllDates(e.target.checked)} 
+                                style={{ width: '15px', height: '15px', accentColor: '#7c3aed' }} 
+                            />
+                            {t('allDates') || 'All Dates'}
+                        </label>
+
+                        {/* Date range filters */}
+                        {!payFilterAllDates && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700 }}>{t('from') || 'From'}:</span>
                                 <input type="date" value={payFilterFrom} onChange={e => setPayFilterFrom(e.target.value)} style={{ ...INPUT_S, width: '130px', padding: '6px 10px', fontSize: '12px' }} />
-                                <span style={{ fontSize: '12px', color: '#94a3b8' }}>{t('to')}</span>
+                                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700 }}>{t('to') || 'To'}:</span>
                                 <input type="date" value={payFilterTo} onChange={e => setPayFilterTo(e.target.value)} style={{ ...INPUT_S, width: '130px', padding: '6px 10px', fontSize: '12px' }} />
-                                <button onClick={() => {
-                                    setUsePayRange(false);
-                                    setPayFilterFrom(paymentForm.date);
-                                    setPayFilterTo(paymentForm.date);
-                                    setPayFilterVendorId('all');
-                                }} style={{ fontSize: '12px', fontWeight: 800, color: '#ef4444', background: '#fef2f2', border: '1px solid #fee2e2', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer' }}>
-                                    {t('close')}
-                                </button>
                             </div>
                         )}
-                        {usePayRange && (
-                             <button onClick={() => {
-                                 const today = new Date().toLocaleDateString('en-CA');
-                                 setPayFilterFrom(today);
-                                 setPayFilterTo(today);
-                             }} style={{ fontSize: '12px', fontWeight: 800, color: '#10b981', background: '#f0fdf4', border: '1px solid #dcfce7', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer' }}>
-                                 {t('today')}
-                             </button>
-                        )}
+
+                        <button 
+                            onClick={() => {
+                                const today = new Date().toLocaleDateString('en-CA');
+                                setPayFilterFrom(today);
+                                setPayFilterTo(today);
+                                setPayFilterAllDates(false);
+                                setPayFilterVendorId('all');
+                            }} 
+                            style={{ fontSize: '12px', fontWeight: 800, color: '#ef4444', background: '#fef2f2', border: '1px solid #fee2e2', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer' }}
+                        >
+                            {t('reset') || 'Reset'}
+                        </button>
                     </div>
                 </div>
                 <div style={{ overflowX: 'auto' }}>
@@ -1518,8 +1642,7 @@ const OutsideShop = () => {
                                     const isVendor = p.type === 'vendor';
                                     const d = p.date || '';
                                     const vendorMatch = payFilterVendorId === 'all' || p.entityId === payFilterVendorId;
-                                    // When a specific vendor is chosen, show ALL their records (no date cap)
-                                    const inRange = payFilterVendorId !== 'all'
+                                    const inRange = payFilterAllDates
                                         ? true
                                         : (d >= payFilterFrom && d <= payFilterTo);
                                     return isVendor && inRange && vendorMatch;
@@ -1572,7 +1695,7 @@ const OutsideShop = () => {
                                     const isVendor = p.type === 'vendor';
                                     const d = p.date || '';
                                     const vendorMatch = payFilterVendorId === 'all' || p.entityId === payFilterVendorId;
-                                    const inRange = payFilterVendorId !== 'all'
+                                    const inRange = payFilterAllDates
                                         ? true
                                         : (d >= payFilterFrom && d <= payFilterTo);
                                     return isVendor && inRange && vendorMatch;
@@ -1653,9 +1776,13 @@ const OutsideShop = () => {
         };
 
         const handlePrintVendorLedger = async (v) => {
-            const { url } = await generateLedgerCanvas(getVendorLedgerData(v));
+            const pages = await generateLedgerCanvas({
+                ...getVendorLedgerData(v),
+                multiPage: true,
+                startDate: reportFilters.fromDate
+            });
             const win = window.open('', '_blank');
-            win.document.write(`<html><head><style>@media print{body{margin:0}}body{margin:0;display:flex;justify-content:center;align-items:flex-start;background:#fff}img{max-width:100%;height:auto}</style></head><body><img src="${url}"><script>window.onload=function(){window.print();}</script></body></html>`);
+            win.document.write(`<html><head><title>Vendor Statement - ${v.name}</title><style>body { margin: 0; background: #f3f4f6; display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 20px 0; } .page-break { display: block; } img { max-width: 100%; width: 210mm; height: 297mm; display: block; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.1); } @page { size: A4 portrait; margin: 0; } @media print { html, body { margin: 0; padding: 0; background: #fff; display: block; width: 100%; height: auto; } .page-break { page-break-after: always; page-break-inside: avoid; display: block; width: 100%; height: 297mm; box-sizing: border-box; overflow: hidden; } .page-break:last-child { page-break-after: avoid; } img { width: 100%; height: 100%; display: block; box-shadow: none; } }</style><script>window.onload = function() { const imgs = document.querySelectorAll('img'); let loadedCount = 0; if (imgs.length === 0) { window.print(); return; } imgs.forEach(img => { if (img.complete) { loadedCount++; if (loadedCount === imgs.length) { window.print(); } } else { img.onload = function() { loadedCount++; if (loadedCount === imgs.length) { window.print(); } }; img.onerror = function() { loadedCount++; if (loadedCount === imgs.length) { window.print(); } }; } }); }</script></head><body>${pages.map(p => '<div class="page-break"><img src="' + p.url + '"></div>').join('')}</body></html>`);
             win.document.close();
         };
 
