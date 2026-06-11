@@ -370,13 +370,19 @@ export async function generateLedgerCanvas({
                 let fitCount = Math.floor(availableH / LINE_H);
                 if (fitCount <= 0) fitCount = 1; // safety fallback
                 
+                let drawCount = fitCount;
+                if (remainingCount <= fitCount) {
+                    drawCount = remainingCount - 1;
+                    if (drawCount <= 0) drawCount = 1; // safety fallback
+                }
+                
                 pagesLayout.push({
                     isFirst: isFirstPage,
                     isLast: false,
                     startIndex: currentItemIndex,
-                    endIndex: currentItemIndex + fitCount
+                    endIndex: currentItemIndex + drawCount
                 });
-                currentItemIndex += fitCount;
+                currentItemIndex += drawCount;
             }
         }
 
@@ -427,7 +433,10 @@ export async function generateLedgerCanvas({
 
                 const drawRow = (rowY, dataRow, isOpening = false) => {
                     const { date: rDate, particulars: rParts, weight: rW, rate: rR, total: rT, cashRec: rCR, cashLess: rCL } = dataRow;
-                    const vals = [rDate, rParts, rW, rR, rT, rCR, rCL];
+                    const formattedDate = (rDate && rDate.includes('-') && rDate.split('-')[0].length === 4)
+                        ? rDate.split('-').reverse().join('-')
+                        : rDate;
+                    const vals = [formattedDate, rParts, rW, rR, rT, rCR, rCL];
                     vals.forEach((v, i) => {
                         let x = colStarts[i] + 10;
                         let align = 'left';
@@ -505,7 +514,7 @@ export async function generateLedgerCanvas({
                 } else {
                     // Simplified Header for Continued Pages
                     drawText(name, PAD + 10, y + 20, { size: 28, weight: '900' });
-                    drawText(`${statementTitle} (${lang === 'ta' ? 'தொடர்ச்சி' : 'Continued'})`, W/2, y + 20, { size: 20, weight: '800', align: 'center' });
+                    drawText(`${lang === 'ta' ? 'அறிக்கை' : 'STATEMENT'} (${lang === 'ta' ? 'தொடர்ச்சி' : 'Continued'})`, W/2, y + 20, { size: 20, weight: '800', align: 'center' });
                     drawText(`CELL : ${phone1}`, W - PAD - 10, y + 20, { size: 18, weight: '700', align: 'right' });
                     y += 45;
                     drawText(`${nameLabel} : ${buyer.name}  |  ${customerNoLabel} : ${buyer.displayId || '---'}`, PAD + 10, y, { size: 18, weight: '700' });
@@ -571,12 +580,13 @@ export async function generateLedgerCanvas({
                     drawSumRow(y + 84, cashLessLabel,   summary.less, '#b91c1c');
                     
                     const finalBal = openingBalance + summary.sales - summary.paid - summary.less;
-                    y += 125;
+                    y += 130; // Move below the summary box
+                    y += 20;  // Add margin
                     ctx.beginPath(); ctx.moveTo(PAD + 10, y); ctx.lineTo(W - PAD - 10, y); ctx.stroke();
-                    drawText(finalBalLabel, PAD + 15, y + 20, { size: 26, weight: '900' });
-                    drawText(fmtNum(finalBal), W - PAD - 15, y + 20, { size: 26, weight: '900', align: 'right' });
+                    drawText(finalBalLabel, PAD + 15, y + 25, { size: 26, weight: '900' });
+                    drawText(fmtNum(finalBal), W - PAD - 15, y + 25, { size: 26, weight: '900', align: 'right' });
                     
-                    y += 45;
+                    y += 55;
                     drawText(thankYou, W/2, y, { size: 28, align: 'center' });
                 }
 
@@ -691,7 +701,10 @@ export async function generateLedgerCanvas({
     // Opening Balance Row
     const drawRow = (rowY, data, isOpening = false) => {
         const { date, particulars, weight, rate, total, cashRec, cashLess } = data;
-        const vals = [date, particulars, weight, rate, total, cashRec, cashLess];
+        const formattedDate = (date && date.includes('-') && date.split('-')[0].length === 4)
+            ? date.split('-').reverse().join('-')
+            : date;
+        const vals = [formattedDate, particulars, weight, rate, total, cashRec, cashLess];
         vals.forEach((v, i) => {
             let x = colStarts[i] + 10;
             let align = 'left';
@@ -763,12 +776,13 @@ export async function generateLedgerCanvas({
     
     // Final Balance Row (with different styling to stand out)
     const finalBal = openingBalance + summary.sales - summary.paid - summary.less;
-    y += 125;
+    y += 130; // Move below the summary box
+    y += 20;  // Add margin
     ctx.beginPath(); ctx.moveTo(PAD + 10, y); ctx.lineTo(W - PAD - 10, y); ctx.stroke();
-    drawText(finalBalLabel, PAD + 15, y + 20, { size: 26, weight: '900' });
-    drawText(fmtNum(finalBal), W - PAD - 15, y + 20, { size: 26, weight: '900', align: 'right' });
+    drawText(finalBalLabel, PAD + 15, y + 25, { size: 26, weight: '900' });
+    drawText(fmtNum(finalBal), W - PAD - 15, y + 25, { size: 26, weight: '900', align: 'right' });
     
-    y += 45;
+    y += 55;
 
     // Footer
     drawText(thankYou, W/2, y, { size: 28, align: 'center' });
