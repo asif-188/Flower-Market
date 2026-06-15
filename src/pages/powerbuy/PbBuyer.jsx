@@ -229,7 +229,7 @@ const PbBuyer = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this Power Buy customer?')) return;
+    if (!window.confirm('Delete this VV customer?')) return;
     try { await deletePbBuyer(id); }
     catch (err) { alert('❌ Delete failed: ' + err.message); }
   };
@@ -290,7 +290,7 @@ const PbBuyer = () => {
       <div style={S.header}>
         <div style={S.titleRow}>
           <span style={{ fontSize: '22px' }}>⚡</span>
-          <h2 style={S.title}>Power Buy — Customer Master</h2>
+          <h2 style={S.title}>⚜️ VV — Customer Master</h2>
         </div>
         <div style={S.actions}>
           <button style={S.btnTemplate} onClick={handleDownloadTemplate}
@@ -345,7 +345,7 @@ const PbBuyer = () => {
           </thead>
           <tbody>
             {filteredBuyers.length === 0 ? (
-              <tr><td colSpan={6} style={S.emptyRow}>No Power Buy customers found.</td></tr>
+              <tr><td colSpan={6} style={S.emptyRow}>No VV customers found.</td></tr>
             ) : (
               filteredBuyers.map((buyer, idx) => {
                 const isHighlighted = tableSelectedIndex === idx;
@@ -492,7 +492,7 @@ const PbBuyer = () => {
               <div>
                 <div style={{ fontSize: '16px', fontWeight: 800, color: '#1e293b', fontFamily: 'var(--font-display)' }}>{viewingBuyer.name}</div>
                 <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  ⚡ Power Buy • Last 30 Days • #{viewingBuyer.displayId}
+                  ⚜️ VV • Last 30 Days • #{viewingBuyer.displayId}
                 </div>
               </div>
               <button onClick={() => setViewingBuyer(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', display: 'flex' }}>

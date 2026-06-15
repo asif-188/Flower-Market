@@ -18,7 +18,7 @@ const MENU_ITEMS = [
     {
         emoji: '🧾',
         labelKey: 'sales',
-        color: { border: '#2563eb', text: '#2563eb', bg: '#eff6ff', glow: 'rgba(37,99,235,0.15)' },
+        color: { border: '#ea580c', text: '#ea580c', bg: '#fff7ed', glow: 'rgba(234,88,12,0.15)' },
         route: '/app/sales-entry',
     },
     {
@@ -36,7 +36,7 @@ const MENU_ITEMS = [
     {
         emoji: '📂',
         labelKey: 'dailyReport',
-        color: { border: '#4f46e5', text: '#4f46e5', bg: '#f5f3ff', glow: 'rgba(79,70,229,0.15)' },
+        color: { border: '#0d9488', text: '#0d9488', bg: '#f0fdfa', glow: 'rgba(13,148,136,0.15)' },
         route: '/app/daily-report',
     },
 ];

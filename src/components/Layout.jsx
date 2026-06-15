@@ -317,13 +317,13 @@ const Layout = () => {
   const getTitle = () => {
     const p = location.pathname;
     // Power Buy pages (check pb- prefix first to avoid conflict)
-    if (p.includes('/pb-buyer'))        return `⚡ Power Buy — Customer`;
-    if (p.includes('/pb-payments'))     return `⚡ Power Buy — Cash Receive`;
-    if (p.includes('/pb-sales'))        return `⚡ Power Buy — Sales`;
-    if (p.includes('/pb-reports'))      return `⚡ Power Buy — Customer Report`;
-    if (p.includes('/pb-flowers'))      return `⚡ Power Buy — Flowers`;
-    if (p.includes('/pb-daily-report')) return `⚡ Power Buy — Daily Report`;
-    if (p.includes('/power-buy'))       return `⚡ Power Buy`;
+    if (p.includes('/pb-buyer'))        return `⚜️ VV — Customer`;
+    if (p.includes('/pb-payments'))     return `⚜️ VV — Cash Receive`;
+    if (p.includes('/pb-sales'))        return `⚜️ VV — Sales`;
+    if (p.includes('/pb-reports'))      return `⚜️ VV — Customer Report`;
+    if (p.includes('/pb-flowers'))      return `⚜️ VV — Flowers`;
+    if (p.includes('/pb-daily-report')) return `⚜️ VV — Daily Report`;
+    if (p.includes('/power-buy'))       return `⚜️ VV`;
     // Sales pages
     if (p.includes('/buyer'))        return `☘️ Sales — ${t('customer')}`;
     if (p.includes('/payments'))     return `☘️ Sales — ${t('cashReceive')}`;

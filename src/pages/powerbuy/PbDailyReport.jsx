@@ -92,7 +92,7 @@ const PbDailyReport = () => {
         await savePbPayment({ entityId: bid, amount: rec, cashLess: les, notes: 'Sync from PB Daily Report', date: fromDate, timestamp: new Date().toISOString() });
         await updateDoc(doc(db, 'pb_buyers', bid), { balance: increment(-(rec + les)) });
       }
-      alert('✅ Power Buy collections synced!');
+      alert('✅ VV collections synced!');
       setTempAmounts({});
       setIsEntryMode(false);
     } catch (e) {
@@ -103,7 +103,7 @@ const PbDailyReport = () => {
   const handlePrint = () => {
     const biz = tenantData || { name: 'S.V.M', type: 'SRI VALLI FLOWER MERCHANT', address: 'B-7, FLOWER MARKET, TINDIVANAM.', phone1: '9443247771', phone2: '9952535057' };
     const printWindow = window.open('', '_blank');
-    const content = `<html><head><title>Power Buy Report - ${fromDate} to ${toDate}</title>
+    const content = `<html><head><title>Report - ${fromDate} to ${toDate}</title>
       <style>@page { size: auto; margin: 0; } body { font-family: serif; padding: 15mm; line-height: 1.4; margin: 0; font-size: 15pt; }
       .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #000; padding-bottom: 15px; }
       .shop-name { font-size: 32px; font-weight: 900; }
@@ -120,8 +120,8 @@ const PbDailyReport = () => {
     <div class="header">
       <div class="shop-name">${biz.name}</div>
       <div style="font-size: 16px; font-weight: 700;">${biz.type || ''}</div>
-      <div class="pb-badge">⚡ POWER BUY</div>
-      <div class="title">POWER BUY REPORT</div>
+      <div class="pb-badge">⚜️ VV</div>
+      <div class="title">VV REPORT</div>
       <div style="font-size: 16px; font-weight: 700;">Range: ${fromDate.split('-').reverse().join('/')} - ${toDate.split('-').reverse().join('/')}</div>
     </div>
     <table><thead><tr><th align="center">S.No</th><th align="left">Name</th><th align="center">Contact</th><th align="right">Balance</th><th align="right" style="width: 100px;">Cash Rec</th><th align="right" style="width: 100px;">Cash Less</th></tr></thead><tbody>
@@ -154,7 +154,7 @@ const PbDailyReport = () => {
         <div>
           <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ color: PB.primary }}>⚡</span>
-            <span>Power Buy Daily Report</span>
+            <span>⚜️ VV Daily Report</span>
           </h1>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

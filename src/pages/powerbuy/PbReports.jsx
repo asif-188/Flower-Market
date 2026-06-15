@@ -366,7 +366,7 @@ const PbReports = () => {
   const handleWhatsAppShare = () => {
     if (report.length === 0) return;
     const rangeText = appliedFrom === appliedTo ? appliedFrom : `${appliedFrom} to ${appliedTo}`;
-    let msg = `*POWER BUY CUSTOMER REPORT*\nPeriod: ${rangeText}\n\nOpening Balance: ${fmt(totalOpening)}\nPB Sales: ${fmt(totalSales)}\nPaid: ${fmt(totalPaid)}\nCash Less: ${fmt(totalLess)}\nDues: ${fmt(totalDues)}`;
+    let msg = `*VV CUSTOMER REPORT*\nPeriod: ${rangeText}\n\nOpening Balance: ${fmt(totalOpening)}\nSales: ${fmt(totalSales)}\nPaid: ${fmt(totalPaid)}\nCash Less: ${fmt(totalLess)}\nDues: ${fmt(totalDues)}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
@@ -531,7 +531,7 @@ const PbReports = () => {
         <div class="header">
           <div class="shop-name">${bizInfo.name || 'S.V.M'}</div>
           <div style="font-size: 22px; font-weight: 800;">${bizInfo.type || ''}</div>
-          <div class="pb-badge">⚡ POWER BUY</div>
+          <div class="pb-badge">⚜️ VV</div>
           <div class="report-title">${t('statementTitle')}</div>
           <div style="text-align: left; font-size: 20px; font-weight: 800; display: flex; justify-content: space-between;">
             <div>${t('customerNo')} : ${detailBuyer.displayId}<br/>${t('name')} : ${detailBuyer.name}</div>

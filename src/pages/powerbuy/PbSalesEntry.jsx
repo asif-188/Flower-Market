@@ -292,7 +292,7 @@ const PbSalesEntry = () => {
               <div style={{ fontSize: '11px', fontWeight: 700, color: PB.primary, marginTop: '6px', textAlign: 'center' }}>{date.split('-').reverse().join('-')}</div>
             </div>
           </div>
-          <h1 style={{ fontSize: '32px', fontWeight: 900, color: PB.primary, fontFamily: 'var(--font-display)', letterSpacing: '0.05em', margin: 0, textTransform: 'uppercase' }}>⚡ Power Buy</h1>
+          <h1 style={{ fontSize: '32px', fontWeight: 900, color: PB.primary, fontFamily: 'var(--font-display)', letterSpacing: '0.05em', margin: 0, textTransform: 'uppercase' }}>⚜️ VV</h1>
           {/* Financial Box */}
           <div style={{ justifySelf: 'end', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '16px', padding: '16px 20px', minWidth: '260px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {[
@@ -465,7 +465,7 @@ const PbSalesEntry = () => {
         {/* 3. Sales | Date Row */}
         <div style={{ border: '2px solid #000', display: 'flex', justifyContent: 'space-between', padding: '8px 15px', fontWeight: 'bold', fontSize: '18px', marginBottom: '10px' }}>
           <span>{t('date')} : {date.split('-').reverse().join('-')}</span>
-          <span style={{ textTransform: 'uppercase' }}>⚡ POWER BUY SALES</span>
+          <span style={{ textTransform: 'uppercase' }}>⚜️ VV SALES</span>
         </div>
 
         {/* 4. Customer & Balance Box */}

@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LangContext } from '../components/Layout';
 import { useTenant } from '../utils/TenantContext';
+import VVLogo from '../components/VVLogo';
 
 const Dashboard = () => {
     const navigate = useNavigate();
@@ -31,21 +32,10 @@ const Dashboard = () => {
 
                 <button
                     onClick={() => navigate('/app/sales')}
-                    className="group relative overflow-hidden bg-indigo-50 border-4 border-indigo-100 hover:border-indigo-300 p-10 rounded-[40px] shadow-2xl hover:shadow-indigo-200 transition-all transform hover:-translate-y-2 active:scale-95 flex items-center justify-center gap-8"
+                    className="group relative overflow-hidden bg-emerald-50 border-4 border-emerald-100 hover:border-emerald-300 p-10 rounded-[40px] shadow-2xl hover:shadow-emerald-200 transition-all transform hover:-translate-y-2 active:scale-95 flex items-center justify-center gap-8"
                 >
                     <div className="text-6xl group-hover:rotate-12 transition-transform">🧾</div>
-                    <span className="text-5xl font-black text-indigo-700 tracking-tighter italic">{t('sales')}</span>
-                </button>
-
-                <button
-                    onClick={() => navigate('/app/power-buy')}
-                    className="group relative overflow-hidden border-4 p-10 rounded-[40px] shadow-2xl transition-all transform hover:-translate-y-2 active:scale-95 flex items-center justify-center gap-8"
-                    style={{ background: 'linear-gradient(135deg, #f5f3ff, #ede9fe)', borderColor: '#c4b5fd', boxShadow: '0 20px 48px rgba(124,58,237,0.12)' }}
-                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 28px 64px rgba(124,58,237,0.25)'; e.currentTarget.style.borderColor = '#7c3aed'; }}
-                    onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 20px 48px rgba(124,58,237,0.12)'; e.currentTarget.style.borderColor = '#c4b5fd'; }}
-                >
-                    <div className="text-6xl group-hover:rotate-12 transition-transform">⚡</div>
-                    <span className="text-5xl font-black tracking-tighter italic" style={{ color: '#7c3aed' }}>Power Buy</span>
+                    <span className="text-5xl font-black text-emerald-700 tracking-tighter italic">{t('sales')}</span>
                 </button>
 
                 <button
@@ -57,13 +47,19 @@ const Dashboard = () => {
                 </button>
             </div>
 
-            <div className="mt-20 flex gap-12 opacity-40 hover:opacity-100 transition-opacity">
+            <div className="mt-20 flex gap-12 items-center opacity-40 hover:opacity-100 transition-opacity">
                 <button onClick={() => navigate('/app/accounts')} className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 hover:text-emerald-600">Audit Accounts</button>
                 <button onClick={() => navigate('/app/buyer')} className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 hover:text-emerald-600">Customer Directory</button>
                 <button onClick={() => navigate('/app/products')} className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 hover:text-emerald-600">Product Master</button>
                 <button onClick={() => navigate('/app/settings')} className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 hover:text-emerald-600">⚙️ Settings</button>
-                {/* <button onClick={() => navigate('/app/weight-test')} className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-500 hover:text-amber-600 font-bold">⚙️ Weight Test</button> */}
                 <button onClick={() => navigate('/admin')} className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-400 hover:text-purple-600">🔐 Admin Panel</button>
+                <button
+                    onClick={() => navigate('/app/power-buy')}
+                    className="flex items-center gap-1.5 hover:scale-110 transition-transform"
+                    title="VV"
+                >
+                    <VVLogo size={22} />
+                </button>
             </div>
         </div>
     );

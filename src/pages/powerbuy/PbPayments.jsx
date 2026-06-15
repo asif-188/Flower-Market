@@ -159,7 +159,7 @@ const PbPayments = () => {
       <div style={S.header}>
         <div style={S.titleRow}>
           <span style={{ fontSize: '22px' }}>💰</span>
-          <h2 style={S.title}>Power Buy — Cash Receive</h2>
+          <h2 style={S.title}>⚜️ VV — Cash Receive</h2>
         </div>
         <button style={S.btnAdd} onClick={handleOpenModal}
           onMouseEnter={e => { e.currentTarget.style.background = PB.primary; e.currentTarget.style.color = '#fff'; }}
@@ -232,7 +232,7 @@ const PbPayments = () => {
           </thead>
           <tbody>
             {buyerPayments.length === 0 ? (
-              <tr><td colSpan={5} style={{ padding: '60px 16px', textAlign: 'center', color: '#9ca3af', fontStyle: 'italic', fontSize: '14px' }}>No Power Buy payments recorded yet.</td></tr>
+              <tr><td colSpan={5} style={{ padding: '60px 16px', textAlign: 'center', color: '#9ca3af', fontStyle: 'italic', fontSize: '14px' }}>No VV payments recorded yet.</td></tr>
             ) : (
               buyerPayments.map((p, idx) => {
                 const isHighlighted = mainTableSelectedIndex === idx;
@@ -287,7 +287,7 @@ const PbPayments = () => {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '16px' }}>
           <div style={{ background: '#fff', borderRadius: '16px', width: '95%', maxWidth: '520px', maxHeight: '90vh', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden', fontFamily: 'var(--font-sans)', display: 'flex', flexDirection: 'column' }}>
             <div style={{ background: `linear-gradient(135deg, ${PB.primary}, #6d28d9)`, padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-              <span style={{ fontSize: '18px', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-display)' }}>⚡ Power Buy — Cash Receive</span>
+              <span style={{ fontSize: '18px', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-display)' }}>⚜️ VV — Cash Receive</span>
               <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', display: 'flex' }}><X size={24} strokeWidth={2.5} /></button>
             </div>
             <div style={{ padding: '32px', overflowY: 'auto', flex: 1 }}>

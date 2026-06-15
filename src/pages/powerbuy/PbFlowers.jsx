@@ -86,7 +86,7 @@ const PbFlowers = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this Power Buy flower variety?')) return;
+    if (!window.confirm('Delete this VV flower variety?')) return;
     try { await deletePbProduct(id); }
     catch (err) { alert('❌ Delete failed: ' + err.message); }
   };
@@ -96,7 +96,7 @@ const PbFlowers = () => {
       <div style={S.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '22px' }}>⚡</span>
-          <h2 style={S.title}>Power Buy — Flower Master</h2>
+          <h2 style={S.title}>⚜️ VV — Flower Master</h2>
         </div>
         <button style={S.btnAdd} onClick={() => openModal()}
           onMouseEnter={e => { e.currentTarget.style.background = PB.primary; e.currentTarget.style.color = '#fff'; }}
@@ -118,7 +118,7 @@ const PbFlowers = () => {
           <tbody>
             {flowers.length === 0 ? (
               <tr><td colSpan={5} style={{ padding: '60px 16px', textAlign: 'center', color: '#9ca3af', fontStyle: 'italic', fontSize: '14px' }}>
-                No Power Buy flower varieties added yet. Click "Add Flower" to get started.
+                No VV flower varieties added yet. Click "Add Flower" to get started.
               </td></tr>
             ) : (
               flowers.map((f, idx) => (
@@ -156,7 +156,7 @@ const PbFlowers = () => {
 
       {flowers.length > 0 && (
         <div style={{ marginTop: '20px', padding: '12px 16px', background: PB.light, borderRadius: '10px', border: `1px solid ${PB.border}`, fontSize: '12px', color: PB.primary, fontWeight: 600 }}>
-          ⚡ {flowers.length} Power Buy flower {flowers.length === 1 ? 'variety' : 'varieties'} available — these appear in the Power Buy Sales entry dropdown.
+          ⚜️ {flowers.length} VV flower {flowers.length === 1 ? 'variety' : 'varieties'} available — these appear in the VV Sales entry dropdown.
         </div>
       )}
 

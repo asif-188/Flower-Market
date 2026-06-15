@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LangContext } from '../../components/Layout';
+import VVLogo from '../../components/VVLogo';
 
 const PB_COLOR = {
   primary: '#7c3aed',
@@ -25,7 +26,7 @@ const MENU_ITEMS = [
   {
     emoji: '🧾',
     label: 'Sales',
-    color: { border: '#2563eb', text: '#2563eb', bg: '#eff6ff', glow: 'rgba(37,99,235,0.15)' },
+    color: { border: '#ea580c', text: '#ea580c', bg: '#fff7ed', glow: 'rgba(234,88,12,0.15)' },
     route: '/app/pb-sales',
   },
   {
@@ -43,7 +44,7 @@ const MENU_ITEMS = [
   {
     emoji: '📂',
     label: 'Daily Report',
-    color: { border: '#4f46e5', text: '#4f46e5', bg: '#eef2ff', glow: 'rgba(79,70,229,0.15)' },
+    color: { border: '#0d9488', text: '#0d9488', bg: '#f0fdfa', glow: 'rgba(13,148,136,0.15)' },
     route: '/app/pb-daily-report',
   },
 ];
@@ -123,7 +124,7 @@ const PowerBuyMenu = () => {
       <div style={{ position: 'absolute', bottom: '10%', right: '10%', width: '350px', height: '350px', background: 'radial-gradient(circle, rgba(79,70,229,0.06) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
 
       {/* Floating emojis */}
-      <div className="animate-float" style={{ position: 'absolute', top: '12%', left: '6%', fontSize: '28px', opacity: 0.2, pointerEvents: 'none' }}>⚡</div>
+      <div className="animate-float" style={{ position: 'absolute', top: '12%', left: '6%', opacity: 0.18, pointerEvents: 'none' }}><VVLogo size={32} /></div>
       <div className="animate-drift" style={{ position: 'absolute', top: '25%', right: '8%', fontSize: '36px', opacity: 0.1, pointerEvents: 'none', animationDelay: '1.5s' }}>🌸</div>
       <div className="animate-float" style={{ position: 'absolute', bottom: '25%', left: '14%', fontSize: '22px', opacity: 0.25, pointerEvents: 'none', animationDelay: '0.8s' }}>💜</div>
       <div className="animate-drift" style={{ position: 'absolute', bottom: '38%', right: '16%', fontSize: '28px', opacity: 0.1, pointerEvents: 'none', animationDelay: '2s' }}>🌺</div>
@@ -144,7 +145,7 @@ const PowerBuyMenu = () => {
           fontSize: '22px', color: '#fff', letterSpacing: '0.06em',
           textTransform: 'uppercase',
         }}>
-          Power Buy
+          VV
         </span>
         <span style={{ fontSize: '26px' }}>⚡</span>
       </div>

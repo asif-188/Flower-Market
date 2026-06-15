@@ -27,6 +27,7 @@ import PbSalesEntry from './pages/powerbuy/PbSalesEntry';
 import PbReports from './pages/powerbuy/PbReports';
 import PbFlowers from './pages/powerbuy/PbFlowers';
 import PbDailyReport from './pages/powerbuy/PbDailyReport';
+import VVPowerBuyGuard from './components/VVPowerBuyGuard';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useTenant();
@@ -79,14 +80,14 @@ const AppRoutes = () => {
           <Route path="settings" element={<Settings />} />
           <Route path="outside-shop" element={<OutsideShop />} />
           <Route path="weight-test" element={<WeightMachineTest />} />
-          {/* ── Power Buy Module ── */}
-          <Route path="power-buy" element={<PowerBuyMenu />} />
-          <Route path="pb-buyer" element={<PbBuyer />} />
-          <Route path="pb-payments" element={<PbPayments />} />
-          <Route path="pb-sales" element={<PbSalesEntry />} />
-          <Route path="pb-reports" element={<PbReports />} />
-          <Route path="pb-flowers" element={<PbFlowers />} />
-          <Route path="pb-daily-report" element={<PbDailyReport />} />
+          {/* ── VV Power Buy Module ── */}
+          <Route path="power-buy" element={<VVPowerBuyGuard><PowerBuyMenu /></VVPowerBuyGuard>} />
+          <Route path="pb-buyer" element={<VVPowerBuyGuard><PbBuyer /></VVPowerBuyGuard>} />
+          <Route path="pb-payments" element={<VVPowerBuyGuard><PbPayments /></VVPowerBuyGuard>} />
+          <Route path="pb-sales" element={<VVPowerBuyGuard><PbSalesEntry /></VVPowerBuyGuard>} />
+          <Route path="pb-reports" element={<VVPowerBuyGuard><PbReports /></VVPowerBuyGuard>} />
+          <Route path="pb-flowers" element={<VVPowerBuyGuard><PbFlowers /></VVPowerBuyGuard>} />
+          <Route path="pb-daily-report" element={<VVPowerBuyGuard><PbDailyReport /></VVPowerBuyGuard>} />
       </Route>
       <Route path="/admin" element={<AdminPanel />} />
     </Routes>
