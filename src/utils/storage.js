@@ -34,6 +34,7 @@ export const COLLECTIONS = {
   PB_SALES: 'pb_sales',
   PB_PAYMENTS: 'pb_payments',
   PB_PRODUCTS: 'pb_products',
+  WM_TEST_TRANSACTIONS: 'wm_test_transactions',
 };
 
 // Helper to get current tenant
@@ -337,4 +338,31 @@ export const getNextPbInvoiceNo = async () => {
   await setDoc(counterRef, { lastInvoice: next }, { merge: true });
   return `PB-${String(next).padStart(6, '0')}`;
 };
+
+// --- WEIGHT MACHINE STANDALONE TEST ---
+export const saveWmTestPurchase = async (purchaseData) => {
+  const docRef = await addData(COLLECTIONS.WM_TEST_TRANSACTIONS, {
+    ...purchaseData,
+    date: purchaseData.date || new Date().toISOString().split('T')[0]
+  });
+  return { id: docRef.id, ...purchaseData };
+};
+
+export const getWmTestPurchases = async () => {
+  const tenantId = getTenant();
+  const q = query(collection(db, COLLECTIONS.WM_TEST_TRANSACTIONS), where('tenantId', '==', tenantId));
+  const querySnapshot = await getDocs(q);
+  const results = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  // Sort by createdAt desc in-memory to prevent missing-index errors
+  return results.sort((a, b) => {
+    const tA = a.createdAt?.seconds || a.timestamp || 0;
+    const tB = b.createdAt?.seconds || b.timestamp || 0;
+    return (tB > tA) ? 1 : (tB < tA) ? -1 : 0;
+  });
+};
+
+export const deleteWmTestPurchase = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.WM_TEST_TRANSACTIONS, id));
+};
+
 

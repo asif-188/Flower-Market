@@ -18,6 +18,7 @@ import Flowers from './pages/Flowers';
 import Settings from './pages/Settings';
 import OutsideShop from './pages/OutsideShop';
 import AdminPanel from './pages/AdminPanel';
+import WeightMachineTest from './pages/WeightMachineTest';
 // ── Power Buy Module ──
 import PowerBuyMenu from './pages/powerbuy/PowerBuyMenu';
 import PbBuyer from './pages/powerbuy/PbBuyer';
@@ -77,6 +78,7 @@ const AppRoutes = () => {
           <Route path="flowers" element={<Flowers />} />
           <Route path="settings" element={<Settings />} />
           <Route path="outside-shop" element={<OutsideShop />} />
+          <Route path="weight-test" element={<WeightMachineTest />} />
           {/* ── Power Buy Module ── */}
           <Route path="power-buy" element={<PowerBuyMenu />} />
           <Route path="pb-buyer" element={<PbBuyer />} />

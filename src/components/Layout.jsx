@@ -309,6 +309,7 @@ const Layout = () => {
     if (p.includes('/sales'))        return '/app/dashboard';
     if (p.includes('/farmer'))       return '/app/dashboard';
     if (p.includes('/outside-shop')) return '/app/dashboard';
+    if (p.includes('/weight-test'))  return '/app/dashboard';
     return '/app/dashboard';
   };
 
@@ -337,6 +338,7 @@ const Layout = () => {
     if (p.includes('/sales'))        return `☘️ ${t('sales')}`;
     if (p.includes('/farmer'))       return `☘️ ${t('farmer')}`;
     if (p.includes('/outside-shop')) return `☘️ ${t('outsideShop')}`;
+    if (p.includes('/weight-test'))  return `⚙️ Weight Machine Test`;
     return '';
   };
 

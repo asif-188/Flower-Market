@@ -37,7 +37,6 @@ const Dashboard = () => {
                     <span className="text-5xl font-black text-indigo-700 tracking-tighter italic">{t('sales')}</span>
                 </button>
 
-                {/* PowerBuy button — hidden, uncomment to restore
                 <button
                     onClick={() => navigate('/app/power-buy')}
                     className="group relative overflow-hidden border-4 p-10 rounded-[40px] shadow-2xl transition-all transform hover:-translate-y-2 active:scale-95 flex items-center justify-center gap-8"
@@ -48,7 +47,6 @@ const Dashboard = () => {
                     <div className="text-6xl group-hover:rotate-12 transition-transform">⚡</div>
                     <span className="text-5xl font-black tracking-tighter italic" style={{ color: '#7c3aed' }}>Power Buy</span>
                 </button>
-                */}
 
                 <button
                     onClick={() => navigate('/app/outside-shop')}
@@ -64,6 +62,7 @@ const Dashboard = () => {
                 <button onClick={() => navigate('/app/buyer')} className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 hover:text-emerald-600">Customer Directory</button>
                 <button onClick={() => navigate('/app/products')} className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 hover:text-emerald-600">Product Master</button>
                 <button onClick={() => navigate('/app/settings')} className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 hover:text-emerald-600">⚙️ Settings</button>
+                {/* <button onClick={() => navigate('/app/weight-test')} className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-500 hover:text-amber-600 font-bold">⚙️ Weight Test</button> */}
                 <button onClick={() => navigate('/admin')} className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-400 hover:text-purple-600">🔐 Admin Panel</button>
             </div>
         </div>
