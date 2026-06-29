@@ -11,6 +11,7 @@ const strings = {
   en: {
     back: 'Back',
     sales: 'Sales',
+    salesman: 'Salesman',
     customer: 'Customer',
     cashReceive: 'Cash Receive',
     salesEntry: 'Sales Entry',
@@ -138,6 +139,7 @@ const strings = {
   ta: {
     back: 'பின்',
     sales: 'விற்பனை',
+    salesman: 'விற்பனையாளர்',
     customer: 'வாடிக்கையாளர்',
     cashReceive: 'பண வரவு',
     salesEntry: 'விற்பனை பதிவு',
@@ -296,6 +298,14 @@ const Layout = () => {
     if (p.includes('/pb-flowers'))      return '/app/power-buy';
     if (p.includes('/pb-daily-report')) return '/app/power-buy';
     if (p.includes('/power-buy'))       return '/app/dashboard';
+    // ── Salesman routes ──
+    if (p.includes('/salesman-master'))        return '/app/salesman';
+    if (p.includes('/salesman-cash'))          return '/app/salesman';
+    if (p.includes('/salesman-purchases'))     return '/app/salesman';
+    if (p.includes('/salesman-ledger'))        return '/app/salesman';
+    if (p.includes('/salesman-flower-summary')) return '/app/salesman';
+    if (p.includes('/salesman-reports'))       return '/app/salesman';
+    if (p.includes('/salesman'))               return '/app/dashboard';
     // ── Sales routes ──
     if (p.includes('/buyer'))        return '/app/sales';
     if (p.includes('/payments'))     return '/app/sales';
@@ -324,6 +334,14 @@ const Layout = () => {
     if (p.includes('/pb-flowers'))      return `⚜️ VV — Flowers`;
     if (p.includes('/pb-daily-report')) return `⚜️ VV — Daily Report`;
     if (p.includes('/power-buy'))       return `⚜️ VV`;
+    // Salesman pages
+    if (p.includes('/salesman-master'))        return `👤 Salesman — Master`;
+    if (p.includes('/salesman-cash'))          return `👤 Salesman — Cash Issue`;
+    if (p.includes('/salesman-purchases'))     return `👤 Salesman — Purchase Bills`;
+    if (p.includes('/salesman-ledger'))        return `👤 Salesman — Ledger`;
+    if (p.includes('/salesman-flower-summary')) return `👤 Salesman — Flower Summary`;
+    if (p.includes('/salesman-reports'))       return `👤 Salesman — Reports`;
+    if (p.includes('/salesman'))               return `👤 Salesman`;
     // Sales pages
     if (p.includes('/buyer'))        return `☘️ Sales — ${t('customer')}`;
     if (p.includes('/payments'))     return `☘️ Sales — ${t('cashReceive')}`;

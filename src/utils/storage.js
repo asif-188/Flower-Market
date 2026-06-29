@@ -35,6 +35,10 @@ export const COLLECTIONS = {
   PB_PAYMENTS: 'pb_payments',
   PB_PRODUCTS: 'pb_products',
   WM_TEST_TRANSACTIONS: 'wm_test_transactions',
+  // ── Salesman Module (Standalone) ──
+  SALESMEN: 'salesmen',
+  SALESMAN_CASH: 'salesman_cash',
+  SALESMAN_PURCHASES: 'salesman_purchases',
 };
 
 // Helper to get current tenant
@@ -50,22 +54,39 @@ export const getTenant = () => {
 
 // --- Multi-Tenant CRUD Helpers ---
 
-export const subscribeToCollection = (collectionName, callback, filterByTenant = true) => {
+export const subscribeToCollection = (collectionName, callback, filterByTenant = true, startDate = null, endDate = null, dateField = 'date') => {
   const tenantId = getTenant();
 
-  // Build the ordered query (requires a Firestore composite index)
-  const orderedQ = filterByTenant
-    ? query(collection(db, collectionName), where('tenantId', '==', tenantId), orderBy('createdAt', 'desc'))
-    : query(collection(db, collectionName), orderBy('createdAt', 'desc'));
+  const constraints = [];
+  if (filterByTenant) {
+    constraints.push(where('tenantId', '==', tenantId));
+  }
+  if (startDate) {
+    constraints.push(where(dateField, '>=', startDate));
+  }
+  if (endDate) {
+    constraints.push(where(dateField, '<=', endDate));
+  }
+
+  // If we have range filters, order by the filter field first, otherwise order by createdAt
+  const orderField = (startDate || endDate) ? dateField : 'createdAt';
+
+  // Build the ordered query
+  const orderedQ = query(
+    collection(db, collectionName),
+    ...constraints,
+    orderBy(orderField, 'desc')
+  );
 
   // Track the active unsubscribe so we can swap it out cleanly if needed
   let activeUnsub = null;
 
   const startFallback = () => {
     // Simple query without orderBy — no composite index required
-    const fallbackQ = filterByTenant
-      ? query(collection(db, collectionName), where('tenantId', '==', tenantId))
-      : query(collection(db, collectionName));
+    const fallbackQ = query(
+      collection(db, collectionName),
+      ...constraints
+    );
 
     activeUnsub = onSnapshot(fallbackQ, (snapshot) => {
       const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -364,5 +385,52 @@ export const getWmTestPurchases = async () => {
 export const deleteWmTestPurchase = async (id) => {
   await deleteDoc(doc(db, COLLECTIONS.WM_TEST_TRANSACTIONS, id));
 };
+
+// --- SALESMEN MASTER ---
+export const saveSalesman = async (salesman) => {
+  const { id, ...data } = salesman;
+  if (id) {
+    await updateData(COLLECTIONS.SALESMEN, id, data);
+  } else {
+    await addData(COLLECTIONS.SALESMEN, {
+      ...data,
+      displayId: data.displayId || Date.now().toString().slice(-6),
+      status: data.status || 'Active'
+    });
+  }
+};
+
+export const deleteSalesman = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.SALESMEN, id));
+};
+
+// --- SALESMAN CASH ISSUE ---
+export const saveSalesmanCash = async (cashRecord) => {
+  const { id, ...data } = cashRecord;
+  if (id) {
+    await updateData(COLLECTIONS.SALESMAN_CASH, id, data);
+  } else {
+    await addData(COLLECTIONS.SALESMAN_CASH, data);
+  }
+};
+
+export const deleteSalesmanCash = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.SALESMAN_CASH, id));
+};
+
+// --- SALESMAN PURCHASES ---
+export const saveSalesmanPurchase = async (purchaseRecord) => {
+  const { id, ...data } = purchaseRecord;
+  if (id) {
+    await updateData(COLLECTIONS.SALESMAN_PURCHASES, id, data);
+  } else {
+    await addData(COLLECTIONS.SALESMAN_PURCHASES, data);
+  }
+};
+
+export const deleteSalesmanPurchase = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.SALESMAN_PURCHASES, id));
+};
+
 
 

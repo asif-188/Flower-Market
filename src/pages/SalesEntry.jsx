@@ -158,10 +158,10 @@ const SalesEntry = () => {
                 : data.map(f => ({ name: f.name, taName: f.taName })));
         });
         const u2 = subscribeToCollection('buyers', setBuyers);
-        const u3 = subscribeToCollection('sales', setAllSales);
-        const u4 = subscribeToCollection('payments', setAllPayments);
+        const u3 = subscribeToCollection('sales', setAllSales, true, date);
+        const u4 = subscribeToCollection('payments', setAllPayments, true, date);
         return () => { u1(); u2(); u3(); u4(); };
-    }, []);
+    }, [date]);
 
     const toDateStr = (d) => {
         const y = d.getFullYear();
