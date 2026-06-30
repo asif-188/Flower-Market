@@ -298,6 +298,10 @@ const Layout = () => {
     if (p.includes('/pb-flowers'))      return '/app/power-buy';
     if (p.includes('/pb-daily-report')) return '/app/power-buy';
     if (p.includes('/power-buy'))       return '/app/dashboard';
+    // ── Owner routes ──
+    if (p.includes('/owner-vendors')) return '/app/owner-dashboard';
+    if (p.includes('/owner-preview')) return '/app/owner-dashboard';
+    if (p.includes('/owner-dashboard')) return '/app/dashboard';
     // ── Salesman routes ──
     if (p.includes('/salesman-master'))        return '/app/salesman';
     if (p.includes('/salesman-cash'))          return '/app/salesman';
@@ -334,6 +338,10 @@ const Layout = () => {
     if (p.includes('/pb-flowers'))      return `⚜️ VV — Flowers`;
     if (p.includes('/pb-daily-report')) return `⚜️ VV — Daily Report`;
     if (p.includes('/power-buy'))       return `⚜️ VV`;
+    // Owner pages
+    if (p.includes('/owner-dashboard'))        return `👑 Owner Dashboard`;
+    if (p.includes('/owner-vendors'))          return `🏪 Vendor Master`;
+    if (p.includes('/owner-preview'))          return `📄 Statement Preview`;
     // Salesman pages
     if (p.includes('/salesman-master'))        return `👤 Salesman — Master`;
     if (p.includes('/salesman-cash'))          return `👤 Salesman — Cash Issue`;

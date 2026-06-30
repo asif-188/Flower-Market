@@ -38,6 +38,11 @@ import SalesmanLedger from './pages/SalesmanLedger';
 import SalesmanFlowerSummary from './pages/SalesmanFlowerSummary';
 import SalesmanReports from './pages/SalesmanReports';
 
+// ── Owner & Vendor Master Module ──
+import OwnerDashboard from './pages/OwnerDashboard';
+import OwnerVendors from './pages/OwnerVendors';
+import OwnerPreview from './pages/OwnerPreview';
+
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useTenant();
   
@@ -97,6 +102,10 @@ const AppRoutes = () => {
           <Route path="salesman-ledger" element={<SalesmanLedger />} />
           <Route path="salesman-flower-summary" element={<SalesmanFlowerSummary />} />
           <Route path="salesman-reports" element={<SalesmanReports />} />
+          {/* ── Owner Module ── */}
+          <Route path="owner-dashboard" element={<OwnerDashboard />} />
+          <Route path="owner-vendors" element={<OwnerVendors />} />
+          <Route path="owner-preview" element={<OwnerPreview />} />
           {/* ── VV Power Buy Module ── */}
           <Route path="power-buy" element={<VVPowerBuyGuard><PowerBuyMenu /></VVPowerBuyGuard>} />
           <Route path="pb-buyer" element={<VVPowerBuyGuard><PbBuyer /></VVPowerBuyGuard>} />
