@@ -12,7 +12,8 @@ import {
   where,
   setDoc,
   getDoc,
-  serverTimestamp
+  serverTimestamp,
+  increment
 } from "firebase/firestore";
 import { db } from "../firebase";
 
@@ -35,6 +36,14 @@ export const COLLECTIONS = {
   PB_PAYMENTS: 'pb_payments',
   PB_PRODUCTS: 'pb_products',
   WM_TEST_TRANSACTIONS: 'wm_test_transactions',
+  // ── Salesman Module (Standalone) ──
+  SALESMEN: 'salesmen',
+  SALESMAN_CASH: 'salesman_cash',
+  SALESMAN_PURCHASES: 'salesman_purchases',
+  DAILY_CASH: 'salesman_daily_cash',
+  FLOWER_PURCHASES: 'salesman_flower_purchases',
+  CREDIT_TRANSFERS: 'salesman_credit_transfers',
+  DAILY_LEDGERS: 'salesman_daily_ledgers',
 };
 
 // Helper to get current tenant
@@ -50,22 +59,39 @@ export const getTenant = () => {
 
 // --- Multi-Tenant CRUD Helpers ---
 
-export const subscribeToCollection = (collectionName, callback, filterByTenant = true) => {
+export const subscribeToCollection = (collectionName, callback, filterByTenant = true, startDate = null, endDate = null, dateField = 'date') => {
   const tenantId = getTenant();
 
-  // Build the ordered query (requires a Firestore composite index)
-  const orderedQ = filterByTenant
-    ? query(collection(db, collectionName), where('tenantId', '==', tenantId), orderBy('createdAt', 'desc'))
-    : query(collection(db, collectionName), orderBy('createdAt', 'desc'));
+  const constraints = [];
+  if (filterByTenant) {
+    constraints.push(where('tenantId', '==', tenantId));
+  }
+  if (startDate) {
+    constraints.push(where(dateField, '>=', startDate));
+  }
+  if (endDate) {
+    constraints.push(where(dateField, '<=', endDate));
+  }
+
+  // If we have range filters, order by the filter field first, otherwise order by createdAt
+  const orderField = (startDate || endDate) ? dateField : 'createdAt';
+
+  // Build the ordered query
+  const orderedQ = query(
+    collection(db, collectionName),
+    ...constraints,
+    orderBy(orderField, 'desc')
+  );
 
   // Track the active unsubscribe so we can swap it out cleanly if needed
   let activeUnsub = null;
 
   const startFallback = () => {
     // Simple query without orderBy — no composite index required
-    const fallbackQ = filterByTenant
-      ? query(collection(db, collectionName), where('tenantId', '==', tenantId))
-      : query(collection(db, collectionName));
+    const fallbackQ = query(
+      collection(db, collectionName),
+      ...constraints
+    );
 
     activeUnsub = onSnapshot(fallbackQ, (snapshot) => {
       const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -364,5 +390,228 @@ export const getWmTestPurchases = async () => {
 export const deleteWmTestPurchase = async (id) => {
   await deleteDoc(doc(db, COLLECTIONS.WM_TEST_TRANSACTIONS, id));
 };
+
+// --- SALESMEN MASTER ---
+export const saveSalesman = async (salesman) => {
+  const { id, ...data } = salesman;
+  if (id) {
+    await updateData(COLLECTIONS.SALESMEN, id, data);
+  } else {
+    await addData(COLLECTIONS.SALESMEN, {
+      ...data,
+      displayId: data.displayId || Date.now().toString().slice(-6),
+      status: data.status || 'Active'
+    });
+  }
+};
+
+export const deleteSalesman = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.SALESMEN, id));
+};
+
+// --- SALESMAN CASH ISSUE ---
+export const saveSalesmanCash = async (cashRecord) => {
+  const { id, ...data } = cashRecord;
+  if (id) {
+    await updateData(COLLECTIONS.SALESMAN_CASH, id, data);
+  } else {
+    await addData(COLLECTIONS.SALESMAN_CASH, data);
+  }
+};
+
+export const deleteSalesmanCash = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.SALESMAN_CASH, id));
+};
+
+// --- SALESMAN PURCHASES ---
+export const saveSalesmanPurchase = async (purchaseRecord) => {
+  const { id, ...data } = purchaseRecord;
+  if (id) {
+    await updateData(COLLECTIONS.SALESMAN_PURCHASES, id, data);
+  } else {
+    await addData(COLLECTIONS.SALESMAN_PURCHASES, data);
+  }
+};
+
+export const deleteSalesmanPurchase = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.SALESMAN_PURCHASES, id));
+};
+
+// ── Daily Cash Received (Opening Cash from Owner) ──
+export const saveDailyCash = async (record) => {
+  const { id, ...data } = record;
+  if (id) {
+    const oldSnap = await getDoc(doc(db, COLLECTIONS.DAILY_CASH, id));
+    if (oldSnap.exists()) {
+      const oldAmount = oldSnap.data().amount || 0;
+      const newAmount = data.amount || 0;
+      const diff = newAmount - oldAmount;
+      if (diff !== 0 && data.salesman_id) {
+        await updateDoc(doc(db, COLLECTIONS.SALESMEN, data.salesman_id), {
+          current_balance: increment(diff)
+        });
+      }
+    }
+    await updateData(COLLECTIONS.DAILY_CASH, id, data);
+  } else {
+    const amount = data.amount || 0;
+    if (data.salesman_id) {
+      await updateDoc(doc(db, COLLECTIONS.SALESMEN, data.salesman_id), {
+        current_balance: increment(amount)
+      });
+    }
+    await addData(COLLECTIONS.DAILY_CASH, data);
+  }
+};
+
+export const deleteDailyCash = async (id) => {
+  const snap = await getDoc(doc(db, COLLECTIONS.DAILY_CASH, id));
+  if (snap.exists()) {
+    const data = snap.data();
+    const amount = data.amount || 0;
+    if (data.salesman_id) {
+      await updateDoc(doc(db, COLLECTIONS.SALESMEN, data.salesman_id), {
+        current_balance: increment(-amount)
+      });
+    }
+  }
+  await deleteDoc(doc(db, COLLECTIONS.DAILY_CASH, id));
+};
+
+// ── Flower Purchases from Vendors ──
+export const saveFlowerPurchase = async (purchase) => {
+  const { id, ...data } = purchase;
+  if (id) {
+    const oldSnap = await getDoc(doc(db, COLLECTIONS.FLOWER_PURCHASES, id));
+    if (oldSnap.exists()) {
+      const oldData = oldSnap.data();
+      const oldNetEffect = (oldData.total_amount || 0) - (oldData.amount_paid || 0);
+      const newNetEffect = (data.total_amount || 0) - (data.amount_paid || 0);
+      const diff = newNetEffect - oldNetEffect;
+      if (diff !== 0 && data.vendor_id) {
+        await updateDoc(doc(db, COLLECTIONS.VENDORS, data.vendor_id), {
+          balance: increment(diff)
+        });
+      }
+      
+      const oldAmountPaid = oldData.amount_paid || 0;
+      const newAmountPaid = data.amount_paid || 0;
+      const diffPaid = newAmountPaid - oldAmountPaid;
+      if (diffPaid !== 0 && data.salesman_id) {
+        await updateDoc(doc(db, COLLECTIONS.SALESMEN, data.salesman_id), {
+          current_balance: increment(-diffPaid)
+        });
+      }
+    }
+    await updateData(COLLECTIONS.FLOWER_PURCHASES, id, data);
+  } else {
+    const netEffect = (data.total_amount || 0) - (data.amount_paid || 0);
+    if (netEffect !== 0 && data.vendor_id) {
+      await updateDoc(doc(db, COLLECTIONS.VENDORS, data.vendor_id), {
+        balance: increment(netEffect)
+      });
+    }
+    const amountPaid = data.amount_paid || 0;
+    if (amountPaid && data.salesman_id) {
+      await updateDoc(doc(db, COLLECTIONS.SALESMEN, data.salesman_id), {
+        current_balance: increment(-amountPaid)
+      });
+    }
+    await addData(COLLECTIONS.FLOWER_PURCHASES, data);
+  }
+};
+
+export const deleteFlowerPurchase = async (id) => {
+  const snap = await getDoc(doc(db, COLLECTIONS.FLOWER_PURCHASES, id));
+  if (snap.exists()) {
+    const data = snap.data();
+    const netEffect = (data.total_amount || 0) - (data.amount_paid || 0);
+    if (netEffect !== 0 && data.vendor_id) {
+      await updateDoc(doc(db, COLLECTIONS.VENDORS, data.vendor_id), {
+        balance: increment(-netEffect)
+      });
+    }
+    const amountPaid = data.amount_paid || 0;
+    if (amountPaid && data.salesman_id) {
+      await updateDoc(doc(db, COLLECTIONS.SALESMEN, data.salesman_id), {
+        current_balance: increment(amountPaid)
+      });
+    }
+  }
+  await deleteDoc(doc(db, COLLECTIONS.FLOWER_PURCHASES, id));
+};
+
+// ── Salesman Credit Transfers ──
+export const saveCreditTransfer = async (transfer) => {
+  const { id, ...data } = transfer;
+  if (id) {
+    const oldSnap = await getDoc(doc(db, COLLECTIONS.CREDIT_TRANSFERS, id));
+    if (oldSnap.exists()) {
+      const oldData = oldSnap.data();
+      const oldAmount = oldData.amount || 0;
+      const newAmount = data.amount || 0;
+      const diff = newAmount - oldAmount;
+      
+      if (oldData.from_salesman_id) {
+        await updateDoc(doc(db, COLLECTIONS.SALESMEN, oldData.from_salesman_id), {
+          current_balance: increment(-diff)
+        });
+      }
+      if (oldData.to_salesman_id) {
+        await updateDoc(doc(db, COLLECTIONS.SALESMEN, oldData.to_salesman_id), {
+          current_balance: increment(diff)
+        });
+      }
+    }
+    await updateData(COLLECTIONS.CREDIT_TRANSFERS, id, data);
+  } else {
+    const amount = data.amount || 0;
+    if (data.from_salesman_id) {
+      await updateDoc(doc(db, COLLECTIONS.SALESMEN, data.from_salesman_id), {
+        current_balance: increment(-amount)
+      });
+    }
+    if (data.to_salesman_id) {
+      await updateDoc(doc(db, COLLECTIONS.SALESMEN, data.to_salesman_id), {
+        current_balance: increment(amount)
+      });
+    }
+    await addData(COLLECTIONS.CREDIT_TRANSFERS, data);
+  }
+};
+
+export const deleteCreditTransfer = async (id) => {
+  const snap = await getDoc(doc(db, COLLECTIONS.CREDIT_TRANSFERS, id));
+  if (snap.exists()) {
+    const data = snap.data();
+    const amount = data.amount || 0;
+    if (data.from_salesman_id) {
+      await updateDoc(doc(db, COLLECTIONS.SALESMEN, data.from_salesman_id), {
+        current_balance: increment(amount)
+      });
+    }
+    if (data.to_salesman_id) {
+      await updateDoc(doc(db, COLLECTIONS.SALESMEN, data.to_salesman_id), {
+        current_balance: increment(-amount)
+      });
+    }
+  }
+  await deleteDoc(doc(db, COLLECTIONS.CREDIT_TRANSFERS, id));
+};
+
+// ── Daily Ledgers ──
+export const saveDailyLedger = async (ledger) => {
+  const { id, ...data } = ledger;
+  if (id) {
+    await updateData(COLLECTIONS.DAILY_LEDGERS, id, data);
+  } else {
+    await addData(COLLECTIONS.DAILY_LEDGERS, data);
+  }
+};
+
+export const deleteDailyLedger = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.DAILY_LEDGERS, id));
+};
+
 
 

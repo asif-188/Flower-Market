@@ -29,6 +29,20 @@ import PbFlowers from './pages/powerbuy/PbFlowers';
 import PbDailyReport from './pages/powerbuy/PbDailyReport';
 import VVPowerBuyGuard from './components/VVPowerBuyGuard';
 
+// ── Salesman Module ──
+import SalesmanMenu from './pages/SalesmanMenu';
+import SalesmanMaster from './pages/SalesmanMaster';
+import SalesmanCash from './pages/SalesmanCash';
+import SalesmanPurchases from './pages/SalesmanPurchases';
+import SalesmanLedger from './pages/SalesmanLedger';
+import SalesmanFlowerSummary from './pages/SalesmanFlowerSummary';
+import SalesmanReports from './pages/SalesmanReports';
+
+// ── Owner & Vendor Master Module ──
+import OwnerDashboard from './pages/OwnerDashboard';
+import OwnerVendors from './pages/OwnerVendors';
+import OwnerPreview from './pages/OwnerPreview';
+
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useTenant();
   
@@ -78,8 +92,20 @@ const AppRoutes = () => {
           <Route path="daily-report" element={<DailyReport />} />
           <Route path="flowers" element={<Flowers />} />
           <Route path="settings" element={<Settings />} />
-          <Route path="outside-shop" element={<OutsideShop />} />
+           <Route path="outside-shop" element={<OutsideShop />} />
           <Route path="weight-test" element={<WeightMachineTest />} />
+          {/* ── Salesman Module Standalone ── */}
+          <Route path="salesman" element={<SalesmanMenu />} />
+          <Route path="salesman-master" element={<SalesmanMaster />} />
+          <Route path="salesman-cash" element={<SalesmanCash />} />
+          <Route path="salesman-purchases" element={<SalesmanPurchases />} />
+          <Route path="salesman-ledger" element={<SalesmanLedger />} />
+          <Route path="salesman-flower-summary" element={<SalesmanFlowerSummary />} />
+          <Route path="salesman-reports" element={<SalesmanReports />} />
+          {/* ── Owner Module ── */}
+          <Route path="owner-dashboard" element={<OwnerDashboard />} />
+          <Route path="owner-vendors" element={<OwnerVendors />} />
+          <Route path="owner-preview" element={<OwnerPreview />} />
           {/* ── VV Power Buy Module ── */}
           <Route path="power-buy" element={<VVPowerBuyGuard><PowerBuyMenu /></VVPowerBuyGuard>} />
           <Route path="pb-buyer" element={<VVPowerBuyGuard><PbBuyer /></VVPowerBuyGuard>} />

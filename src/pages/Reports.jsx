@@ -55,14 +55,14 @@ const Reports = () => {
     const bizInfo = tenantData || { motto: 'SRI RAMA JAYAM', name: 'S.V.M', type: 'SRI VALLI FLOWER MERCHANT', address: 'B-7, FLOWER MARKET, TINDIVANAM.', phone1: '9443247771', phone2: '9952535057' };
 
     useEffect(() => {
-        const u1 = subscribeToCollection('sales',    setSales);
+        const u1 = subscribeToCollection('sales',    setSales, true, appliedFrom);
         const u2 = subscribeToCollection('buyers',   setBuyers);
-        const u3 = subscribeToCollection('payments', setPayments);
+        const u3 = subscribeToCollection('payments', setPayments, true, appliedFrom);
         const u4 = subscribeToCollection('products', setProducts);
-        const u5 = subscribeToCollection('outside_purchases', setOutsidePurchases, true);
+        const u5 = subscribeToCollection('outside_purchases', setOutsidePurchases, true, appliedFrom);
         const u6 = subscribeToCollection('vendors', setVendors, true);
         return () => { u1(); u2(); u3(); u4(); u5(); u6(); };
-    }, []);
+    }, [appliedFrom]);
 
     const applyPreset = (preset) => {
         if (preset === 'custom') {

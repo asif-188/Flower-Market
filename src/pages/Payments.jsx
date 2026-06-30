@@ -57,7 +57,7 @@ const Payments = () => {
     const [formData, setFormData] = useState({ entityId: '', amount: '', cashLess: '', method: 'Cash', note: '', date: new Date().toISOString().split('T')[0] });
     const [customerSearch, setCustomerSearch] = useState('');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [dateRange, setDateRange] = useState('all'); // 'today', 'yesterday', 'month', 'year', 'prevYear', 'custom', 'all'
+    const [dateRange, setDateRange] = useState('today'); // 'today', 'yesterday', 'month', 'year', 'prevYear', 'custom', 'all'
     const [customRange, setCustomRange] = useState({ start: '', end: '' });
     const [customerFilterId, setCustomerFilterId] = useState('all');
     const [customerFilterSearch, setCustomerFilterSearch] = useState('');
@@ -80,17 +80,48 @@ const Payments = () => {
         }
     }, [isModalOpen]);
 
+    const getQueryRange = () => {
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        let start = null;
+        let end = null;
+
+        if (dateRange === 'today') {
+            start = todayStr;
+            end = todayStr;
+        } else if (dateRange === 'yesterday') {
+            const yesterday = new Date(now);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toISOString().split('T')[0];
+            start = yesterdayStr;
+            end = yesterdayStr;
+        } else if (dateRange === 'thisMonth') {
+            start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        } else if (dateRange === 'thisYear') {
+            start = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+        } else if (dateRange === 'prevYear') {
+            start = new Date(now.getFullYear() - 1, 0, 1).toISOString().split('T')[0];
+            end = new Date(now.getFullYear() - 1, 11, 31).toISOString().split('T')[0];
+        } else if (dateRange === 'custom') {
+            start = customRange.start || null;
+            end = customRange.end || null;
+        }
+        return { start, end };
+    };
+
+    const { start: queryStart, end: queryEnd } = getQueryRange();
+
     useEffect(() => {
         const u1 = subscribeToCollection('payments', (data) =>
             setPayments(data.sort((a, b) => {
                 const dA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
                 const dB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
                 return dA - dB;
-            })));
+            })), true, queryStart, queryEnd);
         const u2 = subscribeToCollection('buyers', setBuyers);
         const u3 = subscribeToCollection('farmers', setFarmers);
         return () => { u1(); u2(); u3(); };
-    }, []);
+    }, [queryStart, queryEnd]);
 
     const handleOpenModal = () => {
         setFormData({ 

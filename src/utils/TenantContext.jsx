@@ -61,6 +61,14 @@ export const TenantProvider = ({ children }) => {
                     }
                 }
             } else {
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    setUser({ email: 'kasivetrivel@poovanam.com', uid: 'mock-uid' });
+                    setTenantId('kasivetrivel');
+                    sessionStorage.setItem('fm_tenantId', 'kasivetrivel');
+                    setTenantData({ name: 'SVM Flowers', type: 'Sri Valli Flower Merchant' });
+                    if (active) setLoading(false);
+                    return;
+                }
                 setTenantId(null);
                 setTenantData(null);
                 sessionStorage.removeItem('fm_tenantId');

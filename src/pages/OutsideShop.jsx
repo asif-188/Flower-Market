@@ -237,6 +237,22 @@ const OutsideShop = () => {
     const [draftSelectedIndex, setDraftSelectedIndex] = useState(-1);
     const [purchaseSelectedIndex, setPurchaseSelectedIndex] = useState(-1);
 
+    const minStartDate = useMemo(() => {
+        if (purchaseFilterAllDates || payFilterAllDates) return null;
+        
+        const dates = [
+            reportFilters.fromDate,
+            purchaseFilterFrom,
+            payFilterFrom,
+            paymentForm.date,
+            date
+        ].filter(Boolean);
+        
+        if (dates.length === 0) return null;
+        
+        return dates.reduce((earliest, cur) => (cur < earliest ? cur : earliest), dates[0]);
+    }, [purchaseFilterAllDates, payFilterAllDates, reportFilters.fromDate, purchaseFilterFrom, payFilterFrom, paymentForm.date, date]);
+
     useEffect(() => {
         const u1 = subscribeToCollection('vendors', setVendors, true);
         const u2 = subscribeToCollection('products', (data) => {
@@ -244,11 +260,11 @@ const OutsideShop = () => {
                 ? [{ name: 'Rose', taName: 'ரோஜா' }, { name: 'Jasmine', taName: 'மல்லிகை' }] 
                 : data.map(f => ({ id: f.id, name: f.name, taName: f.taName })));
         });
-        const u3 = subscribeToCollection('outside_purchases', setPurchases, true);
-        const u4 = subscribeToCollection('payments', setPayments, true);
+        const u3 = subscribeToCollection('outside_purchases', setPurchases, true, minStartDate);
+        const u4 = subscribeToCollection('payments', setPayments, true, minStartDate);
         
         return () => { u1(); u2(); u3(); u4(); };
-    }, []);
+    }, [minStartDate]);
 
     const toDateStr = (d) => d.toISOString().split('T')[0];
     const fmt = (n) => `₹${Number(n).toLocaleString('en-IN')}`;

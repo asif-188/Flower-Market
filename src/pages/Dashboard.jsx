@@ -39,6 +39,22 @@ const Dashboard = () => {
                 </button>
 
                 <button
+                    onClick={() => navigate('/app/salesman')}
+                    className="group relative overflow-hidden bg-indigo-50 border-4 border-indigo-100 hover:border-indigo-300 p-10 rounded-[40px] shadow-2xl hover:shadow-indigo-200 transition-all transform hover:-translate-y-2 active:scale-95 flex items-center justify-center gap-8"
+                >
+                    <div className="text-6xl group-hover:rotate-12 transition-transform">👤</div>
+                    <span className="text-5xl font-black text-indigo-800 tracking-tighter italic">{t('salesman')}</span>
+                </button>
+
+                <button
+                    onClick={() => navigate('/app/owner-dashboard')}
+                    className="group relative overflow-hidden bg-purple-50 border-4 border-purple-100 hover:border-purple-300 p-10 rounded-[40px] shadow-2xl hover:shadow-purple-200 transition-all transform hover:-translate-y-2 active:scale-95 flex items-center justify-center gap-8"
+                >
+                    <div className="text-6xl group-hover:rotate-12 transition-transform">👑</div>
+                    <span className="text-5xl font-black text-purple-800 tracking-tighter italic">Owner Dashboard</span>
+                </button>
+
+                <button
                     onClick={() => navigate('/app/outside-shop')}
                     className="group relative overflow-hidden bg-amber-50 border-4 border-amber-100 hover:border-amber-300 p-10 rounded-[40px] shadow-2xl hover:shadow-amber-200 transition-all transform hover:-translate-y-2 active:scale-95 flex items-center justify-center gap-8"
                 >
