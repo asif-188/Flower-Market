@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useContext, useMemo } from 'react';
 import { Trash2, Plus, History, IndianRupee, Save, X, ChevronLeft, Printer, FileText, Search, Download, MessageCircle, Pencil, Users, Upload, FileSpreadsheet, Download as DownloadIcon, Scan } from 'lucide-react';
 import { db, subscribeToCollection, saveOutsidePurchase, saveVendor, deleteVendor, getTenant } from '../utils/storage';
-import { doc, updateDoc, increment, serverTimestamp, deleteDoc, collection, addDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, increment, serverTimestamp, deleteDoc, collection, addDoc, getDoc, deleteField } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import * as XLSX from 'xlsx';
 import { generateLedgerCanvas, generatePaymentReceiptCanvas, generatePurchaseReceiptCanvas } from '../utils/receiptCanvas';
@@ -236,6 +236,29 @@ const OutsideShop = () => {
     const [viewingVendor, setViewingVendor] = useState(null);
     const [draftSelectedIndex, setDraftSelectedIndex] = useState(-1);
     const [purchaseSelectedIndex, setPurchaseSelectedIndex] = useState(-1);
+
+    // Vendor Settlement States
+    const [settlementVendor, setSettlementVendor] = useState(null);
+    const [settlementPurchases, setSettlementPurchases] = useState([]);
+    const [selectedPurchases, setSelectedPurchases] = useState({});
+    const [payingAmounts, setPayingAmounts] = useState({});
+    const [settlementDate, setSettlementDate] = useState('');
+    const [settlementMode, setSettlementMode] = useState('Cash');
+    const [settlementRef, setSettlementRef] = useState('');
+    const [settlementRemarks, setSettlementRemarks] = useState('');
+    const [customSettleAmount, setCustomSettleAmount] = useState('');
+
+    // Vendor Bulk Settlement States
+    const [isBulkModeActive, setIsBulkModeActive] = useState(false);
+    const [bulkPayingAmounts, setBulkPayingAmounts] = useState({});
+    const [bulkSettlementDate, setBulkSettlementDate] = useState('');
+    const [bulkSettlementMode, setBulkSettlementMode] = useState('Cash');
+    const [bulkSettlementRef, setBulkSettlementRef] = useState('');
+    const [bulkSettlementRemarks, setBulkSettlementRemarks] = useState('');
+
+    useEffect(() => {
+        setBulkSettlementDate(getLastDayOfMonth(reportFilters.toDate));
+    }, [reportFilters.toDate]);
 
     const minStartDate = useMemo(() => {
         if (purchaseFilterAllDates || payFilterAllDates) return null;
@@ -843,6 +866,307 @@ const OutsideShop = () => {
         } catch (err) {
             console.error(err);
             alert(t('saveError') || 'Error saving payment');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const getLastDayOfMonth = (dateStr) => {
+        if (!dateStr) return new Date().toISOString().split('T')[0];
+        const parts = dateStr.split('-');
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        const lastDay = new Date(year, month, 0);
+        const yyyy = lastDay.getFullYear();
+        const mm = String(lastDay.getMonth() + 1).padStart(2, '0');
+        const dd = String(lastDay.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    };
+
+    const distributeAmount = (totalToDistribute, checkedState, purchasesList) => {
+        let remaining = parseFloat(totalToDistribute) || 0;
+        const newPayingAmounts = {};
+        purchasesList.forEach(p => {
+            if (checkedState[p.id]) {
+                const outstanding = p.grandTotal - (p.paidAmount || 0);
+                const allocated = Math.min(remaining, outstanding);
+                newPayingAmounts[p.id] = parseFloat(allocated.toFixed(2));
+                remaining -= allocated;
+            } else {
+                newPayingAmounts[p.id] = 0;
+            }
+        });
+        setPayingAmounts(newPayingAmounts);
+    };
+
+    const handleCheckboxChange = (purchaseId, checked) => {
+        const updatedSelected = { ...selectedPurchases, [purchaseId]: checked };
+        setSelectedPurchases(updatedSelected);
+
+        const newTotal = settlementPurchases.reduce((sum, p) => {
+            if (updatedSelected[p.id]) {
+                return sum + (p.grandTotal - (p.paidAmount || 0));
+            }
+            return sum;
+        }, 0);
+        setCustomSettleAmount(newTotal.toFixed(2));
+        distributeAmount(newTotal, updatedSelected, settlementPurchases);
+    };
+
+    const handleSelectAllChange = (checked) => {
+        const updatedSelected = {};
+        settlementPurchases.forEach(p => {
+            updatedSelected[p.id] = checked;
+        });
+        setSelectedPurchases(updatedSelected);
+
+        const newTotal = checked ? settlementPurchases.reduce((sum, p) => sum + (p.grandTotal - (p.paidAmount || 0)), 0) : 0;
+        setCustomSettleAmount(newTotal.toFixed(2));
+        distributeAmount(newTotal, updatedSelected, settlementPurchases);
+    };
+
+    const handleCustomTotalChange = (valStr) => {
+        setCustomSettleAmount(valStr);
+        const val = parseFloat(valStr) || 0;
+        distributeAmount(val, selectedPurchases, settlementPurchases);
+    };
+
+    const handleIndividualAmountChange = (purchaseId, val) => {
+        const outstanding = settlementPurchases.find(p => p.id === purchaseId).grandTotal - (settlementPurchases.find(p => p.id === purchaseId).paidAmount || 0);
+        if (val < 0) val = 0;
+        if (val > outstanding) val = outstanding;
+
+        const updatedAmounts = { ...payingAmounts, [purchaseId]: val };
+        setPayingAmounts(updatedAmounts);
+
+        const newTotal = settlementPurchases.reduce((sum, p) => {
+            if (selectedPurchases[p.id]) {
+                return sum + (updatedAmounts[p.id] || 0);
+            }
+            return sum;
+        }, 0);
+        setCustomSettleAmount(newTotal.toFixed(2));
+    };
+
+    const handleOpenSettlement = (vendor) => {
+        const unpaid = purchases.filter(p => 
+            p.vendorId === vendor.id && 
+            p.status !== 'Paid' && 
+            (p.date || p.billDate) >= reportFilters.fromDate && 
+            (p.date || p.billDate) <= reportFilters.toDate
+        ).sort((a, b) => new Date(a.date || a.billDate) - new Date(b.date || b.billDate));
+        
+        const initialSelected = {};
+        const initialAmounts = {};
+        let totalOutstanding = 0;
+        unpaid.forEach(p => {
+            initialSelected[p.id] = true;
+            const outstanding = p.grandTotal - (p.paidAmount || 0);
+            initialAmounts[p.id] = outstanding;
+            totalOutstanding += outstanding;
+        });
+
+        setSelectedPurchases(initialSelected);
+        setPayingAmounts(initialAmounts);
+        setCustomSettleAmount(totalOutstanding.toFixed(2));
+        setSettlementPurchases(unpaid);
+        setSettlementDate(getLastDayOfMonth(reportFilters.toDate));
+        setSettlementMode('Cash');
+        setSettlementRef('');
+        setSettlementRemarks('');
+        setSettlementVendor(vendor);
+    };
+
+    const handleSaveSettlement = async () => {
+        if (!settlementVendor || isSaving) return;
+        
+        const selectedItems = settlementPurchases.filter(p => selectedPurchases[p.id]);
+        if (selectedItems.length === 0) {
+            return alert('Please select at least one purchase entry.');
+        }
+
+        for (const item of selectedItems) {
+            const outstanding = item.grandTotal - (item.paidAmount || 0);
+            const paying = parseFloat(payingAmounts[item.id]) || 0;
+            if (paying <= 0) {
+                return alert(`Paying amount for purchase on ${item.date} must be greater than 0.`);
+            }
+            if (paying > outstanding + 0.01) {
+                return alert(`Paying amount for purchase on ${item.date} cannot exceed the outstanding amount of ${fmt(outstanding)}.`);
+            }
+        }
+
+        const totalSelectedAmount = selectedItems.reduce((sum, item) => sum + (parseFloat(payingAmounts[item.id]) || 0), 0);
+        if (totalSelectedAmount <= 0) return;
+
+        setIsSaving(true);
+        try {
+            const tenantId = getTenant();
+            
+            const settledInfo = selectedItems.map(item => {
+                const paying = parseFloat(payingAmounts[item.id]) || 0;
+                return `Date: ${item.date || item.billDate}, ID: ${item.id.substring(0,6).toUpperCase()}, Paid: ${paying}`;
+            }).join(' | ');
+
+            const paymentDocRef = await addDoc(collection(db, 'payments'), {
+                entityId: settlementVendor.id,
+                type: 'vendor',
+                amount: totalSelectedAmount,
+                date: settlementDate,
+                paymentMode: settlementMode,
+                referenceNumber: settlementRef || '',
+                note: settlementRemarks || `Month-end settlement: [${settledInfo}]`,
+                createdAt: serverTimestamp(),
+                tenantId,
+                isSettlement: true,
+                settlementDetails: selectedItems.map(item => ({
+                    purchaseId: item.id,
+                    payingAmount: parseFloat(payingAmounts[item.id]) || 0,
+                    originalOutstanding: item.grandTotal - (item.paidAmount || 0)
+                }))
+            });
+
+            for (const item of selectedItems) {
+                const paying = parseFloat(payingAmounts[item.id]) || 0;
+                const oldPaid = item.paidAmount || 0;
+                const newPaid = oldPaid + paying;
+                const newOutstanding = Math.max(0, item.grandTotal - newPaid);
+                const newStatus = newOutstanding <= 0.01 ? 'Paid' : 'Pending';
+
+                const purRef = doc(db, 'outside_purchases', item.id);
+                await updateDoc(purRef, {
+                    paidAmount: newPaid,
+                    outstandingAmount: newOutstanding,
+                    status: newStatus,
+                    updatedAt: serverTimestamp(),
+                    settlementPaymentId: paymentDocRef.id
+                });
+            }
+
+            const vRef = doc(db, 'vendors', settlementVendor.id);
+            await updateDoc(vRef, {
+                balance: increment(-totalSelectedAmount),
+                lastPayment: serverTimestamp()
+            });
+
+            alert(t('saveSuccess') || 'Settlement saved successfully!');
+            setSettlementVendor(null);
+        } catch (err) {
+            console.error(err);
+            alert('Settlement Save Error: ' + err.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleBulkAutoFillAll = () => {
+        const updated = {};
+        vendors.forEach(v => {
+            const vPurchases = purchases.filter(p => p.vendorId === v.id && p.date >= reportFilters.fromDate && p.date <= reportFilters.toDate);
+            const vPayments = payments.filter(p => p.entityId === v.id && p.type === 'vendor' && p.date >= reportFilters.fromDate && p.date <= reportFilters.toDate);
+            const totalP = vPurchases.reduce((acc, p) => acc + (p.grandTotal || 0), 0);
+            const totalPaid = vPayments.reduce((acc, p) => acc + (p.amount || 0), 0);
+            const dues = Math.max(0, totalP - totalPaid);
+            if (dues > 0) {
+                updated[v.id] = dues.toFixed(2);
+            }
+        });
+        setBulkPayingAmounts(updated);
+    };
+
+    const handleSaveBulkSettlement = async () => {
+        const entries = Object.entries(bulkPayingAmounts).filter(([_, amtStr]) => {
+            const val = parseFloat(amtStr) || 0;
+            return val > 0;
+        });
+
+        if (entries.length === 0) {
+            return alert('Please enter paying amounts for at least one vendor.');
+        }
+
+        if (!window.confirm(`Are you sure you want to save settlements for ${entries.length} vendors?`)) {
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const tenantId = getTenant();
+            
+            for (const [vendorId, amtStr] of entries) {
+                const totalSelectedAmount = parseFloat(amtStr) || 0;
+                
+                const unpaid = purchases.filter(p => 
+                    p.vendorId === vendorId && 
+                    p.status !== 'Paid' && 
+                    (p.date || p.billDate) >= reportFilters.fromDate && 
+                    (p.date || p.billDate) <= reportFilters.toDate
+                ).sort((a, b) => new Date(a.date || a.billDate) - new Date(b.date || b.billDate));
+
+                let remaining = totalSelectedAmount;
+                const settledItems = [];
+                
+                for (const item of unpaid) {
+                    if (remaining <= 0) break;
+                    const outstanding = item.grandTotal - (item.paidAmount || 0);
+                    const allocated = Math.min(remaining, outstanding);
+                    
+                    if (allocated > 0) {
+                        const oldPaid = item.paidAmount || 0;
+                        const newPaid = oldPaid + allocated;
+                        const newOutstanding = Math.max(0, item.grandTotal - newPaid);
+                        const newStatus = newOutstanding <= 0.01 ? 'Paid' : 'Pending';
+
+                        const purRef = doc(db, 'outside_purchases', item.id);
+                        await updateDoc(purRef, {
+                            paidAmount: newPaid,
+                            outstandingAmount: newOutstanding,
+                            status: newStatus,
+                            updatedAt: serverTimestamp()
+                        });
+
+                        settledItems.push({
+                            purchaseId: item.id,
+                            payingAmount: allocated,
+                            originalOutstanding: outstanding
+                        });
+                        
+                        remaining -= allocated;
+                    }
+                }
+
+                const settledInfo = settledItems.map(item => 
+                    `ID: ${item.purchaseId.substring(0,6).toUpperCase()}, Paid: ${item.payingAmount}`
+                ).join(' | ');
+
+                await addDoc(collection(db, 'payments'), {
+                    entityId: vendorId,
+                    type: 'vendor',
+                    amount: totalSelectedAmount,
+                    date: bulkSettlementDate || getLastDayOfMonth(reportFilters.toDate),
+                    paymentMode: bulkSettlementMode || 'Cash',
+                    referenceNumber: bulkSettlementRef || '',
+                    note: bulkSettlementRemarks || `Bulk settlement: [${settledInfo}]` + (remaining > 0 ? ` (Overpaid: ${remaining})` : ''),
+                    createdAt: serverTimestamp(),
+                    tenantId,
+                    isSettlement: true,
+                    settlementDetails: settledItems
+                });
+
+                const vRef = doc(db, 'vendors', vendorId);
+                await updateDoc(vRef, {
+                    balance: increment(-totalSelectedAmount),
+                    lastPayment: serverTimestamp()
+                });
+            }
+
+            alert(t('saveSuccess') || 'Bulk settlements saved successfully!');
+            setBulkPayingAmounts({});
+            setBulkSettlementRef('');
+            setBulkSettlementRemarks('');
+            setIsBulkModeActive(false);
+        } catch (err) {
+            console.error(err);
+            alert('Bulk Settlement Save Error: ' + err.message);
         } finally {
             setIsSaving(false);
         }
@@ -1693,7 +2017,41 @@ const OutsideShop = () => {
                                                 </button>
                                                 <button onClick={async () => {
                                                     if(window.confirm(t('delete') + '?')) {
+                                                        // 1. Revert settlement details on purchases if it was a settlement
+                                                        if (p.isSettlement && p.settlementDetails && p.settlementDetails.length > 0) {
+                                                            for (const item of p.settlementDetails) {
+                                                                try {
+                                                                    const purRef = doc(db, 'outside_purchases', item.purchaseId);
+                                                                    const purSnap = await getDoc(purRef);
+                                                                    if (purSnap.exists()) {
+                                                                        const purData = purSnap.data();
+                                                                        const oldPaid = purData.paidAmount || 0;
+                                                                        const newPaid = Math.max(0, oldPaid - (item.amountPaid || 0));
+                                                                        const newOutstanding = Math.max(0, purData.grandTotal - newPaid);
+                                                                        
+                                                                        const updates = {};
+                                                                        if (newPaid <= 0.01) {
+                                                                            updates.paidAmount = deleteField();
+                                                                            updates.status = deleteField();
+                                                                            updates.settlementPaymentId = deleteField();
+                                                                        } else {
+                                                                            updates.paidAmount = newPaid;
+                                                                            updates.status = 'Pending';
+                                                                        }
+                                                                        updates.outstandingAmount = newOutstanding;
+                                                                        
+                                                                        await updateDoc(purRef, updates);
+                                                                    }
+                                                                } catch (err) {
+                                                                    console.error("Error reverting purchase on payment delete:", err);
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // 2. Delete the payment document
                                                         await deleteDoc(doc(p.tenantId ? db : db, 'payments', p.id));
+                                                        
+                                                        // 3. Update the vendor's balance
                                                         await updateDoc(doc(db, 'vendors', p.entityId), { balance: increment(p.amount) });
                                                     }
                                                 }} style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #fee2e2', background: '#fff', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -1820,23 +2178,136 @@ const OutsideShop = () => {
                 </button>
                 
                 {/* Filters */}
-                <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid #e2e8f0', padding: '20px', display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-end', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
-                    <div>
-                        <label style={LABEL_S}>{t('fromDate')}</label>
-                        <input type="date" value={reportFilters.fromDate} onChange={e => setReportFilters(p=>({...p, fromDate: e.target.value}))} style={INPUT_S} />
+                <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid #e2e8f0', padding: '20px', display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-end', justifyContent: 'space-between', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-end' }}>
+                        <div>
+                            <label style={LABEL_S}>{t('fromDate')}</label>
+                            <input type="date" value={reportFilters.fromDate} onChange={e => setReportFilters(p=>({...p, fromDate: e.target.value}))} style={INPUT_S} />
+                        </div>
+                        <div>
+                            <label style={LABEL_S}>{t('toDate')}</label>
+                            <input type="date" value={reportFilters.toDate} onChange={e => setReportFilters(p=>({...p, toDate: e.target.value}))} style={INPUT_S} />
+                        </div>
+                        <div style={{ minWidth: '200px' }}>
+                            <label style={LABEL_S}>{t('vendorName')}</label>
+                            <select value={reportFilters.vendorId} onChange={e => setReportFilters(p=>({...p, vendorId: e.target.value}))} style={INPUT_S}>
+                                <option value="all">{t('allVendors')}</option>
+                                {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                            </select>
+                        </div>
                     </div>
                     <div>
-                        <label style={LABEL_S}>{t('toDate')}</label>
-                        <input type="date" value={reportFilters.toDate} onChange={e => setReportFilters(p=>({...p, toDate: e.target.value}))} style={INPUT_S} />
-                    </div>
-                    <div style={{ minWidth: '200px' }}>
-                        <label style={LABEL_S}>{t('vendorName')}</label>
-                        <select value={reportFilters.vendorId} onChange={e => setReportFilters(p=>({...p, vendorId: e.target.value}))} style={INPUT_S}>
-                            <option value="all">{t('allVendors')}</option>
-                            {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                        </select>
+                        <button 
+                            onClick={() => {
+                                setIsBulkModeActive(!isBulkModeActive);
+                                setBulkPayingAmounts({});
+                            }}
+                            style={{ 
+                                padding: '10px 16px', 
+                                borderRadius: '12px', 
+                                border: isBulkModeActive ? '1.5px solid #86efac' : '1.5px solid #cbd5e1', 
+                                background: isBulkModeActive ? '#f0fdf4' : '#fff', 
+                                color: isBulkModeActive ? '#16a34a' : '#475569', 
+                                fontWeight: 800, 
+                                fontSize: '13px', 
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            {isBulkModeActive ? 'Disable Bulk Pay' : 'Enable Bulk Pay'}
+                        </button>
                     </div>
                 </div>
+
+                {/* Bulk Payment Settings */}
+                {isBulkModeActive && (
+                    <div style={{ background: '#f8fafc', borderRadius: '20px', border: '1px solid #bfdbfe', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '8px' }}>
+                            <span style={{ fontSize: '14px', fontWeight: 900, color: '#1e3a8a' }}>📁 BULK PAYMENT SETTLEMENT PANEL</span>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <button 
+                                    onClick={handleBulkAutoFillAll} 
+                                    style={{ fontSize: '11px', fontWeight: 800, color: '#16a34a', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer' }}
+                                >
+                                    Auto-fill All Dues
+                                </button>
+                                <button 
+                                    onClick={() => setBulkPayingAmounts({})} 
+                                    style={{ fontSize: '11px', fontWeight: 800, color: '#ef4444', background: '#fef2f2', border: '1px solid #fee2e2', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer' }}
+                                >
+                                    Clear All
+                                </button>
+                            </div>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', alignItems: 'flex-end' }}>
+                            <div>
+                                <label style={LABEL_S}>Payment Date</label>
+                                <input 
+                                    type="date" 
+                                    value={bulkSettlementDate} 
+                                    onChange={e => setBulkSettlementDate(e.target.value)} 
+                                    style={INPUT_S} 
+                                />
+                            </div>
+                            <div>
+                                <label style={LABEL_S}>Payment Mode</label>
+                                <select 
+                                    value={bulkSettlementMode} 
+                                    onChange={e => setBulkSettlementMode(e.target.value)} 
+                                    style={INPUT_S}
+                                >
+                                    <option value="Cash">Cash</option>
+                                    <option value="UPI">UPI</option>
+                                    <option value="Bank Transfer">Bank Transfer</option>
+                                    <option value="Cheque">Cheque</option>
+                                    <option value="Adjustments">Adjustments</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style={LABEL_S}>Reference Number</label>
+                                <input 
+                                    type="text" 
+                                    value={bulkSettlementRef} 
+                                    onChange={e => setBulkSettlementRef(e.target.value)} 
+                                    placeholder="UPI ID / Cheque No"
+                                    style={INPUT_S} 
+                                />
+                            </div>
+                            <div>
+                                <label style={LABEL_S}>Remarks (Optional)</label>
+                                <input 
+                                    type="text" 
+                                    value={bulkSettlementRemarks} 
+                                    onChange={e => setBulkSettlementRemarks(e.target.value)} 
+                                    placeholder="Bulk settlement remarks"
+                                    style={INPUT_S} 
+                                />
+                            </div>
+                            <div>
+                                <button 
+                                    onClick={handleSaveBulkSettlement}
+                                    disabled={isSaving || Object.values(bulkPayingAmounts).every(v => !(parseFloat(v) > 0))}
+                                    style={{ 
+                                        padding: '10px 20px', 
+                                        borderRadius: '10px', 
+                                        border: 'none', 
+                                        background: (Object.values(bulkPayingAmounts).every(v => !(parseFloat(v) > 0)) || isSaving) ? '#cbd5e1' : '#16a34a', 
+                                        color: '#fff', 
+                                        fontWeight: 800, 
+                                        cursor: (Object.values(bulkPayingAmounts).every(v => !(parseFloat(v) > 0)) || isSaving) ? 'default' : 'pointer',
+                                        width: '100%',
+                                        boxShadow: '0 4px 10px rgba(22, 163, 74, 0.15)'
+                                    }}
+                                >
+                                    {isSaving ? 'Saving...' : 'Save Bulk Payments'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', padding: '24px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
@@ -1853,6 +2324,7 @@ const OutsideShop = () => {
                                     <th style={{...TH_S, textAlign: 'right'}}>{t('totalPurchase')}</th>
                                     <th style={{...TH_S, textAlign: 'right'}}>{t('cashPaid')}</th>
                                     <th style={{...TH_S, textAlign: 'right'}}>{t('balance')}</th>
+                                    {isBulkModeActive && <th style={{...TH_S, textAlign: 'center'}}>Bulk Paying Amount</th>}
                                     <th style={{...TH_S, textAlign: 'center'}}>{t('action')}</th>
                                 </tr>
                             </thead>
@@ -1869,10 +2341,61 @@ const OutsideShop = () => {
                                                 <div style={{fontSize: '11px', color: '#94a3b8'}}>#V{v.displayId}</div>
                                             </td>
                                             <td style={{...TD_S, textAlign: 'right', fontWeight: 700, color: '#dc2626'}}>{fmt(totalP)}</td>
-                                            <td style={{...TD_S, textAlign: 'right', fontWeight: 700, color: '#dc2626'}}>{fmt(totalPaid)}</td>
+                                            <td 
+                                                onClick={() => handleOpenSettlement(v)}
+                                                style={{...TD_S, textAlign: 'right', fontWeight: 700, color: '#2563eb', cursor: 'pointer', textDecoration: 'underline'}}
+                                                title="Click to settle payments"
+                                            >
+                                                {fmt(totalPaid)}
+                                            </td>
                                             <td style={{...TD_S, textAlign: 'right', fontWeight: 800, color: '#1e293b'}}>{fmt(v.balance || 0)}</td>
+                                            {isBulkModeActive && (
+                                                <td style={{...TD_S, textAlign: 'center'}}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}>
+                                                        <span style={{ fontWeight: 600, color: '#64748b', fontSize: '12px' }}>₹</span>
+                                                        <input 
+                                                            type="number"
+                                                            value={bulkPayingAmounts[v.id] || ''}
+                                                            onChange={(e) => {
+                                                                let val = parseFloat(e.target.value) || 0;
+                                                                if (val < 0) val = 0;
+                                                                const maxDues = Math.max(0, totalP - totalPaid);
+                                                                if (val > maxDues) val = maxDues;
+                                                                setBulkPayingAmounts(p => ({ ...p, [v.id]: val.toString() }));
+                                                             }}
+                                                             style={{ 
+                                                                 ...INPUT_S, 
+                                                                 width: '90px', 
+                                                                 padding: '4px 6px', 
+                                                                 fontSize: '13px', 
+                                                                 textAlign: 'right',
+                                                                 borderColor: (parseFloat(bulkPayingAmounts[v.id]) > 0) ? '#86efac' : '#cbd5e1',
+                                                                 background: (parseFloat(bulkPayingAmounts[v.id]) > 0) ? '#f0fdf4' : '#fff'
+                                                             }}
+                                                             placeholder="0.00"
+                                                        />
+                                                        <button 
+                                                             onClick={() => {
+                                                                 const dues = Math.max(0, totalP - totalPaid);
+                                                                 setBulkPayingAmounts(p => ({ ...p, [v.id]: dues.toFixed(2) }));
+                                                             }}
+                                                             title="Auto-fill Period Dues"
+                                                             style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '10px', fontWeight: 800 }}
+                                                        >
+                                                             [DUES]
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            )}
                                             <td style={{...TD_S, textAlign: 'center'}}>
                                                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                                    <button 
+                                                        onClick={() => handleOpenSettlement(v)}
+                                                        title="Month-End Settlement"
+                                                        style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #bfdbfe', background: '#fff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                                    >
+                                                        <Plus size={14}/>
+                                                    </button>
                                                     <button 
                                                         onClick={() => { setViewingVendor(v); setShowDetailModal(true); }} 
                                                         title="View History" 
@@ -1936,12 +2459,39 @@ const OutsideShop = () => {
                                         </td>
                                         <td style={TD_S}>
                                             {item.type === 'PURCHASE' ? (
-                                                <div style={{ fontWeight: 600, color: '#dc2626' }}>{item.items.map(i => lang==='ta' ? (i.flowerTypeTa || i.flowerType) : i.flowerType).join(', ')}</div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    <div style={{ fontWeight: 600, color: '#dc2626' }}>{item.items.map(i => lang==='ta' ? (i.flowerTypeTa || i.flowerType) : i.flowerType).join(', ')}</div>
+                                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b' }}>
+                                                            Total: {fmt(item.grandTotal)}
+                                                        </span>
+                                                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569' }}>
+                                                            Paid: {fmt(item.paidAmount || 0)}
+                                                        </span>
+                                                        <span style={{ 
+                                                            fontSize: '10px', 
+                                                            fontWeight: 800, 
+                                                            padding: '2px 6px', 
+                                                            borderRadius: '4px', 
+                                                            background: item.status === 'Paid' ? '#dcfce7' : (item.paidAmount > 0 ? '#ffedd5' : '#f1f5f9'), 
+                                                            color: item.status === 'Paid' ? '#15803d' : (item.paidAmount > 0 ? '#ea580c' : '#475569') 
+                                                        }}>
+                                                            {item.status === 'Paid' ? 'Paid' : (item.paidAmount > 0 ? 'Partially Paid' : 'Pending')}
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             ) : (
-                                                <div style={{ color: '#dc2626', fontWeight: 600 }}>{item.note || 'Cash Payment'}</div>
+                                                <div style={{ color: '#16a34a', fontWeight: 600 }}>
+                                                    {item.note || 'Cash Payment'}
+                                                    {item.paymentMode && (
+                                                        <span style={{ marginLeft: '6px', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#16a34a', fontWeight: 800 }}>
+                                                            {item.paymentMode.toUpperCase()}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             )}
                                         </td>
-                                        <td style={{...TD_S, textAlign: 'right', fontWeight: 800, color: '#dc2626'}}>
+                                        <td style={{...TD_S, textAlign: 'right', fontWeight: 800, color: item.type === 'PAYMENT' ? '#16a34a' : '#dc2626'}}>
                                             {item.type === 'PAYMENT' ? '-' : ''}{fmt(item.grandTotal || item.amount)}
                                         </td>
                                     </tr>
@@ -2072,6 +2622,192 @@ const OutsideShop = () => {
                             <button onClick={() => setShowScanModal(false)} style={{ padding: '12px 24px', borderRadius: '14px', border: '1.5px solid #e2e8f0', background: '#fff', fontWeight: 700, color: '#64748b', cursor: 'pointer' }}>Cancel</button>
                             <button onClick={handleConfirmScan} style={{ padding: '12px 32px', borderRadius: '14px', border: 'none', background: '#d97706', color: '#fff', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 10px 15px -3px rgba(217, 119, 6, 0.3)' }}>
                                 <Save size={20}/> {t('confirmAndAdd') || 'Confirm & Add to Bill'}
+                            </button>
+                        </div>
+                    </div>
+                                </div>
+                            )}
+
+            {/* Vendor Settlement Modal */}
+            {settlementVendor && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+                    <div style={{ background: '#fff', borderRadius: '24px', width: '750px', maxWidth: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', border: '1px solid #bfdbfe', overflow: 'hidden' }}>
+                        
+                        <div style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#eff6ff' }}>
+                            <div>
+                                <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 900, color: '#1e3a8a' }}>Month-End Settlement - {settlementVendor.name}</h2>
+                                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#1e3a8a', opacity: 0.8, fontWeight: 600 }}>
+                                    Period: {reportFilters.fromDate.split('-').reverse().join('-')} to {reportFilters.toDate.split('-').reverse().join('-')}
+                                </p>
+                            </div>
+                            <button onClick={() => setSettlementVendor(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1e3a8a' }}><X size={24}/></button>
+                        </div>
+
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
+                            {settlementPurchases.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748b', fontWeight: 600 }}>
+                                    No unpaid purchase entries found for this period.
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                    {/* Settlement details form */}
+                                    <div style={{ background: '#f8fafc', borderRadius: '16px', padding: '20px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px solid #cbd5e1', paddingBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                <span style={{ fontSize: '12px', fontWeight: 800, color: '#64748b' }}>TOTAL OUTSTANDING OF SELECTED</span>
+                                                <span style={{ fontSize: '18px', fontWeight: 900, color: '#b91c1c' }}>
+                                                    {fmt(settlementPurchases.reduce((sum, item) => sum + (selectedPurchases[item.id] ? (item.grandTotal - (item.paidAmount || 0)) : 0), 0))}
+                                                </span>
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <label style={{ fontSize: '13px', fontWeight: 900, color: '#16a34a' }}>PAYING AMOUNT (TOTAL):</label>
+                                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                                    <span style={{ position: 'absolute', left: '12px', fontWeight: 800, color: '#16a34a', fontSize: '18px' }}>₹</span>
+                                                    <input 
+                                                        type="number"
+                                                        value={customSettleAmount}
+                                                        onChange={(e) => handleCustomTotalChange(e.target.value)}
+                                                        style={{ 
+                                                            ...INPUT_S, 
+                                                            width: '180px', 
+                                                            fontSize: '18px', 
+                                                            fontWeight: 900, 
+                                                            color: '#16a34a', 
+                                                            paddingLeft: '28px',
+                                                            borderColor: '#86efac',
+                                                            background: '#f0fdf4'
+                                                        }}
+                                                        placeholder="0.00"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                                            <div>
+                                                <label style={LABEL_S}>Payment Date</label>
+                                                <input 
+                                                    type="date" 
+                                                    value={settlementDate} 
+                                                    onChange={e => setSettlementDate(e.target.value)} 
+                                                    style={INPUT_S} 
+                                                />
+                                            </div>
+                                            <div>
+                                                <label style={LABEL_S}>Payment Mode</label>
+                                                <select 
+                                                    value={settlementMode} 
+                                                    onChange={e => setSettlementMode(e.target.value)} 
+                                                    style={INPUT_S}
+                                                >
+                                                    <option value="Cash">Cash</option>
+                                                    <option value="UPI">UPI</option>
+                                                    <option value="Bank Transfer">Bank Transfer</option>
+                                                    <option value="Cheque">Cheque</option>
+                                                    <option value="Adjustments">Adjustments</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style={LABEL_S}>Reference Number</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={settlementRef} 
+                                                    onChange={e => setSettlementRef(e.target.value)} 
+                                                    placeholder="UPI Trans ID / Cheque No"
+                                                    style={INPUT_S} 
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label style={LABEL_S}>Remarks (Optional)</label>
+                                            <input 
+                                                type="text" 
+                                                value={settlementRemarks} 
+                                                onChange={e => setSettlementRemarks(e.target.value)} 
+                                                placeholder="e.g. June Month end settlement"
+                                                style={INPUT_S} 
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '2px solid #e2e8f0', background: '#f8fafc' }}>
+                                                <th style={{ ...TH_S, width: '40px', padding: '8px' }}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={settlementPurchases.every(p => selectedPurchases[p.id])}
+                                                        onChange={(e) => handleSelectAllChange(e.target.checked)}
+                                                        style={{ transform: 'scale(1.2)', cursor: 'pointer' }}
+                                                    />
+                                                </th>
+                                                <th style={TH_S}>{t('date') || 'Date'}</th>
+                                                <th style={TH_S}>Bill Number</th>
+                                                <th style={{ ...TH_S, textAlign: 'right' }}>Purchase Amount</th>
+                                                <th style={{ ...TH_S, textAlign: 'right' }}>Outstanding Amount</th>
+                                                <th style={{ ...TH_S, textAlign: 'right', width: '120px' }}>Paying Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {settlementPurchases.map((p) => {
+                                                const outstanding = p.grandTotal - (p.paidAmount || 0);
+                                                const isChecked = !!selectedPurchases[p.id];
+                                                return (
+                                                    <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9', background: isChecked ? '#f0fdf4' : 'transparent' }}>
+                                                        <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={isChecked}
+                                                                onChange={(e) => handleCheckboxChange(p.id, e.target.checked)}
+                                                                style={{ transform: 'scale(1.2)', cursor: 'pointer' }}
+                                                            />
+                                                        </td>
+                                                        <td style={TD_S}>{p.date ? p.date.split('-').reverse().join('-') : '---'}</td>
+                                                        <td style={{ ...TD_S, fontFamily: 'monospace', fontWeight: 600 }}>#{p.id.substring(0, 8).toUpperCase()}</td>
+                                                        <td style={{ ...TD_S, textAlign: 'right', color: '#475569' }}>{fmt(p.grandTotal)}</td>
+                                                        <td style={{ ...TD_S, textAlign: 'right', fontWeight: 700, color: '#b91c1c' }}>{fmt(outstanding)}</td>
+                                                        <td style={{ padding: '8px', textAlign: 'right' }}>
+                                                            <input 
+                                                                type="number"
+                                                                disabled={!isChecked}
+                                                                value={payingAmounts[p.id] || ''}
+                                                                onChange={(e) => handleIndividualAmountChange(p.id, parseFloat(e.target.value) || 0)}
+                                                                style={{ 
+                                                                    ...INPUT_S, 
+                                                                    textAlign: 'right', 
+                                                                    padding: '6px 8px', 
+                                                                    background: isChecked ? '#fff' : '#f1f5f9',
+                                                                    border: isChecked ? '1.5px solid #86efac' : '1.5px solid #cbd5e1'
+                                                                }}
+                                                                placeholder="0.00"
+                                                            />
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ padding: '20px 32px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '16px', justifyContent: 'flex-end', background: '#fafafa' }}>
+                            <button onClick={() => setSettlementVendor(null)} style={{ padding: '12px 24px', borderRadius: '12px', border: '1.5px solid #cbd5e1', background: '#fff', fontWeight: 700, color: '#475569', cursor: 'pointer' }}>Cancel</button>
+                            <button 
+                                onClick={handleSaveSettlement} 
+                                disabled={isSaving || settlementPurchases.filter(p => selectedPurchases[p.id]).length === 0}
+                                style={{ 
+                                    padding: '12px 32px', 
+                                    borderRadius: '12px', 
+                                    border: 'none', 
+                                    background: (settlementPurchases.filter(p => selectedPurchases[p.id]).length === 0 || isSaving) ? '#cbd5e1' : '#16a34a', 
+                                    color: '#fff', 
+                                    fontWeight: 800, 
+                                    cursor: (settlementPurchases.filter(p => selectedPurchases[p.id]).length === 0 || isSaving) ? 'default' : 'pointer',
+                                    boxShadow: '0 10px 15px -3px rgba(22, 163, 74, 0.2)' 
+                                }}
+                            >
+                                {isSaving ? 'Saving...' : 'Save Payment'}
                             </button>
                         </div>
                     </div>

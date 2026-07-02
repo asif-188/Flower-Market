@@ -23,6 +23,7 @@ const Login = () => {
         // Derive tenantId: always use only the part before '@' for consistency
             const tenantId = username.includes('@') ? username.split('@')[0].toLowerCase() : username.toLowerCase();
             await signInWithEmailAndPassword(auth, email, password);
+            sessionStorage.removeItem('fm_logout_active');
             sessionStorage.setItem('fm_tenantId', tenantId);
             navigate('/app');
         } catch (err) {

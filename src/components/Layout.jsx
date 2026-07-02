@@ -266,13 +266,10 @@ const strings = {
   },
 };
 
-import { signOut } from 'firebase/auth';
-import { auth } from '../firebase';
-
 const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { tenantData } = useTenant();
+  const { tenantData, logout } = useTenant();
 
   // ── Language state (persisted) ──
   const [lang, setLang] = useState(() => sessionStorage.getItem('fm_lang') || 'en');
@@ -369,13 +366,8 @@ const Layout = () => {
   };
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      sessionStorage.clear();
-      navigate('/');
-    } catch (err) {
-      console.error('Logout error:', err);
-    }
+    await logout();
+    navigate('/');
   };
 
   return (

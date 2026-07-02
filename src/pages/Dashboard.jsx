@@ -38,6 +38,7 @@ const Dashboard = () => {
                     <span className="text-5xl font-black text-emerald-700 tracking-tighter italic">{t('sales')}</span>
                 </button>
 
+                {/* 
                 <button
                     onClick={() => navigate('/app/salesman')}
                     className="group relative overflow-hidden bg-indigo-50 border-4 border-indigo-100 hover:border-indigo-300 p-10 rounded-[40px] shadow-2xl hover:shadow-indigo-200 transition-all transform hover:-translate-y-2 active:scale-95 flex items-center justify-center gap-8"
@@ -53,6 +54,7 @@ const Dashboard = () => {
                     <div className="text-6xl group-hover:rotate-12 transition-transform">👑</div>
                     <span className="text-5xl font-black text-purple-800 tracking-tighter italic">Owner Dashboard</span>
                 </button>
+                */}
 
                 <button
                     onClick={() => navigate('/app/outside-shop')}
