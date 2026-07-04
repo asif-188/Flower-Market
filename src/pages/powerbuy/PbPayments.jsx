@@ -57,6 +57,31 @@ const PbPayments = () => {
   const cashLessRef = React.useRef(null);
   const saveRef = React.useRef(null);
 
+  // For calculating historical opening balance on selected date in modal
+  const [modalSales, setModalSales] = useState([]);
+  const [modalPayments, setModalPayments] = useState([]);
+
+  const toDateStr = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dd}`;
+  };
+
+  useEffect(() => {
+    if (!isModalOpen || !formData.date) {
+      setModalSales([]);
+      setModalPayments([]);
+      return;
+    }
+    const unsubSales = subscribeToCollection('pb_sales', setModalSales, true, formData.date);
+    const unsubPayments = subscribeToCollection('pb_payments', setModalPayments, true, formData.date);
+    return () => {
+      unsubSales();
+      unsubPayments();
+    };
+  }, [isModalOpen, formData.date]);
+
   useEffect(() => {
     if (isModalOpen) { setTimeout(() => dateRef.current?.focus(), 100); }
   }, [isModalOpen]);
@@ -124,7 +149,31 @@ const PbPayments = () => {
   };
 
   const selectedEntity = buyers.find(e => e.id === formData.entityId);
-  const openingBalance = selectedEntity?.balance || 0;
+
+  const openingBalance = React.useMemo(() => {
+    if (!selectedEntity) return 0;
+    const currentBalance = selectedEntity.balance || 0;
+    
+    // Filter sales on or after formData.date
+    const salesOnOrAfter = modalSales.filter(s => {
+      if (s.buyerId !== selectedEntity.id) return false;
+      const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+      return dt && dt >= formData.date;
+    });
+    
+    // Filter payments on or after formData.date
+    const paymentsOnOrAfter = modalPayments.filter(p => {
+      if (p.entityId !== selectedEntity.id) return false;
+      const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+      return dt && dt >= formData.date;
+    });
+    
+    const totalSalesAmt = salesOnOrAfter.reduce((sum, s) => sum + (Number(s.grandTotal) || 0), 0);
+    const totalPaymentsAmt = paymentsOnOrAfter.reduce((sum, p) => sum + (Number(p.amount) || 0) + (Number(p.cashLess) || 0), 0);
+    
+    return currentBalance - totalSalesAmt + totalPaymentsAmt;
+  }, [selectedEntity, modalSales, modalPayments, formData.date]);
+
   const closingBalance = openingBalance - (parseFloat(formData.amount) || 0) - (parseFloat(formData.cashLess) || 0);
   const filteredBuyers = buyers.filter(b => b.name.toLowerCase().includes(customerSearch.toLowerCase()) || b.displayId?.toString().includes(customerSearch));
   const handleKeyDown = (e, nextRef) => { if (e.key === 'Enter') { e.preventDefault(); nextRef?.current?.focus(); } };
@@ -291,7 +340,7 @@ const PbPayments = () => {
               <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', display: 'flex' }}><X size={24} strokeWidth={2.5} /></button>
             </div>
             <div style={{ padding: '32px', overflowY: 'auto', flex: 1 }}>
-              <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingRight: '12px' }}>
                 {/* Date */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <label style={{ width: '130px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Date</label>

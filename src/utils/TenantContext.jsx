@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
@@ -61,7 +61,7 @@ export const TenantProvider = ({ children }) => {
                     }
                 }
             } else {
-                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                if ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && sessionStorage.getItem('fm_logout_active') !== 'true') {
                     setUser({ email: 'kasivetrivel@poovanam.com', uid: 'mock-uid' });
                     setTenantId('kasivetrivel');
                     sessionStorage.setItem('fm_tenantId', 'kasivetrivel');
@@ -83,12 +83,26 @@ export const TenantProvider = ({ children }) => {
         };
     }, []);
 
+    const logout = async () => {
+        try {
+            sessionStorage.setItem('fm_logout_active', 'true');
+            await signOut(auth);
+            setUser(null);
+            setTenantId(null);
+            setTenantData(null);
+            sessionStorage.removeItem('fm_tenantId');
+        } catch (err) {
+            console.error('Error signing out:', err);
+        }
+    };
+
     const value = {
         user,
         tenantId,
         tenantData,
         loading,
-        setTenantData
+        setTenantData,
+        logout
     };
 
     return (
