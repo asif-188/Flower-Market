@@ -135,6 +135,41 @@ const strings = {
     thisYear: 'This Year',
     prevYear: 'Prev Year',
     filter: 'Filter',
+    farmerMaster: 'Farmer Name',
+    farmerPurchase: 'Purchase',
+    farmerCashPay: 'Cash Pay',
+    farmerReport: 'Farmer Report',
+    farmerDayAccount: 'Day Account',
+    farmerBillClose: 'Bill Closed',
+    export: 'Export',
+    addFarmer: 'Add Farmer',
+    farmerName: 'Farmer Name',
+    village: 'Village',
+    commType: 'Comm. Type',
+    currentBalance: 'Current Balance',
+    farmerSearchPlaceholder: 'Search by name, ID, village or contact...',
+    editFarmer: 'Edit Farmer',
+    newFarmer: 'New Farmer',
+    farmerIdAuto: 'Farmer ID (Auto)',
+    fullNamePlaceholder: 'Full Name',
+    contactNumber: 'Contact Number',
+    mobilePlaceholder: 'Mobile',
+    villagePlaceholder: 'Village Name',
+    defaultRules: 'Default Rules',
+    tenPercentFlat: '10% Flat',
+    fifteenPercentFlat: '15% Flat',
+    noCommission: 'No Commission',
+    save: 'Save',
+    saving: 'Saving...',
+    farmerId: 'Farmer ID',
+    loadingLedger: 'Loading ledger history...',
+    farmerMonthReport: 'Report',
+    searchFarmer: 'Search Farmer',
+    searchPlaceholderShort: 'Name or ID...',
+    allFarmers: 'All Farmers',
+    confirmSaveStatements: 'Save statements for the selected period?',
+    saveSuccess: 'All bills saved successfully!',
+    confirmDiscardRow: 'Discard this statement row?',
   },
   ta: {
     back: 'பின்',
@@ -263,6 +298,41 @@ const strings = {
     thisYear: 'இந்த ஆண்டு',
     prevYear: 'கடந்த ஆண்டு',
     filter: 'தேடல்',
+    farmerMaster: 'விவசாயி பெயர்',
+    farmerPurchase: 'கொள்முதல் பதிவு',
+    farmerCashPay: 'பணக் கொடுப்பனவு',
+    farmerReport: 'விவசாயி அறிக்கை',
+    farmerDayAccount: 'தினசரி கணக்கு',
+    farmerBillClose: 'பில் மூடப்பட்டது',
+    export: 'ஏற்றுமதி',
+    addFarmer: 'விவசாயியைச் சேர்',
+    farmerName: 'விவசாயி பெயர்',
+    village: 'கிராமம்',
+    commType: 'கமிஷன் வகை',
+    currentBalance: 'தற்போதைய நிலுவை',
+    farmerSearchPlaceholder: 'பெயர், ஐடி, கிராமம் அல்லது தொடர்பு மூலம் தேடு...',
+    editFarmer: 'விவசாயி விவரம் திருத்து',
+    newFarmer: 'புதிய விவசாயி',
+    farmerIdAuto: 'விவசாயி ஐடி (தானியங்கி)',
+    fullNamePlaceholder: 'முழு பெயர்',
+    contactNumber: 'தொடர்பு எண்',
+    mobilePlaceholder: 'கைபேசி எண்',
+    villagePlaceholder: 'கிராமத்தின் பெயர்',
+    defaultRules: 'இயல்பு விதிகள்',
+    tenPercentFlat: '10% நிலையான கமிஷன்',
+    fifteenPercentFlat: '15% நிலையான கமிஷன்',
+    noCommission: 'கமிஷன் இல்லை',
+    save: 'சேமி',
+    saving: 'சேமிக்கப்படுகிறது...',
+    farmerId: 'விவசாயி ஐடி',
+    loadingLedger: 'வரலாறு ஏற்றப்படுகிறது...',
+    farmerMonthReport: 'அறிக்கை',
+    searchFarmer: 'விவசாயி தேடல்',
+    searchPlaceholderShort: 'பெயர் அல்லது ஐடி...',
+    allFarmers: 'அனைத்து விவசாயிகள்',
+    confirmSaveStatements: 'தேர்ந்தெடுக்கப்பட்ட காலத்திற்கான அறிக்கைகளைச் சேமிக்கவா?',
+    saveSuccess: 'அனைத்து பில்களும் வெற்றிகரமாக சேமிக்கப்பட்டன!',
+    confirmDiscardRow: 'இந்த அறிக்கை வரியை நீக்கவா?',
   },
 };
 
@@ -318,6 +388,7 @@ const Layout = () => {
     if (p.includes('/intake'))       return '/app/farmer';
     if (p.includes('/accounts'))     return '/app/dashboard';
     if (p.includes('/sales'))        return '/app/dashboard';
+    if (p.includes('/farmer-'))      return '/app/farmer';
     if (p.includes('/farmer'))       return '/app/dashboard';
     if (p.includes('/outside-shop')) return '/app/dashboard';
     if (p.includes('/weight-test'))  return '/app/dashboard';
@@ -353,13 +424,21 @@ const Layout = () => {
     if (p.includes('/direct-sales')) return `☘️ Sales — ${t('directSales')}`;
     if (p.includes('/sales-entry'))  return `☘️ Sales — ${t('sales')}`;
     if (p.includes('/reports'))      return `☘️ Sales — ${t('reports')}`;
+    if (p.includes('/farmer-flowers')) return `🌸 ${t('flowers')}`;
     if (p.includes('/flowers'))      return `☘️ Sales — ${t('flowers')}`;
     if (p.includes('/daily-report')) return `☘️ Sales — ${t('dailyReport')}`;
     if (p.includes('/settings'))     return `☘️ Business Settings`;
     if (p.includes('/intake'))       return `☘️ ${t('intake')}`;
     if (p.includes('/accounts'))     return `☘️ ${t('accounts')}`;
     if (p.includes('/sales'))        return `☘️ ${t('sales')}`;
-    if (p.includes('/farmer'))       return `☘️ ${t('farmer')}`;
+    if (p.includes('/farmer-master')) return `👨‍🌾 ${t('farmerMaster')}`;
+    if (p.includes('/farmer-purchase')) return `🌸 ${t('farmerPurchase')}`;
+    if (p.includes('/farmer-cash-pay')) return `💵 ${t('farmerCashPay')}`;
+    if (p.includes('/farmer-report')) return `📊 ${t('farmerReport')}`;
+    if (p.includes('/farmer-day-account')) return `📅 ${t('farmerDayAccount')}`;
+    if (p.includes('/farmer-month-report')) return `📆 ${t('farmerMonthReport')}`;
+    if (p.includes('/farmer-bill-close')) return `📄 ${t('farmerBillClose')}`;
+    if (p.includes('/farmer'))       return `👨‍🌾 ${t('farmer')}`;
     if (p.includes('/outside-shop')) return `☘️ ${t('outsideShop')}`;
     if (p.includes('/weight-test'))  return `⚙️ Weight Machine Test`;
     return '';

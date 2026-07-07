@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Edit, Trash2, X, MoreVertical, ShieldAlert, ArrowLeft, ToggleLeft, ToggleRight } from 'lucide-react';
 import { subscribeToCollection, saveVendor, deleteVendor, db } from '../utils/storage';
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { useTenant } from '../utils/TenantContext';
 
 const INPUT_S = {
   width: '100%',
@@ -29,6 +30,7 @@ const LABEL_S = {
 };
 
 const OwnerVendors = () => {
+  const { isEditDeleteAllowed } = useTenant();
   const navigate = useNavigate();
   const [vendors, setVendors] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -257,12 +259,14 @@ const OwnerVendors = () => {
                       ₹{(v.balance || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                     </td>
                     <td className="p-4 text-center relative">
-                      <button
-                        onClick={() => setActiveKebabId(activeKebabId === v.id ? null : v.id)}
-                        className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors"
-                      >
-                        <MoreVertical size={16} />
-                      </button>
+                      {isEditDeleteAllowed() && (
+                        <button
+                          onClick={() => setActiveKebabId(activeKebabId === v.id ? null : v.id)}
+                          className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors"
+                        >
+                          <MoreVertical size={16} />
+                        </button>
+                      )}
 
                       {/* Dropdown Menu */}
                       {activeKebabId === v.id && (

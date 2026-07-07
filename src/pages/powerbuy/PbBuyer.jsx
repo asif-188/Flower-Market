@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Edit2, Trash2, Search, X, User, FileText, Upload } from 'lucide-react';
 import { savePbBuyer, deletePbBuyer, subscribeToCollection, db } from '../../utils/storage';
-import { deleteDoc, doc } from 'firebase/firestore';
+import { doc, updateDoc, increment, deleteDoc } from 'firebase/firestore';
+import { useTenant } from '../../utils/TenantContext';
 
 // ── Accent palette for Power Buy ──
 const PB = {
@@ -112,6 +113,7 @@ const toDateStr = (d) => {
 };
 
 const PbBuyer = () => {
+  const { isEditDeleteAllowed } = useTenant();
   const [buyers, setBuyers] = useState([]);
   const [sales, setSales] = useState([]);
   const [payments, setPayments] = useState([]);
@@ -387,16 +389,20 @@ const PbBuyer = () => {
                     </td>
                     <td style={{ ...S.td, textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                        <button style={{ ...S.editBtn, background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#eff6ff', color: isHighlighted ? '#fff' : '#3b82f6' }}
-                          onClick={() => handleOpenModal(buyer)}
-                          onMouseEnter={e => { if (!isHighlighted) { e.currentTarget.style.background = '#3b82f6'; e.currentTarget.style.color = '#fff'; } }}
-                          onMouseLeave={e => { if (!isHighlighted) { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.color = '#3b82f6'; } }}
-                        ><Edit2 size={13} /></button>
-                        <button style={{ ...S.deleteBtn, background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#fff1f2', color: isHighlighted ? '#fff' : '#f43f5e' }}
-                          onClick={() => handleDelete(buyer.id)}
-                          onMouseEnter={e => { if (!isHighlighted) { e.currentTarget.style.background = '#f43f5e'; e.currentTarget.style.color = '#fff'; } }}
-                          onMouseLeave={e => { if (!isHighlighted) { e.currentTarget.style.background = '#fff1f2'; e.currentTarget.style.color = '#f43f5e'; } }}
-                        ><Trash2 size={13} /></button>
+                        {isEditDeleteAllowed() && (
+                          <>
+                            <button style={{ ...S.editBtn, background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#eff6ff', color: isHighlighted ? '#fff' : '#3b82f6' }}
+                              onClick={() => handleOpenModal(buyer)}
+                              onMouseEnter={e => { if (!isHighlighted) { e.currentTarget.style.background = '#3b82f6'; e.currentTarget.style.color = '#fff'; } }}
+                              onMouseLeave={e => { if (!isHighlighted) { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.color = '#3b82f6'; } }}
+                            ><Edit2 size={13} /></button>
+                            <button style={{ ...S.deleteBtn, background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#fff1f2', color: isHighlighted ? '#fff' : '#f43f5e' }}
+                              onClick={() => handleDelete(buyer.id)}
+                              onMouseEnter={e => { if (!isHighlighted) { e.currentTarget.style.background = '#f43f5e'; e.currentTarget.style.color = '#fff'; } }}
+                              onMouseLeave={e => { if (!isHighlighted) { e.currentTarget.style.background = '#fff1f2'; e.currentTarget.style.color = '#f43f5e'; } }}
+                            ><Trash2 size={13} /></button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -465,6 +471,7 @@ const PbBuyer = () => {
                       }}
                       onFocus={e => !f.disabled && (e.target.style.borderColor = PB.primary)}
                       onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                      onWheel={f.type === 'number' ? (e) => e.target.blur() : undefined}
                     />
                   </div>
                 ))}

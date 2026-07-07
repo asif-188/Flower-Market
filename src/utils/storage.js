@@ -44,6 +44,12 @@ export const COLLECTIONS = {
   FLOWER_PURCHASES: 'salesman_flower_purchases',
   CREDIT_TRANSFERS: 'salesman_credit_transfers',
   DAILY_LEDGERS: 'salesman_daily_ledgers',
+  // ── Isolated Farmer Module ──
+  F_FARMERS: 'f_farmers',
+  F_PURCHASES: 'f_purchases',
+  F_PAYMENTS: 'f_payments',
+  F_LEDGERS: 'f_ledgers',
+  F_BILL_CLOSINGS: 'f_bill_closings',
 };
 
 // Helper to get current tenant
@@ -183,6 +189,10 @@ export const saveProduct = async (product) => {
     } else {
         await addData(COLLECTIONS.PRODUCTS, data);
     }
+};
+
+export const deleteProduct = async (id) => {
+    await deleteDoc(doc(db, COLLECTIONS.PRODUCTS, id));
 };
 
 // --- INTAKE ---
@@ -611,6 +621,75 @@ export const saveDailyLedger = async (ledger) => {
 
 export const deleteDailyLedger = async (id) => {
   await deleteDoc(doc(db, COLLECTIONS.DAILY_LEDGERS, id));
+};
+
+// ── Independent Farmer Module Helpers ──
+export const saveFFarmer = async (farmer) => {
+  const { id, ...data } = farmer;
+  if (id) {
+    await updateData(COLLECTIONS.F_FARMERS, id, data);
+  } else {
+    await addData(COLLECTIONS.F_FARMERS, {
+      ...data,
+      balance: data.balance || 0
+    });
+  }
+};
+
+export const deleteFFarmer = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.F_FARMERS, id));
+};
+
+export const saveFPurchase = async (purchase) => {
+  const { id, ...data } = purchase;
+  if (id) {
+    await updateData(COLLECTIONS.F_PURCHASES, id, data);
+  } else {
+    await addData(COLLECTIONS.F_PURCHASES, data);
+  }
+};
+
+export const deleteFPurchase = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.F_PURCHASES, id));
+};
+
+export const saveFPayment = async (payment) => {
+  const { id, ...data } = payment;
+  if (id) {
+    await updateData(COLLECTIONS.F_PAYMENTS, id, data);
+  } else {
+    await addData(COLLECTIONS.F_PAYMENTS, data);
+  }
+};
+
+export const deleteFPayment = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.F_PAYMENTS, id));
+};
+
+export const saveFLedger = async (ledger) => {
+  const { id, ...data } = ledger;
+  if (id) {
+    await updateData(COLLECTIONS.F_LEDGERS, id, data);
+  } else {
+    await addData(COLLECTIONS.F_LEDGERS, data);
+  }
+};
+
+export const deleteFLedger = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.F_LEDGERS, id));
+};
+
+export const saveFBillClosing = async (closing) => {
+  const { id, ...data } = closing;
+  if (id) {
+    await updateData(COLLECTIONS.F_BILL_CLOSINGS, id, data);
+  } else {
+    await addData(COLLECTIONS.F_BILL_CLOSINGS, data);
+  }
+};
+
+export const deleteFBillClosing = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.F_BILL_CLOSINGS, id));
 };
 
 

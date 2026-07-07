@@ -3,6 +3,7 @@ import { Plus, X, Edit2, Trash2, CheckCircle2, User } from 'lucide-react';
 import { subscribeToCollection, db, savePayment } from '../utils/storage';
 import { doc, updateDoc, increment, deleteDoc } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
+import { useTenant } from '../utils/TenantContext';
 
 const S = {
     page: {
@@ -46,7 +47,8 @@ const S = {
 };
 
 const Payments = () => {
-    const { t } = useContext(LangContext);
+    const { isEditDeleteAllowed } = useTenant();
+    const { t, lang } = useContext(LangContext);
     const [payments, setPayments] = useState([]);
     const [buyers, setBuyers] = useState([]);
     const [farmers, setFarmers] = useState([]);
@@ -220,7 +222,7 @@ const Payments = () => {
     const getName = (id, type) => (type === 'farmer' ? farmers : buyers).find(x => x.id === id)?.name || '—';
     const getDisplayId = (id, type) => (type === 'farmer' ? farmers : buyers).find(x => x.id === id)?.displayId || '—';
 
-    const fmt = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
+    const fmt = (n) => `₹${Number(n).toLocaleString('en-IN')}`;
 
     const formatDate = (ts) => {
         if (!ts) return '—';
@@ -235,22 +237,22 @@ const Payments = () => {
         if (!selectedEntity) return 0;
         const currentBalance = selectedEntity.balance || 0;
         
-        // Filter sales on or after formData.date
-        const salesOnOrAfter = modalSales.filter(s => {
+        // Filter sales after formData.date
+        const salesAfter = modalSales.filter(s => {
             if (s.buyerId !== selectedEntity.id) return false;
             const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-            return dt && dt >= formData.date;
+            return dt && dt > formData.date;
         });
         
-        // Filter payments on or after formData.date
-        const paymentsOnOrAfter = modalPayments.filter(p => {
+        // Filter payments after formData.date
+        const paymentsAfter = modalPayments.filter(p => {
             if (p.entityId !== selectedEntity.id || p.type !== 'buyer') return false;
             const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
-            return dt && dt >= formData.date;
+            return dt && dt > formData.date;
         });
         
-        const totalSalesAmt = salesOnOrAfter.reduce((sum, s) => sum + (Number(s.grandTotal) || 0), 0);
-        const totalPaymentsAmt = paymentsOnOrAfter.reduce((sum, p) => sum + (Number(p.amount) || 0) + (Number(p.cashLess) || 0), 0);
+        const totalSalesAmt = salesAfter.reduce((sum, s) => sum + (Number(s.grandTotal) || 0), 0);
+        const totalPaymentsAmt = paymentsAfter.reduce((sum, p) => sum + (Number(p.amount) || 0) + (Number(p.cashLess) || 0), 0);
         
         return currentBalance - totalSalesAmt + totalPaymentsAmt;
     }, [selectedEntity, modalSales, modalPayments, formData.date]);
@@ -534,24 +536,28 @@ const Payments = () => {
                                         <td style={{ ...S.td, color: isHighlighted ? 'rgba(255,255,255,0.9)' : '#64748b' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                 <span>{p.note || '—'}</span>
-                                                <button onClick={() => handleEditNote(p)}
-                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: isHighlighted ? 'rgba(255,255,255,0.6)' : '#cbd5e1', display: 'flex', padding: '2px' }}
-                                                    onMouseEnter={e => { if(!isHighlighted) e.currentTarget.style.color = '#16a34a' }}
-                                                    onMouseLeave={e => { if(!isHighlighted) e.currentTarget.style.color = '#cbd5e1' }}
-                                                ><Edit2 size={12} /></button>
+                                                {isEditDeleteAllowed() && (
+                                                    <button onClick={() => handleEditNote(p)}
+                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: isHighlighted ? 'rgba(255,255,255,0.6)' : '#cbd5e1', display: 'flex', padding: '2px' }}
+                                                        onMouseEnter={e => { if(!isHighlighted) e.currentTarget.style.color = '#16a34a' }}
+                                                        onMouseLeave={e => { if(!isHighlighted) e.currentTarget.style.color = '#cbd5e1' }}
+                                                    ><Edit2 size={12} /></button>
+                                                )}
                                             </div>
                                         </td>
                                         <td style={{ ...S.td, textAlign: 'center' }}>
-                                            <button onClick={() => handleDelete(p)}
-                                                style={{ 
-                                                    background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#fff1f2', 
-                                                    border: 'none', borderRadius: '8px', width: '32px', height: '32px', 
-                                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', 
-                                                    cursor: 'pointer', color: isHighlighted ? '#fff' : '#f43f5e' 
-                                                }}
-                                                onMouseEnter={e => { if(!isHighlighted) { e.currentTarget.style.background = '#f43f5e'; e.currentTarget.style.color = '#fff'; } }}
-                                                onMouseLeave={e => { if(!isHighlighted) { e.currentTarget.style.background = '#fff1f2'; e.currentTarget.style.color = '#f43f5e'; } }}
-                                            ><Trash2 size={13} /></button>
+                                            {isEditDeleteAllowed() && (
+                                                <button onClick={() => handleDelete(p)}
+                                                    style={{ 
+                                                        background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#fff1f2', 
+                                                        border: 'none', borderRadius: '8px', width: '32px', height: '32px', 
+                                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', 
+                                                        cursor: 'pointer', color: isHighlighted ? '#fff' : '#f43f5e' 
+                                                    }}
+                                                    onMouseEnter={e => { if(!isHighlighted) { e.currentTarget.style.background = '#f43f5e'; e.currentTarget.style.color = '#fff'; } }}
+                                                    onMouseLeave={e => { if(!isHighlighted) { e.currentTarget.style.background = '#fff1f2'; e.currentTarget.style.color = '#f43f5e'; } }}
+                                                ><Trash2 size={13} /></button>
+                                            )}
                                         </td>
                                     </tr>
                                 );

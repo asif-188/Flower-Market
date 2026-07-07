@@ -31,7 +31,7 @@ const S = {
     },
 };
 
-const Flowers = () => {
+const FarmerFlowers = () => {
     const { isEditDeleteAllowed } = useTenant();
     const { t, lang } = useContext(LangContext);
     const [flowers, setFlowers]       = useState([]);
@@ -226,7 +226,7 @@ const Flowers = () => {
             {/* Tip */}
             {flowers.length > 0 && (
                 <div style={{ marginTop: '20px', padding: '12px 16px', background: '#f0fdf4', borderRadius: '10px', border: '1px solid #bbf7d0', fontSize: '12px', color: '#15803d', fontWeight: 600 }}>
-                    ✅ {flowers.length} flower {flowers.length === 1 ? 'variety' : 'varieties'} available — these appear in the Sales entry dropdown automatically.
+                    ✅ {flowers.length} flower {flowers.length === 1 ? 'variety' : 'varieties'} available — these appear in the Farmer Purchase entry dropdown automatically.
                 </div>
             )}
 
@@ -330,4 +330,4 @@ const Flowers = () => {
     );
 };
 
-export default Flowers;
+export default FarmerFlowers;

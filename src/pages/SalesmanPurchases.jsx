@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useContext } from 'react';
 import { subscribeToCollection, saveSalesmanPurchase, deleteSalesmanPurchase } from '../utils/storage';
 import { LangContext } from '../components/Layout';
 import { Plus, Trash2, Calendar, User, ShoppingBag, History, Clock } from 'lucide-react';
+import { useTenant } from '../utils/TenantContext';
 
 const INPUT_S = {
     width: '100%', padding: '9px 12px', borderRadius: '8px',
@@ -32,7 +33,8 @@ const displayDate = (iso) => {
 };
 
 const SalesmanPurchases = () => {
-    const { lang } = useContext(LangContext);
+    const { isEditDeleteAllowed } = useTenant();
+    const { t, lang } = useContext(LangContext);
     const [salesmen, setSalesmen] = useState([]);
     const [flowers, setFlowers] = useState([]);
     const [cashRecords, setCashRecords] = useState([]);
@@ -484,14 +486,16 @@ const SalesmanPurchases = () => {
                                         </td>
                                         <td style={{...TD_S, textAlign: 'right', fontWeight: 800, color: '#ea580c'}}>{fmt(bill.grandTotal)}</td>
                                         <td style={{...TD_S, textAlign: 'center'}}>
-                                            <button 
-                                                onClick={() => handleDeleteBill(bill.id)} 
-                                                style={{ border: '1px solid #e5e7eb', background: '#fff', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', color: '#ef4444' }}
-                                                onMouseEnter={e => e.currentTarget.style.background='#fef2f2'}
-                                                onMouseLeave={e => e.currentTarget.style.background='#ffffff'}
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
+                                            {isEditDeleteAllowed() && (
+                                                <button 
+                                                    onClick={() => handleDeleteBill(bill.id)} 
+                                                    style={{ border: '1px solid #e5e7eb', background: '#fff', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', color: '#ef4444' }}
+                                                    onMouseEnter={e => e.currentTarget.style.background='#fef2f2'}
+                                                    onMouseLeave={e => e.currentTarget.style.background='#ffffff'}
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))

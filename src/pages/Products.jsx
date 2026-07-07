@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Search, X, Tag, Package, Download, Upload, Boxes } from 'lucide-react';
 import { subscribeToCollection, saveProduct, db } from '../utils/storage';
 import { deleteDoc, doc } from 'firebase/firestore';
+import { useTenant } from '../utils/TenantContext';
 
 const Products = () => {
+    const { isEditDeleteAllowed } = useTenant();
     const [products, setProducts] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -92,12 +94,16 @@ const Products = () => {
                 {filteredProducts.map((product) => (
                     <div key={product.id} className="group relative bg-gray-50/50 rounded-[40px] p-8 border-2 border-transparent hover:border-orange-500 hover:bg-white hover:shadow-2xl transition-all duration-300">
                         <div className="absolute top-6 right-6 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity translate-x-4 group-hover:translate-x-0 duration-300">
-                            <button onClick={() => handleOpenModal(product)} className="p-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm">
-                                <Edit2 size={18} />
-                            </button>
-                            <button onClick={() => handleDelete(product.id)} className="p-3 bg-red-50 text-red-500 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm">
-                                <Trash2 size={18} />
-                            </button>
+                            {isEditDeleteAllowed() && (
+                                <>
+                                    <button onClick={() => handleOpenModal(product)} className="p-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                                        <Edit2 size={18} />
+                                    </button>
+                                    <button onClick={() => handleDelete(product.id)} className="p-3 bg-red-50 text-red-500 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm">
+                                        <Trash2 size={18} />
+                                    </button>
+                                </>
+                            )}
                         </div>
 
                         <div className="mb-8">

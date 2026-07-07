@@ -62,9 +62,9 @@ export const TenantProvider = ({ children }) => {
                 }
             } else {
                 if ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && sessionStorage.getItem('fm_logout_active') !== 'true') {
-                    setUser({ email: 'kasivetrivel@poovanam.com', uid: 'mock-uid' });
-                    setTenantId('kasivetrivel');
-                    sessionStorage.setItem('fm_tenantId', 'kasivetrivel');
+                    setUser({ email: 'kasi.vetrivel@poovanam.com', uid: 'mock-uid' });
+                    setTenantId('kasi.vetrivel');
+                    sessionStorage.setItem('fm_tenantId', 'kasi.vetrivel');
                     setTenantData({ name: 'SVM Flowers', type: 'Sri Valli Flower Merchant' });
                     if (active) setLoading(false);
                     return;
@@ -83,8 +83,52 @@ export const TenantProvider = ({ children }) => {
         };
     }, []);
 
+    const [ownerModeActive, setOwnerModeActive] = useState(() => {
+        const until = sessionStorage.getItem('fm_ownerModeUntil');
+        if (until && parseInt(until) > Date.now()) {
+            return true;
+        }
+        return false;
+    });
+
+    useEffect(() => {
+        if (ownerModeActive) {
+            const until = sessionStorage.getItem('fm_ownerModeUntil');
+            const delay = until ? parseInt(until) - Date.now() : 15 * 60 * 1000;
+            
+            const timer = setTimeout(() => {
+                sessionStorage.removeItem('fm_ownerModeUntil');
+                setOwnerModeActive(false);
+            }, Math.max(0, delay));
+            
+            return () => clearTimeout(timer);
+        }
+    }, [ownerModeActive]);
+
+    const enableOwnerMode = (pin) => {
+        if (pin === 'SVM2026') {
+            const expiry = Date.now() + 15 * 60 * 1000;
+            sessionStorage.setItem('fm_ownerModeUntil', expiry.toString());
+            setOwnerModeActive(true);
+            return true;
+        }
+        return false;
+    };
+
+    const disableOwnerMode = () => {
+        sessionStorage.removeItem('fm_ownerModeUntil');
+        setOwnerModeActive(false);
+    };
+
+    const isEditDeleteAllowed = () => {
+        if (!tenantData?.ownerModeFeatureEnabled) return true;
+        return ownerModeActive;
+    };
+
     const logout = async () => {
         try {
+            sessionStorage.removeItem('fm_ownerModeUntil');
+            setOwnerModeActive(false);
             sessionStorage.setItem('fm_logout_active', 'true');
             await signOut(auth);
             setUser(null);
@@ -102,7 +146,11 @@ export const TenantProvider = ({ children }) => {
         tenantData,
         loading,
         setTenantData,
-        logout
+        logout,
+        ownerModeActive,
+        enableOwnerMode,
+        disableOwnerMode,
+        isEditDeleteAllowed
     };
 
     return (

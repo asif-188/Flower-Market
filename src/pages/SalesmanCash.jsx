@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useContext } from 'react';
 import { saveSalesmanCash, deleteSalesmanCash, subscribeToCollection } from '../utils/storage';
 import { LangContext } from '../components/Layout';
 import { Plus, X, Calendar, User, Trash2, CheckCircle2 } from 'lucide-react';
+import { useTenant } from '../utils/TenantContext';
 
 const S = {
     page: {
@@ -123,6 +124,7 @@ const S = {
 };
 
 const SalesmanCash = () => {
+    const { isEditDeleteAllowed } = useTenant();
     const { t } = useContext(LangContext);
     const [salesmen, setSalesmen] = useState([]);
     const [cashRecords, setCashRecords] = useState([]);
@@ -265,14 +267,16 @@ const SalesmanCash = () => {
                                     </td>
                                     <td style={S.td}>{record.remarks || '---'}</td>
                                     <td style={{...S.td, textAlign: 'center'}}>
-                                        <button
-                                            onClick={() => handleDelete(record.id)}
-                                            style={{ border: '1px solid #e5e7eb', background: '#fff', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#ef4444', margin: '0 auto' }}
-                                            onMouseEnter={e => e.currentTarget.style.background='#fef2f2'}
-                                            onMouseLeave={e => e.currentTarget.style.background='#ffffff'}
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
+                                        {isEditDeleteAllowed() && (
+                                            <button
+                                                onClick={() => handleDelete(record.id)}
+                                                style={{ border: '1px solid #e5e7eb', background: '#fff', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#ef4444', margin: '0 auto' }}
+                                                onMouseEnter={e => e.currentTarget.style.background='#fef2f2'}
+                                                onMouseLeave={e => e.currentTarget.style.background='#ffffff'}
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))

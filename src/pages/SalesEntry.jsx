@@ -115,7 +115,7 @@ const LABEL_S = {
 
 const SalesEntry = () => {
     const { t, lang } = useContext(LangContext);
-    const { tenantData } = useTenant();
+    const { tenantData, isEditDeleteAllowed } = useTenant();
     const [flowers, setFlowers]   = useState([]);
     const [buyers, setBuyers]     = useState([]);
     const [allSales, setAllSales] = useState([]);
@@ -595,28 +595,32 @@ const SalesEntry = () => {
                                             </td>
                                             <td style={{...TD_S, textAlign: 'center'}}>
                                                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                                                    <button onClick={() => handleEditItem(sale)}
-                                                        style={{ 
-                                                            width: '28px', height: '28px', borderRadius: '6px', 
-                                                            border: '1px solid ' + (isHighlighted ? 'rgba(255,255,255,0.4)' : '#e2e8f0'), 
-                                                            background: isHighlighted ? 'rgba(255,255,255,0.1)' : '#fff', 
-                                                            color: isHighlighted ? '#fff' : '#3b82f6', 
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' 
-                                                        }}
-                                                    >
-                                                        <Pencil size={14} />
-                                                    </button>
-                                                    <button onClick={() => handleDeleteItem(sale)}
-                                                        style={{ 
-                                                            width: '28px', height: '28px', borderRadius: '6px', 
-                                                            border: '1px solid ' + (isHighlighted ? 'rgba(255,255,255,0.4)' : '#fee2e2'), 
-                                                            background: isHighlighted ? 'rgba(255,255,255,0.1)' : '#fff', 
-                                                            color: isHighlighted ? '#fff' : '#ef4444', 
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' 
-                                                        }}
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
+                                                    {isEditDeleteAllowed() && (
+                                                        <>
+                                                            <button onClick={() => handleEditItem(sale)}
+                                                                style={{ 
+                                                                    width: '28px', height: '28px', borderRadius: '6px', 
+                                                                    border: '1px solid ' + (isHighlighted ? 'rgba(255,255,255,0.4)' : '#e2e8f0'), 
+                                                                    background: isHighlighted ? 'rgba(255,255,255,0.1)' : '#fff', 
+                                                                    color: isHighlighted ? '#fff' : '#3b82f6', 
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' 
+                                                                }}
+                                                            >
+                                                                <Pencil size={14} />
+                                                            </button>
+                                                            <button onClick={() => handleDeleteItem(sale)}
+                                                                style={{ 
+                                                                    width: '28px', height: '28px', borderRadius: '6px', 
+                                                                    border: '1px solid ' + (isHighlighted ? 'rgba(255,255,255,0.4)' : '#fee2e2'), 
+                                                                    background: isHighlighted ? 'rgba(255,255,255,0.1)' : '#fff', 
+                                                                    color: isHighlighted ? '#fff' : '#ef4444', 
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' 
+                                                                }}
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

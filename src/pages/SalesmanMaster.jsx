@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, Search, X, User, Download, Upload } from 'lucide-r
 import { saveSalesman, deleteSalesman, subscribeToCollection } from '../utils/storage';
 import { LangContext } from '../components/Layout';
 import * as XLSX from 'xlsx';
+import { useTenant } from '../utils/TenantContext';
 
 const S = {
     page: {
@@ -169,6 +170,7 @@ const S = {
 };
 
 const SalesmanMaster = () => {
+    const { isEditDeleteAllowed } = useTenant();
     const { t } = useContext(LangContext);
     const [salesmen, setSalesmen] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -384,23 +386,27 @@ const SalesmanMaster = () => {
                                         </span>
                                     </td>
                                     <td style={{...S.td, textAlign: 'center'}}>
-                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                                            <button 
-                                                onClick={() => handleOpenModal(salesman)}
-                                                style={{ border: '1px solid #e5e7eb', background: '#fff', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#3b82f6' }}
-                                                onMouseEnter={e => e.currentTarget.style.background='#eff6ff'}
-                                                onMouseLeave={e => e.currentTarget.style.background='#ffffff'}
-                                            >
-                                                <Edit2 size={14} />
-                                            </button>
-                                            <button 
-                                                onClick={() => handleDelete(salesman.id)}
-                                                style={{ border: '1px solid #e5e7eb', background: '#fff', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#ef4444' }}
-                                                onMouseEnter={e => e.currentTarget.style.background='#fef2f2'}
-                                                onMouseLeave={e => e.currentTarget.style.background='#ffffff'}
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
+                                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                            {isEditDeleteAllowed() && (
+                                                <>
+                                                    <button 
+                                                        onClick={() => handleOpenModal(salesman)}
+                                                        style={{ border: '1px solid #e5e7eb', background: '#fff', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#3b82f6' }}
+                                                        onMouseEnter={e => e.currentTarget.style.background='#eff6ff'}
+                                                        onMouseLeave={e => e.currentTarget.style.background='#ffffff'}
+                                                    >
+                                                        <Edit2 size={14} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDelete(salesman.id)}
+                                                        style={{ border: '1px solid #e5e7eb', background: '#fff', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#ef4444' }}
+                                                        onMouseEnter={e => e.currentTarget.style.background='#fef2f2'}
+                                                        onMouseLeave={e => e.currentTarget.style.background='#ffffff'}
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

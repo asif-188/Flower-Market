@@ -157,7 +157,7 @@ const MenuCard = ({ emoji, label, color, onClick, delay }) => {
 
 const OutsideShop = () => {
     const { t, lang } = useContext(LangContext);
-    const { tenantData } = useTenant();
+    const { tenantData, isEditDeleteAllowed } = useTenant();
     const [activeTab, setActiveTab] = useState('menu');
     
     // Data States
@@ -1694,16 +1694,20 @@ const OutsideShop = () => {
                                             <td style={{ ...TD_S, textAlign: 'center' }}>
                                                 {iIdx === 0 && (
                                                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                                                        <button onClick={() => handleEditPurchase(p)} title="Edit" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e0e7ff', background: '#fff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                                            <Pencil size={14}/>
-                                                        </button>
+                                                        {isEditDeleteAllowed() && (
+                                                            <button onClick={() => handleEditPurchase(p)} title="Edit" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e0e7ff', background: '#fff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                                                <Pencil size={14}/>
+                                                            </button>
+                                                        )}
                                                         <button onClick={() => handleWhatsAppPurchase(p)} title="WhatsApp" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #dcfce7', background: '#fff', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                                                             <WhatsAppIcon size={16}/>
                                                         </button>
                                                         <button onClick={() => handlePrintPurchase(p)} title="Print" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                                                             <Printer size={14}/>
                                                         </button>
-                                                        <button onClick={() => handleDeletePurchase(p)} style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #fee2e2', background: '#fff', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Trash2 size={14}/></button>
+                                                        {isEditDeleteAllowed() && (
+                                                            <button onClick={() => handleDeletePurchase(p)} style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #fee2e2', background: '#fff', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Trash2 size={14}/></button>
+                                                        )}
                                                     </div>
                                                 )}
                                             </td>
@@ -1798,8 +1802,12 @@ const OutsideShop = () => {
                                     <td style={{...TD_S, textAlign: 'right', fontWeight: 800, color: v.balance > 0 ? '#ef4444' : '#16a34a'}}>{fmt(v.balance || 0)}</td>
                                     <td style={{...TD_S, textAlign: 'center'}}>
                                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                                            <button onClick={() => handleEditVendor(v)} style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Pencil size={14}/></button>
-                                            <button onClick={() => handleDeleteVendor(v.id)} style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #fee2e2', background: '#fff', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Trash2 size={14}/></button>
+                                            {isEditDeleteAllowed() && (
+                                                <>
+                                                    <button onClick={() => handleEditVendor(v)} style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Pencil size={14}/></button>
+                                                    <button onClick={() => handleDeleteVendor(v.id)} style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #fee2e2', background: '#fff', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Trash2 size={14}/></button>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -2006,57 +2014,61 @@ const OutsideShop = () => {
                                         <td style={{ ...TD_S, textAlign: 'right', fontWeight: 800, color: '#16a34a' }}>{fmt(p.amount)}</td>
                                         <td style={{ ...TD_S, textAlign: 'center' }}>
                                             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                                                <button onClick={() => handleEditPayment(p)} title="Edit" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e0e7ff', background: '#fff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                                    <Pencil size={14}/>
-                                                </button>
+                                                {isEditDeleteAllowed() && (
+                                                    <button onClick={() => handleEditPayment(p)} title="Edit" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e0e7ff', background: '#fff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                                        <Pencil size={14}/>
+                                                    </button>
+                                                )}
                                                 <button onClick={() => handleWhatsAppPayment(p)} title="WhatsApp" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #dcfce7', background: '#fff', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                                                     <WhatsAppIcon size={16}/>
                                                 </button>
                                                 <button onClick={() => handlePrintPayment(p)} title="Print" style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                                                     <Printer size={14}/>
                                                 </button>
-                                                <button onClick={async () => {
-                                                    if(window.confirm(t('delete') + '?')) {
-                                                        // 1. Revert settlement details on purchases if it was a settlement
-                                                        if (p.isSettlement && p.settlementDetails && p.settlementDetails.length > 0) {
-                                                            for (const item of p.settlementDetails) {
-                                                                try {
-                                                                    const purRef = doc(db, 'outside_purchases', item.purchaseId);
-                                                                    const purSnap = await getDoc(purRef);
-                                                                    if (purSnap.exists()) {
-                                                                        const purData = purSnap.data();
-                                                                        const oldPaid = purData.paidAmount || 0;
-                                                                        const newPaid = Math.max(0, oldPaid - (item.amountPaid || 0));
-                                                                        const newOutstanding = Math.max(0, purData.grandTotal - newPaid);
-                                                                        
-                                                                        const updates = {};
-                                                                        if (newPaid <= 0.01) {
-                                                                            updates.paidAmount = deleteField();
-                                                                            updates.status = deleteField();
-                                                                            updates.settlementPaymentId = deleteField();
-                                                                        } else {
-                                                                            updates.paidAmount = newPaid;
-                                                                            updates.status = 'Pending';
+                                                {isEditDeleteAllowed() && (
+                                                    <button onClick={async () => {
+                                                        if(window.confirm(t('delete') + '?')) {
+                                                            // 1. Revert settlement details on purchases if it was a settlement
+                                                            if (p.isSettlement && p.settlementDetails && p.settlementDetails.length > 0) {
+                                                                for (const item of p.settlementDetails) {
+                                                                    try {
+                                                                        const purRef = doc(db, 'outside_purchases', item.purchaseId);
+                                                                        const purSnap = await getDoc(purRef);
+                                                                        if (purSnap.exists()) {
+                                                                            const purData = purSnap.data();
+                                                                            const oldPaid = purData.paidAmount || 0;
+                                                                            const newPaid = Math.max(0, oldPaid - (item.amountPaid || 0));
+                                                                            const newOutstanding = Math.max(0, purData.grandTotal - newPaid);
+                                                                            
+                                                                            const updates = {};
+                                                                            if (newPaid <= 0.01) {
+                                                                                updates.paidAmount = deleteField();
+                                                                                updates.status = deleteField();
+                                                                                updates.settlementPaymentId = deleteField();
+                                                                            } else {
+                                                                                updates.paidAmount = newPaid;
+                                                                                updates.status = 'Pending';
+                                                                            }
+                                                                            updates.outstandingAmount = newOutstanding;
+                                                                            
+                                                                            await updateDoc(purRef, updates);
                                                                         }
-                                                                        updates.outstandingAmount = newOutstanding;
-                                                                        
-                                                                        await updateDoc(purRef, updates);
+                                                                    } catch (err) {
+                                                                        console.error("Error reverting purchase on payment delete:", err);
                                                                     }
-                                                                } catch (err) {
-                                                                    console.error("Error reverting purchase on payment delete:", err);
                                                                 }
                                                             }
-                                                        }
 
-                                                        // 2. Delete the payment document
-                                                        await deleteDoc(doc(p.tenantId ? db : db, 'payments', p.id));
-                                                        
-                                                        // 3. Update the vendor's balance
-                                                        await updateDoc(doc(db, 'vendors', p.entityId), { balance: increment(p.amount) });
-                                                    }
-                                                }} style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #fee2e2', background: '#fff', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                                                    <Trash2 size={14}/>
-                                                </button>
+                                                            // 2. Delete the payment document
+                                                            await deleteDoc(doc(p.tenantId ? db : db, 'payments', p.id));
+                                                            
+                                                            // 3. Update the vendor's balance
+                                                            await updateDoc(doc(db, 'vendors', p.entityId), { balance: increment(p.amount) });
+                                                        }
+                                                    }} style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #fee2e2', background: '#fff', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                                        <Trash2 size={14}/>
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -2190,10 +2202,15 @@ const OutsideShop = () => {
                         </div>
                         <div style={{ minWidth: '200px' }}>
                             <label style={LABEL_S}>{t('vendorName')}</label>
-                            <select value={reportFilters.vendorId} onChange={e => setReportFilters(p=>({...p, vendorId: e.target.value}))} style={INPUT_S}>
-                                <option value="all">{t('allVendors')}</option>
-                                {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                            </select>
+                            <SearchSelect 
+                                items={[{ id: 'all', name: t('allVendors') || 'All Vendors' }, ...vendors]} 
+                                value={reportFilters.vendorId} 
+                                onChange={v => setReportFilters(p => ({ ...p, vendorId: v.id }))} 
+                                onClear={reportFilters.vendorId !== 'all' ? () => setReportFilters(p => ({ ...p, vendorId: 'all' })) : undefined}
+                                placeholder={t('vendorName')} 
+                                idPrefix="V" 
+                                lang={lang} 
+                            />
                         </div>
                     </div>
                     <div>
@@ -2566,7 +2583,7 @@ const OutsideShop = () => {
                             </div>
                             <div>
                                 <label style={LABEL_S}>{'Old Balance'}</label>
-                                <input type="number" value={vendorForm.balance} onChange={e => setVendorForm(p => ({...p, balance: e.target.value}))} style={INPUT_S} placeholder="0" />
+                                <input type="number" value={vendorForm.balance} onChange={e => setVendorForm(p => ({...p, balance: e.target.value}))} onWheel={(e) => e.target.blur()} style={INPUT_S} placeholder="0" />
                             </div>
                             <button type="submit" style={{ padding: '12px', background: '#d97706', color: '#fff', borderRadius: '12px', border: 'none', fontWeight: 800, marginTop: '10px', cursor: 'pointer' }}>
                                 {t('save')}

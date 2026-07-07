@@ -4,7 +4,15 @@ import { TenantProvider, useTenant } from './utils/TenantContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Farmer from './pages/Farmer';
+import FarmerMenu from './pages/FarmerMenu';
+import FarmerMaster from './pages/FarmerMaster';
+import FarmerPurchase from './pages/FarmerPurchase';
+import FarmerCashPay from './pages/FarmerCashPay';
+import FarmerReport from './pages/FarmerReport';
+import FarmerDayAccount from './pages/FarmerDayAccount';
+import FarmerMonthReport from './pages/FarmerMonthReport';
+import FarmerBillClose from './pages/FarmerBillClose';
+import FarmerFlowers from './pages/FarmerFlowers';
 import Intake from './pages/Intake';
 import SalesMenu from './pages/SalesMenu';
 import SalesEntry from './pages/SalesEntry';
@@ -85,7 +93,15 @@ const AppRoutes = () => {
           <Route path="sales-entry" element={<SalesEntry />} />
           <Route path="direct-sales" element={<DirectSales />} />
           <Route path="payments" element={<Payments />} />
-          <Route path="farmer" element={<Farmer />} />
+          <Route path="farmer" element={<FarmerMenu />} />
+          <Route path="farmer-master" element={<FarmerMaster />} />
+          <Route path="farmer-purchase" element={<FarmerPurchase />} />
+          <Route path="farmer-cash-pay" element={<FarmerCashPay />} />
+          <Route path="farmer-report" element={<FarmerReport />} />
+          <Route path="farmer-day-account" element={<FarmerDayAccount />} />
+          <Route path="farmer-month-report" element={<FarmerMonthReport />} />
+          <Route path="farmer-bill-close" element={<FarmerBillClose />} />
+          <Route path="farmer-flowers" element={<FarmerFlowers />} />
           <Route path="buyer" element={<Buyer />} />
           <Route path="accounts" element={<Accounts />} />
           <Route path="reports" element={<Reports />} />

@@ -14,6 +14,7 @@ import {
 } from '../utils/storage';
 import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
+import { useTenant } from '../utils/TenantContext';
 
 // ── Shared Styling Rules ──
 const INPUT_S = {
@@ -175,6 +176,7 @@ const formatCurrency = (amount) => {
 };
 
 const SalesmanMenu = () => {
+  const { isEditDeleteAllowed } = useTenant();
   const navigate = useNavigate();
   const { lang } = useContext(LangContext);
   
@@ -1179,12 +1181,14 @@ const SalesmanMenu = () => {
                           <span className="text-slate-800">{formatCurrency(c.amount)}</span>
                           <span className="text-gray-400 text-[10px] ml-2">Ref: {c.owner_id}</span>
                         </div>
-                        <button
-                          onClick={() => handleDeleteCashItem(c.id)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        {isEditDeleteAllowed() && (
+                          <button
+                            onClick={() => handleDeleteCashItem(c.id)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1210,12 +1214,14 @@ const SalesmanMenu = () => {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-emerald-600 font-bold">Paid: {formatCurrency(p.amount_paid)}</span>
-                          <button
-                            onClick={() => handleDeletePurchaseItem(p.id)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
-                          >
-                            <Trash2 size={15} />
-                          </button>
+                          {isEditDeleteAllowed() && (
+                            <button
+                              onClick={() => handleDeletePurchaseItem(p.id)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1241,12 +1247,14 @@ const SalesmanMenu = () => {
                           <span className="text-slate-600 ml-1">to {t.to_salesman_name}</span>
                           {t.note && <span className="text-gray-400 text-[10px] block mt-0.5">Note: {t.note}</span>}
                         </div>
-                        <button
-                          onClick={() => handleDeleteTransferItem(t.id)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        {isEditDeleteAllowed() && (
+                          <button
+                            onClick={() => handleDeleteTransferItem(t.id)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
                       </div>
                     ))}
 
@@ -1258,12 +1266,14 @@ const SalesmanMenu = () => {
                           <span className="text-slate-600 ml-1">from {t.from_salesman_name}</span>
                           {t.note && <span className="text-gray-400 text-[10px] block mt-0.5">Note: {t.note}</span>}
                         </div>
-                        <button
-                          onClick={() => handleDeleteTransferItem(t.id)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        {isEditDeleteAllowed() && (
+                          <button
+                            onClick={() => handleDeleteTransferItem(t.id)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>

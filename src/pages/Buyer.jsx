@@ -4,6 +4,7 @@ import { saveBuyer, subscribeToCollection } from '../utils/storage';
 import { deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../utils/storage';
 import { LangContext } from '../components/Layout';
+import { useTenant } from '../utils/TenantContext';
 
 const S = {
     page: {
@@ -136,6 +137,7 @@ const getBuyerBalanceDate = (buyer) => {
 };
 
 const Buyer = () => {
+    const { isEditDeleteAllowed } = useTenant();
     const { t, lang } = useContext(LangContext);
     const [buyers, setBuyers] = useState([]);
     const [sales, setSales] = useState([]);
@@ -456,24 +458,28 @@ const Buyer = () => {
                                                 <FileText size={13}/> {t('view')}
                                             </button>
                                         </td>
-                                        <td style={{...S.td, textAlign:'center'}}>
+                                        <td style={{padding:'8px 14px', textAlign:'center'}}>
                                             <div style={{display:'flex', gap:'6px', justifyContent:'center'}}>
-                                                <button style={{
-                                                    ...S.editBtn,
-                                                    background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#eff6ff',
-                                                    color: isHighlighted ? '#fff' : '#3b82f6'
-                                                }} onClick={() => handleOpenModal(buyer)}
-                                                    onMouseEnter={e => { if (!isHighlighted) { e.currentTarget.style.background='#3b82f6'; e.currentTarget.style.color='#fff'; } }}
-                                                    onMouseLeave={e => { if (!isHighlighted) { e.currentTarget.style.background='#eff6ff'; e.currentTarget.style.color='#3b82f6'; } }}
-                                                ><Edit2 size={13}/></button>
-                                                <button style={{
-                                                    ...S.deleteBtn,
-                                                    background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#fff1f2',
-                                                    color: isHighlighted ? '#fff' : '#f43f5e'
-                                                }} onClick={() => handleDelete(buyer.id)}
-                                                    onMouseEnter={e => { if (!isHighlighted) { e.currentTarget.style.background='#f43f5e'; e.currentTarget.style.color='#fff'; } }}
-                                                    onMouseLeave={e => { if (!isHighlighted) { e.currentTarget.style.background='#fff1f2'; e.currentTarget.style.color='#f43f5e'; } }}
-                                                ><Trash2 size={13}/></button>
+                                                {isEditDeleteAllowed() && (
+                                                    <>
+                                                        <button style={{
+                                                            ...S.editBtn,
+                                                            background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#eff6ff',
+                                                            color: isHighlighted ? '#fff' : '#3b82f6'
+                                                        }} onClick={() => handleOpenModal(buyer)}
+                                                            onMouseEnter={e => { if (!isHighlighted) { e.currentTarget.style.background='#3b82f6'; e.currentTarget.style.color='#fff'; } }}
+                                                            onMouseLeave={e => { if (!isHighlighted) { e.currentTarget.style.background='#eff6ff'; e.currentTarget.style.color='#3b82f6'; } }}
+                                                        ><Edit2 size={13}/></button>
+                                                        <button style={{
+                                                            ...S.deleteBtn,
+                                                            background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#fff1f2',
+                                                            color: isHighlighted ? '#fff' : '#f43f5e'
+                                                        }} onClick={() => handleDelete(buyer.id)}
+                                                            onMouseEnter={e => { if (!isHighlighted) { e.currentTarget.style.background='#f43f5e'; e.currentTarget.style.color='#fff'; } }}
+                                                            onMouseLeave={e => { if (!isHighlighted) { e.currentTarget.style.background='#fff1f2'; e.currentTarget.style.color='#f43f5e'; } }}
+                                                        ><Trash2 size={13}/></button>
+                                                    </>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -543,6 +549,7 @@ const Buyer = () => {
                                             }}
                                             onFocus={e => !f.disabled && (e.target.style.borderColor='#16a34a')}
                                             onBlur={e => e.target.style.borderColor='#e2e8f0'}
+                                            onWheel={f.type === 'number' ? (e) => e.target.blur() : undefined}
                                         />
                                     </div>
                                 ))}
