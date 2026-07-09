@@ -18,6 +18,20 @@ const DOMAIN = '@poovanam.com';
 const AdminPanel = () => {
     const { user } = useTenant();
     const [accounts, setAccounts] = useState([]);
+    const [adminPassword, setAdminPassword] = useState('');
+    const [authorized, setAuthorized] = useState(false);
+    const [authError, setAuthError] = useState('');
+
+    const handleUnlockAdmin = (e) => {
+        if (e) e.preventDefault();
+        if (adminPassword.trim() === 'Pass@green') {
+            setAuthorized(true);
+            setAuthError('');
+        } else {
+            setAuthError('Incorrect Password. Access Denied.');
+        }
+    };
+
     const [loading, setLoading] = useState(true);
     const [form, setForm] = useState({ username: '', password: '', confirmPassword: '', shopName: '' });
     const [showPw, setShowPw] = useState(false);
@@ -110,6 +124,51 @@ const AdminPanel = () => {
         label: { display: 'block', fontSize: '12px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' },
         btn: { padding: '14px 28px', borderRadius: '12px', border: 'none', fontWeight: 800, cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' },
     };
+
+    if (!authorized) {
+        return (
+            <div style={S.page}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
+                    <div style={{ ...S.card, width: '100%', maxWidth: '400px', padding: '32px', boxSizing: 'border-box' }}>
+                        <div style={{ width: '56px', height: '56px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                            <ShieldCheck size={28} color="white" />
+                        </div>
+                        
+                        <h2 style={{ fontSize: '20px', fontWeight: 900, color: '#f1f5f9', margin: '0 0 8px 0', textAlign: 'center' }}>Admin Verification</h2>
+                        <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 24px 0', fontWeight: 500, textAlign: 'center' }}>Enter administrator password to access the panel.</p>
+                        
+                        <form onSubmit={handleUnlockAdmin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            <div style={{ textAlign: 'left' }}>
+                                <label style={S.label}>Admin Password</label>
+                                <input
+                                    type="password"
+                                    placeholder="Enter password"
+                                    value={adminPassword}
+                                    onChange={e => setAdminPassword(e.target.value)}
+                                    style={S.input}
+                                    autoFocus
+                                    required
+                                />
+                            </div>
+                            
+                            {authError && (
+                                <p style={{ color: '#ef4444', fontSize: '12px', fontWeight: 700, margin: '0', textAlign: 'left' }}>
+                                    ⚠️ {authError}
+                                </p>
+                            )}
+                            
+                            <button
+                                type="submit"
+                                style={{ ...S.btn, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', justifyContent: 'center', padding: '14px', fontSize: '15px', borderRadius: '12px' }}
+                            >
+                                Verify & Unlock
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div style={S.page}>

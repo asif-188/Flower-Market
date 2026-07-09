@@ -121,6 +121,9 @@ export const TenantProvider = ({ children }) => {
     };
 
     const isEditDeleteAllowed = () => {
+        if (tenantId !== 'kasivetrivel' && tenantId !== 'kasi.vetrivel') {
+            return true;
+        }
         if (!tenantData?.ownerModeFeatureEnabled) return true;
         return ownerModeActive;
     };
@@ -128,6 +131,7 @@ export const TenantProvider = ({ children }) => {
     const logout = async () => {
         try {
             sessionStorage.removeItem('fm_ownerModeUntil');
+            sessionStorage.removeItem('fm_admin_authorized');
             setOwnerModeActive(false);
             sessionStorage.setItem('fm_logout_active', 'true');
             await signOut(auth);

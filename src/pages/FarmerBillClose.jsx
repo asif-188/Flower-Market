@@ -147,11 +147,17 @@ const FarmerBillClose = () => {
                 const tenantBillClosings = billClosingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
                 // Default settings from Tenant Data
-                const commShopPays = parseFloat(tenantData?.farmerCommShopPays || 10);
-                const commFarmerPays = parseFloat(tenantData?.farmerCommFarmerPays || 15);
-                const commThreshold = parseFloat(tenantData?.farmerCommThreshold || 70);
-                const commAboveTh = parseFloat(tenantData?.farmerCommAboveThreshold || 10);
-                const commBelowTh = parseFloat(tenantData?.farmerCommBelowThreshold || 15);
+                const parseSetting = (val, def) => {
+                    if (val === undefined || val === null || val === '') return def;
+                    const num = parseFloat(val);
+                    return isNaN(num) ? def : num;
+                };
+
+                const commShopPays = parseSetting(tenantData?.farmerCommShopPays, 10);
+                const commFarmerPays = parseSetting(tenantData?.farmerCommFarmerPays, 15);
+                const commThreshold = parseSetting(tenantData?.farmerCommThreshold, 70);
+                const commAboveTh = parseSetting(tenantData?.farmerCommAboveThreshold, 10);
+                const commBelowTh = parseSetting(tenantData?.farmerCommBelowThreshold, 15);
 
                 for (const fid of selectedFarmerIds) {
                     const farmer = farmers.find(f => f.id === fid);

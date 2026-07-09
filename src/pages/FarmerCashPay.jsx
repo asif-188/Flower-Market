@@ -708,6 +708,7 @@ const FarmerCashPay = () => {
                                             value={formData.amount}
                                             onChange={e => setFormData({ ...formData, amount: e.target.value })}
                                             onKeyDown={(e) => handleKeyDown(e, notesRef)}
+                                            onWheel={(e) => e.target.blur()}
                                             required
                                             min="1"
                                             style={{ flex: 1, width: '100%', boxSizing: 'border-box', minWidth: 0, padding: '12px 14px', borderRadius: '10px', border: '1.5px solid #ea580c', fontSize: '18px', fontWeight: 900, color: '#ea580c', outline: 'none' }}

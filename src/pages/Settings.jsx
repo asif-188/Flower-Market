@@ -181,80 +181,82 @@ const Settings = () => {
                 </div>
 
                 {/* Farmer Commission Settings */}
-                <div style={{ borderTop: '2px dashed #e2e8f0', paddingTop: '20px', marginTop: '24px', marginBottom: '20px' }}>
-                    <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#0f766e', margin: '0 0 4px 0', fontFamily: 'var(--font-display)' }}>
-                        🌾 Farmer Commission Settings
-                    </h3>
-                    <p style={{ margin: '0 0 16px 0', fontSize: '11px', color: '#94a3b8' }}>
-                        Configure default commission rules applied during Bill Closing
-                    </p>
+                {(tenantId === 'kasivetrivel' || tenantId === 'kasi.vetrivel') && (
+                    <div style={{ borderTop: '2px dashed #e2e8f0', paddingTop: '20px', marginTop: '24px', marginBottom: '20px' }}>
+                        <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#0f766e', margin: '0 0 4px 0', fontFamily: 'var(--font-display)' }}>
+                            🌾 Farmer Commission Settings
+                        </h3>
+                        <p style={{ margin: '0 0 16px 0', fontSize: '11px', color: '#94a3b8' }}>
+                            Configure default commission rules applied during Bill Closing
+                        </p>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                        <div>
-                            <label style={S.label}>Shop Pays Farmer %</label>
-                            <input
-                                type="number"
-                                value={form.farmerCommShopPays !== undefined ? form.farmerCommShopPays : '10'}
-                                onChange={e => setForm(p => ({ ...p, farmerCommShopPays: e.target.value }))}
-                                placeholder="10"
-                                style={S.input}
-                                onFocus={e => e.target.style.borderColor = '#16a34a'}
-                                onBlur={e => e.target.style.borderColor = '#e2e8f0'}
-                            />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                            <div>
+                                <label style={S.label}>Shop Pays Farmer %</label>
+                                <input
+                                    type="number"
+                                    value={form.farmerCommShopPays !== undefined ? form.farmerCommShopPays : '10'}
+                                    onChange={e => setForm(p => ({ ...p, farmerCommShopPays: e.target.value }))}
+                                    placeholder="10"
+                                    style={S.input}
+                                    onFocus={e => e.target.style.borderColor = '#16a34a'}
+                                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                                />
+                            </div>
+                            <div>
+                                <label style={S.label}>Farmer Pays Shop %</label>
+                                <input
+                                    type="number"
+                                    value={form.farmerCommFarmerPays !== undefined ? form.farmerCommFarmerPays : '15'}
+                                    onChange={e => setForm(p => ({ ...p, farmerCommFarmerPays: e.target.value }))}
+                                    placeholder="15"
+                                    style={S.input}
+                                    onFocus={e => e.target.style.borderColor = '#16a34a'}
+                                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <label style={S.label}>Farmer Pays Shop %</label>
-                            <input
-                                type="number"
-                                value={form.farmerCommFarmerPays !== undefined ? form.farmerCommFarmerPays : '15'}
-                                onChange={e => setForm(p => ({ ...p, farmerCommFarmerPays: e.target.value }))}
-                                placeholder="15"
-                                style={S.input}
-                                onFocus={e => e.target.style.borderColor = '#16a34a'}
-                                onBlur={e => e.target.style.borderColor = '#e2e8f0'}
-                            />
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+                            <div>
+                                <label style={S.label}>Threshold %</label>
+                                <input
+                                    type="number"
+                                    value={form.farmerCommThreshold !== undefined ? form.farmerCommThreshold : '70'}
+                                    onChange={e => setForm(p => ({ ...p, farmerCommThreshold: e.target.value }))}
+                                    placeholder="70"
+                                    style={S.input}
+                                    onFocus={e => e.target.style.borderColor = '#16a34a'}
+                                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                                />
+                            </div>
+                            <div>
+                                <label style={S.label}>% if &gt;= Threshold</label>
+                                <input
+                                    type="number"
+                                    value={form.farmerCommAboveThreshold !== undefined ? form.farmerCommAboveThreshold : '10'}
+                                    onChange={e => setForm(p => ({ ...p, farmerCommAboveThreshold: e.target.value }))}
+                                    placeholder="10"
+                                    style={S.input}
+                                    onFocus={e => e.target.style.borderColor = '#16a34a'}
+                                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                                />
+                            </div>
+                            <div>
+                                <label style={S.label}>% if &lt; Threshold</label>
+                                <input
+                                    type="number"
+                                    value={form.farmerCommBelowThreshold !== undefined ? form.farmerCommBelowThreshold : '15'}
+                                    onChange={e => setForm(p => ({ ...p, farmerCommBelowThreshold: e.target.value }))}
+                                    placeholder="15"
+                                    style={S.input}
+                                    onFocus={e => e.target.style.borderColor = '#16a34a'}
+                                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                                />
+                            </div>
                         </div>
                     </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '16px' }}>
-                        <div>
-                            <label style={S.label}>Threshold %</label>
-                            <input
-                                type="number"
-                                value={form.farmerCommThreshold !== undefined ? form.farmerCommThreshold : '70'}
-                                onChange={e => setForm(p => ({ ...p, farmerCommThreshold: e.target.value }))}
-                                placeholder="70"
-                                style={S.input}
-                                onFocus={e => e.target.style.borderColor = '#16a34a'}
-                                onBlur={e => e.target.style.borderColor = '#e2e8f0'}
-                            />
-                        </div>
-                        <div>
-                            <label style={S.label}>% if &gt;= Threshold</label>
-                            <input
-                                type="number"
-                                value={form.farmerCommAboveThreshold !== undefined ? form.farmerCommAboveThreshold : '10'}
-                                onChange={e => setForm(p => ({ ...p, farmerCommAboveThreshold: e.target.value }))}
-                                placeholder="10"
-                                style={S.input}
-                                onFocus={e => e.target.style.borderColor = '#16a34a'}
-                                onBlur={e => e.target.style.borderColor = '#e2e8f0'}
-                            />
-                        </div>
-                        <div>
-                            <label style={S.label}>% if &lt; Threshold</label>
-                            <input
-                                type="number"
-                                value={form.farmerCommBelowThreshold !== undefined ? form.farmerCommBelowThreshold : '15'}
-                                onChange={e => setForm(p => ({ ...p, farmerCommBelowThreshold: e.target.value }))}
-                                placeholder="15"
-                                style={S.input}
-                                onFocus={e => e.target.style.borderColor = '#16a34a'}
-                                onBlur={e => e.target.style.borderColor = '#e2e8f0'}
-                            />
-                        </div>
-                    </div>
-                </div>
+                )}
 
                 {(tenantId === 'kasivetrivel' || tenantId === 'kasi.vetrivel') && (
                     <div style={{ borderTop: '2px dashed #e2e8f0', paddingTop: '20px', marginTop: '24px', marginBottom: '20px' }}>

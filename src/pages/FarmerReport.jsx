@@ -713,6 +713,9 @@ const FarmerReport = () => {
                                 <td style={{ ...S.td, textAlign: 'right', fontWeight: 900, color: '#ef4444' }}>
                                     {grandTotals.creditCashPaid !== 0 ? fmt(grandTotals.creditCashPaid) : '—'}
                                 </td>
+                                <td style={{ ...S.td, textAlign: 'right', fontWeight: 900, color: '#ea580c' }}>
+                                    {grandTotals.commission !== 0 ? fmt(grandTotals.commission) : '—'}
+                                </td>
                                 <td style={{ ...S.td, textAlign: 'right', fontWeight: 950, color: '#ea580c', fontSize: '15px' }}>
                                     {grandTotals.closingBalance !== 0 ? fmt(grandTotals.closingBalance) : '—'}
                                 </td>
