@@ -201,6 +201,15 @@ const OutsideShop = () => {
     const [date, setDate] = useState(new Date().toLocaleDateString('en-CA'));
     const [currentItem, setCurrentItem] = useState({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
 
+    // Sync table vendor filter with form vendor selection (matching sales/sales page behavior)
+    useEffect(() => {
+        if (vendorId) {
+            setPurchaseFilterVendorId(vendorId);
+        } else {
+            setPurchaseFilterVendorId('all');
+        }
+    }, [vendorId]);
+
     // Vendor Modal State
     const [showVendorModal, setShowVendorModal] = useState(false);
     const [editingVendor, setEditingVendor] = useState(null);
