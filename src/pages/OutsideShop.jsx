@@ -187,6 +187,15 @@ const OutsideShop = () => {
     const [purchaseFilterAllDates, setPurchaseFilterAllDates] = useState(false);
     const [purchaseFilterVendorId, setPurchaseFilterVendorId] = useState('all');
 
+    // Flowerwise Report Filter States
+    const [flowerwiseFilters, setFlowerwiseFilters] = useState({
+        fromDate: new Date().toLocaleDateString('en-CA'),
+        toDate: new Date().toLocaleDateString('en-CA'),
+        flowerSearch: '',
+        rateSearch: '',
+        vendorId: 'all'
+    });
+
     // Purchase Form State
     const [vendorId, setVendorId] = useState('');
     const [date, setDate] = useState(new Date().toLocaleDateString('en-CA'));
@@ -268,13 +277,14 @@ const OutsideShop = () => {
             purchaseFilterFrom,
             payFilterFrom,
             paymentForm.date,
-            date
+            date,
+            flowerwiseFilters.fromDate
         ].filter(Boolean);
         
         if (dates.length === 0) return null;
         
         return dates.reduce((earliest, cur) => (cur < earliest ? cur : earliest), dates[0]);
-    }, [purchaseFilterAllDates, payFilterAllDates, reportFilters.fromDate, purchaseFilterFrom, payFilterFrom, paymentForm.date, date]);
+    }, [purchaseFilterAllDates, payFilterAllDates, reportFilters.fromDate, purchaseFilterFrom, payFilterFrom, paymentForm.date, date, flowerwiseFilters.fromDate]);
 
     useEffect(() => {
         const u1 = subscribeToCollection('vendors', setVendors, true);
@@ -717,10 +727,10 @@ const OutsideShop = () => {
             
             setCurrentItem({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
             setDraftItems([]);
-            setVendorId('');
+            // Vendor ID is kept so name stays selected
             setDraftSelectedIndex(-1);
             setPurchaseSelectedIndex(-1);
-            setTimeout(() => refVendor.current?.focus(), 50);
+            setTimeout(() => refFlower.current?.focus(), 50);
         } catch (err) { alert(err.message); }
         finally { setIsSaving(false); }
     };
@@ -740,6 +750,7 @@ const OutsideShop = () => {
             });
             setDraftItems(rest.map(item => ({...item, id: Math.random()})));
         }
+        setActiveTab('purchase');
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -1378,6 +1389,11 @@ const OutsideShop = () => {
                     emoji="📊" label={t('vendorReport')} 
                     color={{ border: '#6366f1', text: '#312e81', bg: '#eef2ff', glow: 'rgba(99,102,241,0.15)' }} 
                     onClick={() => setActiveTab('reports')} delay="0.3s" 
+                />
+                <MenuCard 
+                    emoji="🌸" label={lang === 'ta' ? 'பூக்கள் அறிக்கை' : 'Flowerwise Report'} 
+                    color={{ border: '#ec4899', text: '#9d174d', bg: '#fdf2f8', glow: 'rgba(236,72,153,0.15)' }} 
+                    onClick={() => setActiveTab('flowerwise-report')} delay="0.4s" 
                 />
             </div>
         </div>
@@ -2521,6 +2537,314 @@ const OutsideShop = () => {
         );
     };
 
+    const renderFlowerwiseReport = () => {
+        // Extract all individual items from all purchases
+        const allItems = [];
+        purchases.forEach(p => {
+            if (p.items && Array.isArray(p.items)) {
+                p.items.forEach(item => {
+                    allItems.push({
+                        ...item,
+                        date: p.date || '',
+                        vendorId: p.vendorId || '',
+                        vendorName: p.vendorName || '',
+                        purchaseObj: p
+                    });
+                });
+            }
+        });
+
+        // Filter the items based on user inputs
+        const filteredItems = allItems.filter(item => {
+            // Date filter
+            const dateOk = item.date >= flowerwiseFilters.fromDate && item.date <= flowerwiseFilters.toDate;
+            if (!dateOk) return false;
+
+            // Vendor filter
+            if (flowerwiseFilters.vendorId !== 'all' && item.vendorId !== flowerwiseFilters.vendorId) {
+                return false;
+            }
+
+            // Flower search filter
+            if (flowerwiseFilters.flowerSearch) {
+                const searchLower = flowerwiseFilters.flowerSearch.trim().toLowerCase();
+                if (searchLower) {
+                    const typeEn = (item.flowerType || '').toLowerCase();
+                    const typeTa = (item.flowerTypeTa || '').toLowerCase();
+                    if (!typeEn.includes(searchLower) && !typeTa.includes(searchLower)) {
+                        return false;
+                    }
+                }
+            }
+
+            // Rate search filter
+            if (flowerwiseFilters.rateSearch) {
+                const searchRate = parseFloat(flowerwiseFilters.rateSearch);
+                const itemRate = parseFloat(item.price);
+                if (isNaN(searchRate) || isNaN(itemRate) || itemRate !== searchRate) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+        // Sort items by date descending, then vendor name ascending
+        filteredItems.sort((a, b) => b.date.localeCompare(a.date) || a.vendorName.localeCompare(b.vendorName));
+
+        // Calculations
+        const totalQty = filteredItems.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0);
+        const totalAmt = filteredItems.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
+        const avgPrice = totalQty > 0 ? totalAmt / totalQty : 0;
+
+        const handleDownloadExcel = () => {
+            const exportRows = filteredItems.map((item, index) => ({
+                [lang === 'ta' ? 'வரிசை எண்' : 'S.No']: index + 1,
+                [lang === 'ta' ? 'தேதி' : 'Date']: item.date.split('-').reverse().join('/'),
+                [lang === 'ta' ? 'விற்பனையாளர்' : 'Vendor']: item.vendorName,
+                [lang === 'ta' ? 'பூ வகை' : 'Flower Type']: lang === 'ta' ? (item.flowerTypeTa || item.flowerType) : item.flowerType,
+                [lang === 'ta' ? 'விலை (Rate)' : 'Rate']: item.price,
+                [lang === 'ta' ? 'அளவு (Qty)' : 'Quantity']: item.quantity,
+                [lang === 'ta' ? 'மொத்தம்' : 'Total']: item.total,
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(exportRows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'FlowerwiseReport');
+            XLSX.writeFile(wb, `FlowerwiseReport_${Date.now()}.xlsx`);
+        };
+
+        const handlePrintFlowerwise = () => {
+            const biz = bizInfo || { name: 'S.V.M', type: 'SRI VALLI FLOWER MERCHANT', address: 'B-7, FLOWER MARKET, TINDIVANAM.', phone1: '9443247771', phone2: '9952535057' };
+            const printWindow = window.open('', '_blank');
+            
+            const rowsHtml = filteredItems.map((item, index) => `
+                <tr>
+                    <td align="center">${index + 1}</td>
+                    <td align="center">${item.date.split('-').reverse().join('/')}</td>
+                    <td align="left">${item.vendorName}</td>
+                    <td align="left">${lang === 'ta' ? (item.flowerTypeTa || item.flowerType) : item.flowerType}</td>
+                    <td align="right">₹${Number(item.price).toFixed(2)}</td>
+                    <td align="right">${Number(item.quantity).toFixed(2)} kg</td>
+                    <td align="right">₹${Number(item.total).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+            `).join('');
+
+            const content = `
+                <html>
+                <head>
+                    <title>Flowerwise Report - ${flowerwiseFilters.fromDate} to ${flowerwiseFilters.toDate}</title>
+                    <style>
+                        @page { size: auto; margin: 0; }
+                        body { font-family: sans-serif; padding: 15mm; line-height: 1.4; margin: 0; font-size: 14px; color: #1e293b; }
+                        .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #0f172a; padding-bottom: 15px; }
+                        .shop-name { font-size: 28px; font-weight: 900; color: #92400e; }
+                        .title { font-size: 20px; font-weight: 800; margin-top: 10px; text-transform: uppercase; color: #1e293b; letter-spacing: 0.05em; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 8px 10px; font-size: 13px; }
+                        th { background: #f8fafc; font-weight: 700; text-transform: uppercase; color: #475569; }
+                        .summary-table { margin-top: 20px; width: 300px; float: right; border: 1px solid #cbd5e1; }
+                        .summary-table td { font-weight: 700; font-size: 14px; }
+                    </style>
+                </head>
+                <body onload="window.print(); window.close();">
+                    <div class="header">
+                        <div class="shop-name">${biz.name}</div>
+                        <div style="font-size: 14px; font-weight: 600; color: #475569;">${biz.type || ''}</div>
+                        <div style="font-size: 12px; color: #64748b;">${biz.address || ''}</div>
+                        <div style="font-size: 12px; margin-top: 5px; color: #64748b;">CELL: ${biz.phone1 || ''} | ${biz.phone2 || ''}</div>
+                        <div class="title">${lang === 'ta' ? 'பூக்கள் அறிக்கை' : 'FLOWERWISE REPORT'}</div>
+                        <div style="font-size: 12px; font-weight: 700; color: #64748b; margin-top: 5px;">
+                            Period: ${flowerwiseFilters.fromDate.split('-').reverse().join('/')} - ${flowerwiseFilters.toDate.split('-').reverse().join('/')}
+                        </div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>${lang === 'ta' ? 'வரிசை எண்' : 'S.No'}</th>
+                                <th>${lang === 'ta' ? 'தேதி' : 'Date'}</th>
+                                <th>${lang === 'ta' ? 'விற்பனையாளர்' : 'Vendor'}</th>
+                                <th>${lang === 'ta' ? 'பூ வகை' : 'Flower Type'}</th>
+                                <th>${lang === 'ta' ? 'விலை (Rate)' : 'Rate'}</th>
+                                <th>${lang === 'ta' ? 'அளவு (Qty)' : 'Quantity'}</th>
+                                <th>${lang === 'ta' ? 'மொத்தம்' : 'Total'}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml}
+                        </tbody>
+                    </table>
+                    <table class="summary-table">
+                        <tr>
+                            <td>${lang === 'ta' ? 'மொத்த அளவு' : 'Total Qty'}:</td>
+                            <td align="right">${totalQty.toFixed(2)} kg</td>
+                        </tr>
+                        <tr>
+                            <td>${lang === 'ta' ? 'மொத்த தொகை' : 'Total Amount'}:</td>
+                            <td align="right">₹${Number(totalAmt).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        </tr>
+                    </table>
+                </body>
+                </html>
+            `;
+            printWindow.document.write(content);
+            printWindow.document.close();
+        };
+
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <button onClick={handleBack} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 800, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', alignSelf: 'flex-start' }}>
+                    <ChevronLeft size={16}/> {t('backToMenu').toUpperCase()}
+                </button>
+
+                {/* Filters */}
+                <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid #e2e8f0', padding: '20px', display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-end', justifyContent: 'space-between', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-end', flex: 1 }}>
+                        <div>
+                            <label style={LABEL_S}>{t('fromDate')}</label>
+                            <input type="date" value={flowerwiseFilters.fromDate} onChange={e => setFlowerwiseFilters(p=>({...p, fromDate: e.target.value}))} style={INPUT_S} />
+                        </div>
+                        <div>
+                            <label style={LABEL_S}>{t('toDate')}</label>
+                            <input type="date" value={flowerwiseFilters.toDate} onChange={e => setFlowerwiseFilters(p=>({...p, toDate: e.target.value}))} style={INPUT_S} />
+                        </div>
+                        <div>
+                            <label style={LABEL_S}>{lang === 'ta' ? 'பூ வகை' : 'Flower Type'}</label>
+                            <input 
+                                type="text" 
+                                value={flowerwiseFilters.flowerSearch} 
+                                onChange={e => setFlowerwiseFilters(p=>({...p, flowerSearch: e.target.value}))} 
+                                placeholder={lang === 'ta' ? 'பூ வகை தேடவும்' : 'Search Flower'} 
+                                style={INPUT_S} 
+                            />
+                        </div>
+                        <div>
+                            <label style={LABEL_S}>{lang === 'ta' ? 'விலை (Rate)' : 'Rate'}</label>
+                            <input 
+                                type="number" 
+                                value={flowerwiseFilters.rateSearch} 
+                                onChange={e => setFlowerwiseFilters(p=>({...p, rateSearch: e.target.value}))} 
+                                placeholder={lang === 'ta' ? 'விலை தேடவும்' : 'Search Rate'} 
+                                style={INPUT_S} 
+                            />
+                        </div>
+                        <div style={{ minWidth: '180px' }}>
+                            <label style={LABEL_S}>{t('vendorName')}</label>
+                            <SearchSelect 
+                                items={[{ id: 'all', name: t('allVendors') || 'All Vendors' }, ...vendors]} 
+                                value={flowerwiseFilters.vendorId} 
+                                onChange={v => setFlowerwiseFilters(p => ({ ...p, vendorId: v.id }))} 
+                                onClear={flowerwiseFilters.vendorId !== 'all' ? () => setFlowerwiseFilters(p => ({ ...p, vendorId: 'all' })) : undefined}
+                                placeholder={t('vendorName')} 
+                                idPrefix="V" 
+                                lang={lang} 
+                            />
+                        </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={handlePrintFlowerwise} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', fontWeight: 800, fontSize: '13px', cursor: 'pointer', transition: 'all 0.15s' }} onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'} onMouseLeave={e=>e.currentTarget.style.background='#fff'}>
+                            <Printer size={16}/> {lang === 'ta' ? 'அச்சிடு' : 'Print'}
+                        </button>
+                        <button onClick={handleDownloadExcel} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', borderRadius: '12px', border: '1px solid #bbf7d0', background: '#f0fdf4', color: '#16a34a', fontWeight: 800, fontSize: '13px', cursor: 'pointer', transition: 'all 0.15s' }} onMouseEnter={e=>e.currentTarget.style.background='#dcfce7'} onMouseLeave={e=>e.currentTarget.style.background='#f0fdf4'}>
+                            <Download size={16}/> {lang === 'ta' ? 'பதிவிறக்கு' : 'Download'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Summary Cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+                    <div style={{ background: '#fdf2f8', border: '1px solid #fbcfe8', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#9d174d', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {lang === 'ta' ? 'மொத்த அளவு' : 'Total Quantity'}
+                        </span>
+                        <span style={{ fontSize: '24px', fontWeight: 900, color: '#9d174d' }}>
+                            {totalQty.toFixed(2)} kg
+                        </span>
+                    </div>
+                    <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#065f46', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {lang === 'ta' ? 'மொத்த தொகை' : 'Total Amount'}
+                        </span>
+                        <span style={{ fontSize: '24px', fontWeight: 900, color: '#065f46' }}>
+                            {fmt(totalAmt)}
+                        </span>
+                    </div>
+                    <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#1e40af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {lang === 'ta' ? 'சராசரி விலை' : 'Average Rate'}
+                        </span>
+                        <span style={{ fontSize: '24px', fontWeight: 900, color: '#1e40af' }}>
+                            {fmt(avgPrice)}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Table */}
+                <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 4px 15px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                    <th style={{ ...TH_S, width: '60px', textAlign: 'center' }}>{lang === 'ta' ? 'வரிசை எண்' : 'S.No'}</th>
+                                    <th style={TH_S}>{t('date')}</th>
+                                    <th style={TH_S}>{t('vendorName')}</th>
+                                    <th style={TH_S}>{lang === 'ta' ? 'பூ வகை' : 'Flower Type'}</th>
+                                    <th style={{ ...TH_S, textAlign: 'center' }}>{lang === 'ta' ? 'விலை (Rate)' : 'Rate'}</th>
+                                    <th style={{ ...TH_S, textAlign: 'center' }}>{lang === 'ta' ? 'அளவு (Qty)' : 'Quantity'}</th>
+                                    <th style={{ ...TH_S, textAlign: 'right' }}>{lang === 'ta' ? 'மொத்தம்' : 'Total'}</th>
+                                    <th style={{ ...TH_S, textAlign: 'center' }}>{lang === 'ta' ? 'நடவடிக்கை' : 'Action'}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredItems.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={8} style={{ padding: '60px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>
+                                            {t('noRecords')}
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    filteredItems.map((item, index) => (
+                                        <tr key={`${item.purchaseObj.id}-${index}`} style={{ borderBottom: '1px solid #e2e8f0', transition: 'background 0.15s' }} onMouseEnter={e=>e.currentTarget.style.background='#fffbeb'} onMouseLeave={e=>e.currentTarget.style.background='#fff'}>
+                                            <td style={{ ...TD_S, textAlign: 'center', color: '#64748b', fontWeight: 600 }}>{index + 1}</td>
+                                            <td style={{ ...TD_S, color: '#475569', fontWeight: 600 }}>{item.date.split('-').reverse().join('/')}</td>
+                                            <td style={TD_S}>
+                                                <span style={{ fontSize: '11px', fontWeight: 800, color: '#3b82f6', background: '#eff6ff', border: '1px solid #bfdbfe', padding: '3px 8px', borderRadius: '6px' }}>
+                                                    {item.vendorName}
+                                                </span>
+                                            </td>
+                                            <td style={{ ...TD_S, color: '#1e293b', fontWeight: 700 }}>
+                                                {lang === 'ta' ? (item.flowerTypeTa || item.flowerType) : item.flowerType}
+                                            </td>
+                                            <td style={{ ...TD_S, textAlign: 'center', color: '#475569', fontWeight: 600 }}>₹{Number(item.price).toFixed(2)}</td>
+                                            <td style={{ ...TD_S, textAlign: 'center', color: '#475569', fontWeight: 600 }}>{Number(item.quantity).toFixed(2)} kg</td>
+                                            <td style={{ ...TD_S, textAlign: 'right', fontWeight: 700, color: '#059669' }}>{fmt(item.total)}</td>
+                                            <td style={{ ...TD_S, textAlign: 'center' }}>
+                                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                                    {isEditDeleteAllowed() && (
+                                                        <button 
+                                                            onClick={() => handleEditPurchase(item.purchaseObj)} 
+                                                            title={lang === 'ta' ? 'திருத்து' : 'Edit'} 
+                                                            style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #e0e7ff', background: '#fff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                                            onMouseEnter={e=>{e.currentTarget.style.background='#6366f1'; e.currentTarget.style.color='#fff';}}
+                                                            onMouseLeave={e=>{e.currentTarget.style.background='#fff'; e.currentTarget.style.color='#6366f1';}}
+                                                        >
+                                                            <Pencil size={14}/>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Content Rendering */}
@@ -2529,6 +2853,7 @@ const OutsideShop = () => {
             {activeTab === 'vendor-payments' && renderVendorPayments()}
             {activeTab === 'vendors' && renderVendors()}
             {activeTab === 'reports' && renderReports()}
+            {activeTab === 'flowerwise-report' && renderFlowerwiseReport()}
 
             {showDetailModal && renderDetailModal()}
 
