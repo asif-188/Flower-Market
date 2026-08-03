@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Plus, Trash2, Printer, MessageCircle, Pencil, History, Clock } from 'lucide-react';
-import { saveSale, subscribeToCollection, db } from '../utils/storage';
+import { saveSale, subscribeToCollection, deleteSaleEntry, logHistoryAction, db } from '../utils/storage';
 import { doc, updateDoc, increment, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import { generateBuyerReceiptCanvas } from '../utils/receiptCanvas';
@@ -150,6 +150,7 @@ const SalesEntry = () => {
     const refRate     = useRef(null);
     const refAddBtn   = useRef(null);
     const mainTableRowRefs = useRef([]);
+    const isSavingRef = useRef(false);
 
     useEffect(() => {
         const u1 = subscribeToCollection('products', (data) => {
@@ -237,7 +238,8 @@ const SalesEntry = () => {
     }, [buyers, buyerId, allSales, allPayments, date]);
 
     const handleAddItem = async () => {
-        if (!buyerId || !currentItem.flowerType || !currentItem.quantity || !currentItem.price || isSaving) return;
+        if (!buyerId || !currentItem.flowerType || !currentItem.quantity || !currentItem.price || isSaving || isSavingRef.current) return;
+        isSavingRef.current = true;
         setIsSaving(true);
         const qty  = parseFloat(currentItem.quantity);
         const rate = parseFloat(currentItem.price);
@@ -254,13 +256,13 @@ const SalesEntry = () => {
                 timestamp: serverTimestamp()
             };
             await saveSale(saleData);
-            await updateDoc(doc(db, 'buyers', buyerId), { balance: increment(total) });
             
             setCurrentItem({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
             setTimeout(() => refFlower.current?.focus(), 50);
         } catch (err) {
             alert('Error saving item: ' + err.message);
         } finally {
+            isSavingRef.current = false;
             setIsSaving(false);
         }
     };
@@ -271,8 +273,8 @@ const SalesEntry = () => {
         // To edit, we basically populate the fields and delete the old entry
         // so when they click 'Save' again, it creates a clean updated version.
         try {
-            await deleteDoc(doc(db, 'sales', sale.id));
-            await updateDoc(doc(db, 'buyers', sale.buyerId), { balance: increment(-(sale.grandTotal || 0)) });
+            await deleteSaleEntry(sale, sale.buyerName || 'Unknown');
+            await logHistoryAction('Edit', 'Sale', sale.buyerName || 'Unknown', `Initiated edit for sale of ₹${sale.grandTotal}`);
             // Move focus to flower dropdown or qty
             setTimeout(() => refFlower.current?.focus(), 100);
         } catch (err) {
@@ -283,8 +285,7 @@ const SalesEntry = () => {
     const handleDeleteItem = async (sale) => {
         if (!window.confirm(t('delete') + '?')) return;
         try {
-            await deleteDoc(doc(db, 'sales', sale.id));
-            await updateDoc(doc(db, 'buyers', sale.buyerId), { balance: increment(-(sale.grandTotal || 0)) });
+            await deleteSaleEntry(sale, sale.buyerName || 'Unknown');
         } catch (err) {
             alert('Delete failed: ' + err.message);
         }

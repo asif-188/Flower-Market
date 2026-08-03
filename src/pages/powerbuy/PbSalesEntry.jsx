@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Plus, Trash2, Printer, MessageCircle, Clock, Pencil, History } from 'lucide-react';
-import { savePbSale, getNextPbInvoiceNo, subscribeToCollection, db } from '../../utils/storage';
+import { savePbSale, deletePbSale, getNextPbInvoiceNo, subscribeToCollection, db } from '../../utils/storage';
 import { doc, updateDoc, increment, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { useTenant } from '../../utils/TenantContext';
 import { LangContext } from '../../components/Layout';
@@ -120,6 +120,7 @@ const PbSalesEntry = () => {
   const refRate = useRef(null);
   const refAddBtn = useRef(null);
   const mainTableRowRefs = useRef([]);
+  const isSavingRef = useRef(false);
 
   useEffect(() => {
     const u1 = subscribeToCollection('pb_products', (data) => {
@@ -182,7 +183,8 @@ const PbSalesEntry = () => {
   }, [buyers, buyerId, allSales, allPayments, date]);
 
   const handleAddItem = async () => {
-    if (!buyerId || !currentItem.flowerType || !currentItem.quantity || !currentItem.price || isSaving) return;
+    if (!buyerId || !currentItem.flowerType || !currentItem.quantity || !currentItem.price || isSaving || isSavingRef.current) return;
+    isSavingRef.current = true;
     setIsSaving(true);
     const qty = parseFloat(currentItem.quantity);
     const rate = parseFloat(currentItem.price);
@@ -192,18 +194,19 @@ const PbSalesEntry = () => {
       let invoiceNo;
       try { invoiceNo = await getNextPbInvoiceNo(); } catch { invoiceNo = `PB-${Date.now()}`; }
       await savePbSale({ buyerId, date, buyerName: buyer?.name || 'Unknown', items: [{ ...currentItem, total }], grandTotal: total, invoiceNo, timestamp: serverTimestamp() });
-      await updateDoc(doc(db, 'pb_buyers', buyerId), { balance: increment(total) });
       setCurrentItem({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
       setTimeout(() => refFlower.current?.focus(), 50);
     } catch (err) { alert('Error saving item: ' + err.message); }
-    finally { setIsSaving(false); }
+    finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
+    }
   };
 
   const handleDeleteItem = async (sale) => {
     if (!window.confirm(t('delete') + '?')) return;
     try {
-      await deleteDoc(doc(db, 'pb_sales', sale.id));
-      await updateDoc(doc(db, 'pb_buyers', sale.buyerId), { balance: increment(-(sale.grandTotal || 0)) });
+      await deletePbSale(sale);
     } catch (err) { alert('Delete failed: ' + err.message); }
   };
 
@@ -211,8 +214,7 @@ const PbSalesEntry = () => {
     setBuyerId(sale.buyerId);
     setCurrentItem(sale.items[0]);
     try {
-      await deleteDoc(doc(db, 'pb_sales', sale.id));
-      await updateDoc(doc(db, 'pb_buyers', sale.buyerId), { balance: increment(-(sale.grandTotal || 0)) });
+      await deletePbSale(sale);
       setTimeout(() => refFlower.current?.focus(), 100);
     } catch (err) { console.error('Edit init failed:', err); }
   };

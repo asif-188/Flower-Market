@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext, useMemo } from 'react';
 import { Trash2, Plus, History, IndianRupee, Save, X, ChevronLeft, Printer, FileText, Search, Download, MessageCircle, Pencil, Users, Upload, FileSpreadsheet, Download as DownloadIcon, Scan } from 'lucide-react';
-import { db, subscribeToCollection, saveOutsidePurchase, saveVendor, deleteVendor, getTenant } from '../utils/storage';
+import { db, subscribeToCollection, saveOutsidePurchase, saveVendor, deleteVendor, getTenant, deleteOutsidePurchaseEntry, deletePaymentEntry, savePayment, logHistoryAction } from '../utils/storage';
 import { doc, updateDoc, increment, serverTimestamp, deleteDoc, collection, addDoc, getDoc, deleteField } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import * as XLSX from 'xlsx';
@@ -806,8 +806,8 @@ const OutsideShop = () => {
     const handleDeletePurchase = async (p) => {
         if (!window.confirm(t('delete') + '?')) return;
         try {
-            await deleteDoc(doc(db, 'outside_purchases', p.id));
-            await updateDoc(doc(db, 'vendors', p.vendorId), { balance: increment(-p.grandTotal) });
+            const vendorName = p.vendorName || vendors.find(v => v.id === p.vendorId)?.name || 'Unknown';
+            await deleteOutsidePurchaseEntry(p, vendorName);
         } catch (err) { alert(err.message); }
     };
 
@@ -834,7 +834,8 @@ const OutsideShop = () => {
     };
 
     const handleDeleteVendor = async (id) => {
-        if (window.confirm(t('delete') + '?')) await deleteVendor(id);
+        const vendor = vendors.find(v => v.id === id);
+        if (window.confirm(t('delete') + '?')) await deleteVendor(id, vendor?.name || '');
     };
 
     const handleSavePayment = async (vId = null) => {
@@ -843,7 +844,7 @@ const OutsideShop = () => {
         setIsSaving(true);
         try {
             const amt = parseFloat(paymentForm.amount);
-
+ 
             if (editingPaymentId) {
                 const oldSnap = await getDoc(doc(db, 'payments', editingPaymentId));
                 if (oldSnap.exists()) {
@@ -863,19 +864,21 @@ const OutsideShop = () => {
                             balance: increment(-diff)
                         });
                     }
+                    
+                    const vendor = vendors.find(v => v.id === vid);
+                    await logHistoryAction('Edit', 'Payment', vendor?.name || 'Vendor', `Updated payment details to vendor: ₹${oldAmt} ➔ ₹${amt}`);
                 }
                 setEditingPaymentId(null);
                 alert(t('updateSuccess') || 'Payment updated!');
             } else {
-                const tenantId = getTenant();
-                await addDoc(collection(db, 'payments'), {
+                const vendor = vendors.find(v => v.id === vid);
+                await savePayment({
                     entityId: vid,
+                    entityName: vendor?.name || 'Vendor',
                     type: 'vendor',
                     amount: amt,
                     date: paymentForm.date,
                     note: paymentForm.note,
-                    createdAt: serverTimestamp(),
-                    tenantId,
                 });
                 await updateDoc(doc(db, 'vendors', vid), {
                     balance: increment(-amt)
@@ -2084,9 +2087,10 @@ const OutsideShop = () => {
                                                                 }
                                                             }
 
-                                                            // 2. Delete the payment document
-                                                            await deleteDoc(doc(p.tenantId ? db : db, 'payments', p.id));
-                                                            
+                                                            // 2. Delete payment and log it
+                                                            const vendor = vendors.find(v => v.id === p.entityId);
+                                                            await deletePaymentEntry(p, vendor?.name || p.entityName || 'Vendor');
+
                                                             // 3. Update the vendor's balance
                                                             await updateDoc(doc(db, 'vendors', p.entityId), { balance: increment(p.amount) });
                                                         }

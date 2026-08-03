@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Plus, Edit2, Trash2, Search, X, User, FileText, Upload } from 'lucide-react';
-import { saveBuyer, subscribeToCollection } from '../utils/storage';
-import { deleteDoc, doc } from 'firebase/firestore';
+import { saveBuyer, subscribeToCollection, deleteBuyer } from '../utils/storage';
+import { doc } from 'firebase/firestore';
 import { db } from '../utils/storage';
 import { LangContext } from '../components/Layout';
 import { useTenant } from '../utils/TenantContext';
@@ -269,8 +269,9 @@ const Buyer = () => {
     };
 
     const handleDelete = async (id) => {
+        const buyer = buyers.find(b => b.id === id);
         if (!window.confirm('Delete this customer?')) return;
-        try { await deleteDoc(doc(db, 'buyers', id)); }
+        try { await deleteBuyer(id, buyer?.name || ''); }
         catch (err) { alert('❌ Delete failed: ' + err.message); }
     };
 

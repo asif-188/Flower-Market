@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Plus, X, Edit2, Trash2, CheckCircle2, User } from 'lucide-react';
-import { subscribeToCollection, db, savePayment } from '../utils/storage';
-import { doc, updateDoc, increment, deleteDoc } from 'firebase/firestore';
+import { subscribeToCollection, db, savePayment, deletePaymentEntry, logHistoryAction } from '../utils/storage';
+import { doc, updateDoc, increment } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import { useTenant } from '../utils/TenantContext';
 
@@ -201,21 +201,23 @@ const Payments = () => {
     };
 
     const handleDelete = async (p) => {
+        const entityName = p.entityName || getName(p.entityId, p.type);
         if (!window.confirm('Delete this payment record?')) return;
         try {
-            await deleteDoc(doc(db, 'payments', p.id));
-            // Reverse the balance adjustment so the buyer's balance is correct
-            const entityRef = doc(db, p.type === 'farmer' ? 'farmers' : 'buyers', p.entityId);
-            await updateDoc(entityRef, { balance: increment((p.amount || 0) + (p.cashLess || 0)) });
+            await deletePaymentEntry(p, entityName);
         } catch {
             alert('❌ Delete failed');
         }
     };
 
     const handleEditNote = async (p) => {
+        const entityName = p.entityName || getName(p.entityId, p.type);
         const newNote = window.prompt('Edit Note:', p.note || '');
         if (newNote === null) return;
-        try { await updateDoc(doc(db, 'payments', p.id), { note: newNote }); }
+        try {
+            await updateDoc(doc(db, 'payments', p.id), { note: newNote });
+            await logHistoryAction('Edit', 'Payment', entityName, `Updated note for payment of ₹${p.amount || 0} to "${newNote}"`);
+        }
         catch (err) { alert('❌ Update failed: ' + err.message); }
     };
 
