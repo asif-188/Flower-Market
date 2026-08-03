@@ -27,6 +27,7 @@ import Settings from './pages/Settings';
 import OutsideShop from './pages/OutsideShop';
 import AdminPanel from './pages/AdminPanel';
 import WeightMachineTest from './pages/WeightMachineTest';
+import History from './pages/History';
 // ── Power Buy Module ──
 import PowerBuyMenu from './pages/powerbuy/PowerBuyMenu';
 import PbBuyer from './pages/powerbuy/PbBuyer';
@@ -110,6 +111,7 @@ const AppRoutes = () => {
           <Route path="settings" element={<Settings />} />
            <Route path="outside-shop" element={<OutsideShop />} />
           <Route path="weight-test" element={<WeightMachineTest />} />
+          <Route path="history" element={<History />} />
           {/* ── Salesman Module Standalone ── */}
           <Route path="salesman" element={<SalesmanMenu />} />
           <Route path="salesman-master" element={<SalesmanMaster />} />

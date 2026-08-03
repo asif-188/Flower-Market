@@ -1,6 +1,6 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, ChevronLeft, Globe, User } from 'lucide-react';
+import { LogOut, ChevronLeft, Globe, User, Settings, History } from 'lucide-react';
 import Petals from './Petals';
 import { useTenant } from '../utils/TenantContext';
 
@@ -385,6 +385,7 @@ const Layout = () => {
     if (p.includes('/reports'))      return '/app/sales';
     if (p.includes('/flowers'))      return '/app/sales';
     if (p.includes('/settings'))     return '/app/dashboard';
+    if (p.includes('/history'))      return '/app/dashboard';
     if (p.includes('/intake'))       return '/app/farmer';
     if (p.includes('/accounts'))     return '/app/dashboard';
     if (p.includes('/sales'))        return '/app/dashboard';
@@ -428,6 +429,7 @@ const Layout = () => {
     if (p.includes('/flowers'))      return `☘️ Sales — ${t('flowers')}`;
     if (p.includes('/daily-report')) return `☘️ Sales — ${t('dailyReport')}`;
     if (p.includes('/settings'))     return `☘️ Business Settings`;
+    if (p.includes('/history'))      return `📋 ${lang === 'ta' ? 'செயல் வரலாறு' : 'Action History'}`;
     if (p.includes('/intake'))       return `☘️ ${t('intake')}`;
     if (p.includes('/accounts'))     return `☘️ ${t('accounts')}`;
     if (p.includes('/sales'))        return `☘️ ${t('sales')}`;
@@ -505,8 +507,39 @@ const Layout = () => {
             )}
           </div>
 
-          {/* Right: Actions */}
-          <div style={{width:'220px', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'flex-end', gap:'8px'}}>
+          <div style={{minWidth:'320px', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'flex-end', gap:'8px'}}>
+            {/* History Link */}
+            <button
+              onClick={() => navigate('/app/history')}
+              title={lang === 'ta' ? 'வரலாறு' : 'Action History'}
+              style={{
+                display:'flex', alignItems:'center', justifyContent:'center',
+                width:'34px', height:'34px', background:'#f8fafc',
+                border:'1.5px solid #e2e8f0', borderRadius:'10px',
+                color:'#475569', cursor:'pointer', transition:'all 0.2s'
+              }}
+              onMouseEnter={e => Object.assign(e.currentTarget.style, {background:'#ecfdf5', borderColor:'#a7f3d0', color:'#047857'})}
+              onMouseLeave={e => Object.assign(e.currentTarget.style, {background:'#f8fafc', borderColor:'#e2e8f0', color:'#475569'})}
+            >
+              <History size={16} />
+            </button>
+
+            {/* Settings Link */}
+            <button
+              onClick={() => navigate('/app/settings')}
+              title={lang === 'ta' ? 'அமைப்பு' : 'Settings'}
+              style={{
+                display:'flex', alignItems:'center', justifyContent:'center',
+                width:'34px', height:'34px', background:'#f8fafc',
+                border:'1.5px solid #e2e8f0', borderRadius:'10px',
+                color:'#475569', cursor:'pointer', transition:'all 0.2s'
+              }}
+              onMouseEnter={e => Object.assign(e.currentTarget.style, {background:'#ecfdf5', borderColor:'#a7f3d0', color:'#047857'})}
+              onMouseLeave={e => Object.assign(e.currentTarget.style, {background:'#f8fafc', borderColor:'#e2e8f0', color:'#475569'})}
+            >
+              <Settings size={16} />
+            </button>
+
             {/* Language picker */}
             <div style={{
               display:'flex', alignItems:'center', gap:'5px',

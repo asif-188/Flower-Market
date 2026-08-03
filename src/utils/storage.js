@@ -13,7 +13,8 @@ import {
   setDoc,
   getDoc,
   serverTimestamp,
-  increment
+  increment,
+  runTransaction
 } from "firebase/firestore";
 import { db } from "../firebase";
 
@@ -147,6 +148,28 @@ export const updateData = async (colName, id, data) => {
     });
 };
 
+export const logHistoryAction = async (actionType, entityType, entityIdentifier, details) => {
+    try {
+        const tenantId = getTenant();
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-CA');
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+        
+        await addDoc(collection(db, 'history'), {
+            tenantId,
+            actionType,
+            entityType,
+            entityIdentifier,
+            details,
+            date: dateStr,
+            time: timeStr,
+            createdAt: serverTimestamp()
+        });
+    } catch (err) {
+        console.error("Failed to log history action:", err);
+    }
+};
+
 // --- Specialized Helpers ---
 
 // --- FARMERS ---
@@ -157,24 +180,43 @@ export const getFarmers = async () => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
+const getObjectChanges = (oldData, newData, fieldLabels = {}) => {
+    const changes = [];
+    for (const key in newData) {
+        if (key === 'updatedAt' || key === 'createdAt' || key === 'tenantId') continue;
+        const oldVal = oldData[key];
+        const newVal = newData[key];
+        if (oldVal !== newVal && JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+            const label = fieldLabels[key] || key;
+            const formatVal = (v) => v === undefined || v === null ? 'None' : (typeof v === 'object' ? JSON.stringify(v) : v);
+            changes.push(`${label}: "${formatVal(oldVal)}" ➔ "${formatVal(newVal)}"`);
+        }
+    }
+    return changes.join(', ');
+};
+
 export const saveFarmer = async (farmer) => {
-  const tenantId = getTenant();
   const { id, ...data } = farmer;
   if (id) {
+    const oldSnap = await getDoc(doc(db, COLLECTIONS.FARMERS, id));
+    const oldData = oldSnap.exists() ? oldSnap.data() : {};
     await updateData(COLLECTIONS.FARMERS, id, data);
+    const changesStr = getObjectChanges(oldData, data, { name: 'Name', balance: 'Balance', contact: 'Contact', village: 'Village' });
+    await logHistoryAction('Edit', 'Farmer', data.name || id, changesStr || 'No changes made');
   } else {
     await addData(COLLECTIONS.FARMERS, {
         ...data,
         balance: data.balance || 0
     });
+    await logHistoryAction('Add', 'Farmer', data.name, `Created farmer: ${data.name} (Initial Balance: ₹${data.balance || 0})`);
   }
 };
 
-export const deleteFarmer = async (id) => {
+export const deleteFarmer = async (id, name = '') => {
   await deleteDoc(doc(db, COLLECTIONS.FARMERS, id));
+  await logHistoryAction('Delete', 'Farmer', name || id, `Deleted farmer: ${name || id}`);
 };
 
-// --- PRODUCTS ---
 export const getProducts = async () => {
   const tenantId = getTenant();
   const q = query(collection(db, COLLECTIONS.PRODUCTS), where('tenantId', '==', tenantId));
@@ -185,22 +227,25 @@ export const getProducts = async () => {
 export const saveProduct = async (product) => {
     const { id, ...data } = product;
     if (id) {
+        const oldSnap = await getDoc(doc(db, COLLECTIONS.PRODUCTS, id));
+        const oldData = oldSnap.exists() ? oldSnap.data() : {};
         await updateData(COLLECTIONS.PRODUCTS, id, data);
+        const changesStr = getObjectChanges(oldData, data, { name: 'English Name', taName: 'Tamil Name', price: 'Price' });
+        await logHistoryAction('Edit', 'Product', data.name || id, changesStr || 'No changes made');
     } else {
         await addData(COLLECTIONS.PRODUCTS, data);
+        await logHistoryAction('Add', 'Product', data.name, `Created product: ${data.name} / ${data.taName || ''}`);
     }
 };
 
-export const deleteProduct = async (id) => {
+export const deleteProduct = async (id, name = '') => {
     await deleteDoc(doc(db, COLLECTIONS.PRODUCTS, id));
+    await logHistoryAction('Delete', 'Product', name || id, `Deleted product: ${name || id}`);
 };
 
-// --- INTAKE ---
 export const saveIntake = async (intakeData) => {
-  const docRef = await addData(COLLECTIONS.INTAKES, {
-    ...intakeData,
-    date: new Date().toISOString()
-  });
+  const docRef = await addData(COLLECTIONS.INTAKES, intakeData);
+  await logHistoryAction('Add', 'Intake', intakeData.farmerName || 'Unknown', `Added intake: ${intakeData.flowerType} (Weight: ${intakeData.weight}kg, Rate: ₹${intakeData.rate}) for farmer ${intakeData.farmerName}`);
   return { id: docRef.id, ...intakeData };
 };
 
@@ -211,7 +256,6 @@ export const getIntakes = async () => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
-// --- BUYERS ---
 export const getBuyers = async () => {
   const tenantId = getTenant();
   const q = query(collection(db, COLLECTIONS.BUYERS), where('tenantId', '==', tenantId));
@@ -222,19 +266,69 @@ export const getBuyers = async () => {
 export const saveBuyer = async (buyer) => {
   const { id, ...data } = buyer;
   if (id) {
+    const oldSnap = await getDoc(doc(db, COLLECTIONS.BUYERS, id));
+    const oldData = oldSnap.exists() ? oldSnap.data() : {};
     await updateData(COLLECTIONS.BUYERS, id, data);
+    const changesStr = getObjectChanges(oldData, data, { name: 'Name', nameTa: 'Tamil Name', contact: 'Contact', balance: 'Balance' });
+    await logHistoryAction('Edit', 'Customer', data.name || id, changesStr || 'No changes made');
   } else {
     await addData(COLLECTIONS.BUYERS, {
         ...data,
         balance: data.balance || 0
     });
+    await logHistoryAction('Add', 'Customer', data.name, `Created customer: ${data.name} (Initial Balance: ₹${data.balance || 0})`);
   }
 };
 
-// --- SALES ---
+export const deleteBuyer = async (id, name = '') => {
+    await deleteDoc(doc(db, COLLECTIONS.BUYERS, id));
+    await logHistoryAction('Delete', 'Customer', name || id, `Deleted customer: ${name || id}`);
+};
+
 export const saveSale = async (saleData) => {
-  const docRef = await addData(COLLECTIONS.SALES, saleData);
-  return { id: docRef.id, ...saleData };
+  const tenantId = getTenant();
+  const saleDocRef = doc(collection(db, COLLECTIONS.SALES));
+  const isDirect = saleData.buyerId === 'direct' || !saleData.buyerId;
+
+  await runTransaction(db, async (transaction) => {
+    if (!isDirect) {
+      const buyerRef = doc(db, COLLECTIONS.BUYERS, saleData.buyerId);
+      const buyerSnap = await transaction.get(buyerRef);
+      if (buyerSnap.exists()) {
+        const currentBalance = buyerSnap.data().balance || 0;
+        transaction.update(buyerRef, { balance: currentBalance + (saleData.grandTotal || 0) });
+      }
+    }
+    transaction.set(saleDocRef, {
+      ...saleData,
+      tenantId,
+      createdAt: serverTimestamp()
+    });
+  });
+
+  const itemSummary = (saleData.items || []).map(item => `${item.flowerType} (${item.quantity}kg @ ₹${item.price} = ₹${item.total})`).join(', ');
+  await logHistoryAction('Add', 'Sale', saleData.buyerName || 'Unknown', `Added sale of ₹${saleData.grandTotal}: ${itemSummary}`);
+  return { id: saleDocRef.id, ...saleData };
+};
+
+export const deleteSaleEntry = async (sale, buyerName) => {
+  const saleRef = doc(db, COLLECTIONS.SALES, sale.id);
+  const isDirect = sale.buyerId === 'direct' || !sale.buyerId;
+
+  await runTransaction(db, async (transaction) => {
+    if (!isDirect) {
+      const buyerRef = doc(db, COLLECTIONS.BUYERS, sale.buyerId);
+      const buyerSnap = await transaction.get(buyerRef);
+      if (buyerSnap.exists()) {
+        const currentBalance = buyerSnap.data().balance || 0;
+        transaction.update(buyerRef, { balance: currentBalance - (sale.grandTotal || 0) });
+      }
+    }
+    transaction.delete(saleRef);
+  });
+
+  const itemSummary = (sale.items || []).map(item => `${item.flowerType} (${item.quantity}kg @ ₹${item.price} = ₹${item.total})`).join(', ');
+  await logHistoryAction('Delete', 'Sale', buyerName, `Deleted sale of ₹${sale.grandTotal}: ${itemSummary}`);
 };
 
 export const getSales = async () => {
@@ -244,7 +338,6 @@ export const getSales = async () => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
-// --- VENDORS ---
 export const getVendors = async () => {
     const tenantId = getTenant();
     const q = query(collection(db, COLLECTIONS.VENDORS), where('tenantId', '==', tenantId));
@@ -255,30 +348,54 @@ export const getVendors = async () => {
 export const saveVendor = async (vendor) => {
   const { id, ...data } = vendor;
   if (id) {
+    const oldSnap = await getDoc(doc(db, COLLECTIONS.VENDORS, id));
+    const oldData = oldSnap.exists() ? oldSnap.data() : {};
     await updateData(COLLECTIONS.VENDORS, id, data);
+    const changesStr = getObjectChanges(oldData, data, { name: 'Name', balance: 'Balance', location: 'Location' });
+    await logHistoryAction('Edit', 'Vendor', data.name || id, changesStr || 'No changes made');
   } else {
     await addData(COLLECTIONS.VENDORS, {
         ...data,
         displayId: data.displayId || Date.now().toString().slice(-4),
         balance: data.balance || 0
     });
+    await logHistoryAction('Add', 'Vendor', data.name, `Created vendor: ${data.name} (Location: ${data.location || 'N/A'}, Initial Balance: ₹${data.balance || 0})`);
   }
 };
 
-export const deleteVendor = async (id) => {
+export const deleteVendor = async (id, name = '') => {
   await deleteDoc(doc(db, COLLECTIONS.VENDORS, id));
+  await logHistoryAction('Delete', 'Vendor', name || id, `Deleted vendor: ${name || id}`);
 };
 
-// --- OUTSIDE PURCHASES ---
 export const saveOutsidePurchase = async (purchaseData) => {
   const docRef = await addData(COLLECTIONS.OUTSIDE_PURCHASES, purchaseData);
+  const itemsSummary = (purchaseData.items || []).map(item => `${item.flowerType} (${item.quantity}kg @ ₹${item.price} = ₹${item.total})`).join(', ');
+  await logHistoryAction('Add', 'Outside Purchase', purchaseData.vendorName || 'Unknown', `Recorded outside purchase of ₹${purchaseData.grandTotal}: ${itemsSummary}`);
   return { id: docRef.id, ...purchaseData };
 };
 
-// --- PAYMENTS ---
+export const deleteOutsidePurchaseEntry = async (p, vendorName) => {
+    await deleteDoc(doc(db, COLLECTIONS.OUTSIDE_PURCHASES, p.id));
+    await updateDoc(doc(db, COLLECTIONS.VENDORS, p.vendorId), { balance: increment(-p.grandTotal) });
+    const itemsSummary = (p.items || []).map(item => `${item.flowerType} (${item.quantity}kg @ ₹${item.price} = ₹${item.total})`).join(', ');
+    await logHistoryAction('Delete', 'Outside Purchase', vendorName, `Deleted outside purchase of ₹${p.grandTotal}: ${itemsSummary}`);
+};
+
 export const savePayment = async (paymentData) => {
   const docRef = await addData(COLLECTIONS.PAYMENTS, paymentData);
+  const isVendor = paymentData.type === 'vendor';
+  const actionText = isVendor ? 'Paid payment of' : 'Received payment of';
+  const entityName = paymentData.entityName || paymentData.entityId || 'Unknown';
+  await logHistoryAction('Add', 'Payment', entityName, `${actionText} ₹${paymentData.amount || 0} (Cash Less: ₹${paymentData.cashLess || 0}) ${paymentData.note ? `Note: "${paymentData.note}"` : ''}`);
   return { id: docRef.id, ...paymentData };
+};
+
+export const deletePaymentEntry = async (p, entityName) => {
+    await deleteDoc(doc(db, COLLECTIONS.PAYMENTS, p.id));
+    const collectionName = p.type === 'buyer' ? COLLECTIONS.BUYERS : COLLECTIONS.VENDORS;
+    await updateDoc(doc(db, collectionName, p.entityId), { balance: increment((p.amount || 0) + (p.cashLess || 0)) });
+    await logHistoryAction('Delete', 'Payment', entityName, `Deleted payment of ₹${p.amount || 0} (Cash Less: ₹${p.cashLess || 0})`);
 };
 
 export const getOutsidePurchases = async () => {
@@ -339,8 +456,43 @@ export const deletePbProduct = async (id) => {
 
 // --- PB SALES ---
 export const savePbSale = async (saleData) => {
-  const docRef = await addData(COLLECTIONS.PB_SALES, saleData);
-  return { id: docRef.id, ...saleData };
+  const tenantId = getTenant();
+  const saleDocRef = doc(collection(db, COLLECTIONS.PB_SALES));
+  const isDirect = saleData.buyerId === 'direct' || !saleData.buyerId;
+
+  await runTransaction(db, async (transaction) => {
+    if (!isDirect) {
+      const buyerRef = doc(db, COLLECTIONS.PB_BUYERS, saleData.buyerId);
+      const buyerSnap = await transaction.get(buyerRef);
+      if (buyerSnap.exists()) {
+        const currentBalance = buyerSnap.data().balance || 0;
+        transaction.update(buyerRef, { balance: currentBalance + (saleData.grandTotal || 0) });
+      }
+    }
+    transaction.set(saleDocRef, {
+      ...saleData,
+      tenantId,
+      createdAt: serverTimestamp()
+    });
+  });
+  return { id: saleDocRef.id, ...saleData };
+};
+
+export const deletePbSale = async (sale) => {
+  const saleRef = doc(db, COLLECTIONS.PB_SALES, sale.id);
+  const isDirect = sale.buyerId === 'direct' || !sale.buyerId;
+
+  await runTransaction(db, async (transaction) => {
+    if (!isDirect) {
+      const buyerRef = doc(db, COLLECTIONS.PB_BUYERS, sale.buyerId);
+      const buyerSnap = await transaction.get(buyerRef);
+      if (buyerSnap.exists()) {
+        const currentBalance = buyerSnap.data().balance || 0;
+        transaction.update(buyerRef, { balance: currentBalance - (sale.grandTotal || 0) });
+      }
+    }
+    transaction.delete(saleRef);
+  });
 };
 
 export const getPbSales = async () => {
