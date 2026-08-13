@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Calendar, Printer, Search } from 'lucide-react';
-import { subscribeToCollection, COLLECTIONS, db } from '../utils/storage';
+import { subscribeToCollection, getTenant, COLLECTIONS, db } from '../utils/storage';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import { useTenant } from '../utils/TenantContext';
@@ -83,7 +83,7 @@ const FarmerMonthReport = () => {
     const fetchMonthlyReport = async () => {
         setIsLoading(true);
         try {
-            const tenantId = sessionStorage.getItem('fm_tenantId') || 'default';
+            const tenantId = getTenant();
 
             // 1. Fetch purchases in range
             const qPurchases = query(

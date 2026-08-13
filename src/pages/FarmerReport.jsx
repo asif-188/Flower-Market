@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { Search, Calendar, FileText, Download, Printer, MessageCircle, X, ChevronRight, BarChart2 } from 'lucide-react';
-import { subscribeToCollection, COLLECTIONS, db } from '../utils/storage';
+import { subscribeToCollection, getTenant, COLLECTIONS, db } from '../utils/storage';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
@@ -113,7 +113,7 @@ const FarmerReport = () => {
     const fetchReportData = async () => {
         setIsLoading(true);
         try {
-            const tenantId = sessionStorage.getItem('fm_tenantId') || 'default';
+            const tenantId = getTenant();
             
             // 1. Fetch purchases
             const qPurchases = query(

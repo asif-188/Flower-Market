@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { Plus, Edit2, Trash2, Search, X, User, FileText, Download, Upload, ArrowLeft, Phone, Filter, RotateCcw } from 'lucide-react';
-import { subscribeToCollection, saveFFarmer, deleteFFarmer, COLLECTIONS, db } from '../utils/storage';
+import { subscribeToCollection, saveFFarmer, deleteFFarmer, getTenant, COLLECTIONS, db } from '../utils/storage';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
 import { LangContext } from '../components/Layout';
@@ -223,7 +223,7 @@ const FarmerMaster = () => {
         setIsLedgerOpen(true);
         setIsLoadingLedger(true);
         try {
-            const tenantId = sessionStorage.getItem('fm_tenantId') || 'default';
+            const tenantId = getTenant();
             const q = query(
                 collection(db, COLLECTIONS.F_LEDGERS),
                 where('tenantId', '==', tenantId),

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Calendar, User, FileText, Download, MessageCircle, Lock, Unlock, Eye, Sparkles, X, Save, Trash2, Edit, Check } from 'lucide-react';
-import { subscribeToCollection, saveFBillClosing, saveFLedger, COLLECTIONS, db, addData } from '../utils/storage';
+import { subscribeToCollection, saveFBillClosing, saveFLedger, COLLECTIONS, db, addData, getTenant } from '../utils/storage';
 import { useTenant } from '../utils/TenantContext';
 import { collection, query, where, getDocs, doc, updateDoc, increment, addDoc, deleteDoc } from 'firebase/firestore';
 import { jsPDF } from 'jspdf';
@@ -121,7 +121,7 @@ const FarmerBillClose = () => {
             }
             setIsCalculating(true);
             try {
-                const tenantId = sessionStorage.getItem('fm_tenantId') || 'default';
+                const tenantId = getTenant();
                 const newCalcs = {};
 
                 // Fetch all tenant records once to avoid composite index requirements and N+1 queries
@@ -318,7 +318,7 @@ const FarmerBillClose = () => {
 
         setIsSaving(true);
         try {
-            const tenantId = sessionStorage.getItem('fm_tenantId') || 'default';
+            const tenantId = getTenant();
             for (const fid of Object.keys(calculations)) {
                 const calc = calculations[fid];
 
@@ -382,7 +382,7 @@ const FarmerBillClose = () => {
 
         setIsSaving(true);
         try {
-            const tenantId = sessionStorage.getItem('fm_tenantId') || 'default';
+            const tenantId = getTenant();
 
             // Remove existing duplicates first
             await deleteExistingBillCloseIfAny(tenantId, fid, fromDate, toDate);
@@ -453,7 +453,7 @@ const FarmerBillClose = () => {
 
         setIsSaving(true);
         try {
-            const tenantId = sessionStorage.getItem('fm_tenantId') || 'default';
+            const tenantId = getTenant();
             const closeDocRef = doc(db, COLLECTIONS.F_BILL_CLOSINGS, calc.savedBillId);
 
             // 1. Update Bill Closing document
