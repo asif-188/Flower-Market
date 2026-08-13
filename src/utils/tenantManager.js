@@ -18,17 +18,21 @@ import {
 import { db } from "../firebase";
 
 // ── Tenant Context Management ──
-export const getTenantId = () => sessionStorage.getItem('fm_tenantId') || null;
-export const getTenantName = () => sessionStorage.getItem('fm_tenantName') || null;
+export const getTenantId = () => sessionStorage.getItem('fm_tenantId') || localStorage.getItem('fm_tenantId') || null;
+export const getTenantName = () => sessionStorage.getItem('fm_tenantName') || localStorage.getItem('fm_tenantName') || null;
 
 export const setTenantContext = (tenantId, tenantName) => {
   sessionStorage.setItem('fm_tenantId', tenantId);
   sessionStorage.setItem('fm_tenantName', tenantName);
+  localStorage.setItem('fm_tenantId', tenantId);
+  localStorage.setItem('fm_tenantName', tenantName);
 };
 
 export const clearTenantContext = () => {
   sessionStorage.removeItem('fm_tenantId');
   sessionStorage.removeItem('fm_tenantName');
+  localStorage.removeItem('fm_tenantId');
+  localStorage.removeItem('fm_tenantName');
 };
 
 // ── Tenant Account Management ──

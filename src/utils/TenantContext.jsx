@@ -8,7 +8,7 @@ const TenantContext = createContext();
 
 export const TenantProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [tenantId, setTenantId] = useState(null);
+    const [tenantId, setTenantId] = useState(() => sessionStorage.getItem('fm_tenantId') || localStorage.getItem('fm_tenantId') || null);
     const [tenantData, setTenantData] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -20,7 +20,7 @@ export const TenantProvider = ({ children }) => {
 
             setUser(currentUser);
             if (currentUser) {
-                let tid = sessionStorage.getItem('fm_tenantId');
+                let tid = sessionStorage.getItem('fm_tenantId') || localStorage.getItem('fm_tenantId');
 
                 if (!tid) {
                     try {
@@ -29,18 +29,19 @@ export const TenantProvider = ({ children }) => {
                         if (userSnap.exists()) {
                             tid = userSnap.data().tenantId;
                         } else {
-                            tid = currentUser.email.split('@')[0];
+                            tid = currentUser.email.split('@')[0].toLowerCase();
                         }
                     } catch (err) {
                         if (!active) return;
                         console.error('Error fetching user data:', err);
-                        tid = currentUser.email.split('@')[0];
+                        tid = currentUser.email.split('@')[0].toLowerCase();
                     }
                 }
 
                 if (tid && active) {
                     setTenantId(tid);
                     sessionStorage.setItem('fm_tenantId', tid);
+                    localStorage.setItem('fm_tenantId', tid);
 
                     // Fetch tenant settings
                     try {
@@ -65,6 +66,7 @@ export const TenantProvider = ({ children }) => {
                     setUser({ email: 'kasi.vetrivel@poovanam.com', uid: 'mock-uid' });
                     setTenantId('kasi.vetrivel');
                     sessionStorage.setItem('fm_tenantId', 'kasi.vetrivel');
+                    localStorage.setItem('fm_tenantId', 'kasi.vetrivel');
                     setTenantData({ name: 'SVM Flowers', type: 'Sri Valli Flower Merchant' });
                     if (active) setLoading(false);
                     return;
@@ -72,6 +74,7 @@ export const TenantProvider = ({ children }) => {
                 setTenantId(null);
                 setTenantData(null);
                 sessionStorage.removeItem('fm_tenantId');
+                localStorage.removeItem('fm_tenantId');
             }
 
             if (active) setLoading(false);
@@ -121,9 +124,6 @@ export const TenantProvider = ({ children }) => {
     };
 
     const isEditDeleteAllowed = () => {
-        if (tenantId !== 'kasivetrivel' && tenantId !== 'kasi.vetrivel') {
-            return true;
-        }
         if (!tenantData?.ownerModeFeatureEnabled) return true;
         return ownerModeActive;
     };
@@ -139,6 +139,7 @@ export const TenantProvider = ({ children }) => {
             setTenantId(null);
             setTenantData(null);
             sessionStorage.removeItem('fm_tenantId');
+            localStorage.removeItem('fm_tenantId');
         } catch (err) {
             console.error('Error signing out:', err);
         }
@@ -171,3 +172,4 @@ export const useTenant = () => {
     }
     return context;
 };
+

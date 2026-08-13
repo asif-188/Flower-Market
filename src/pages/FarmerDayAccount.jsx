@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Search, Printer, FileText } from 'lucide-react';
-import { subscribeToCollection, COLLECTIONS, db } from '../utils/storage';
+import { subscribeToCollection, getTenant, COLLECTIONS, db } from '../utils/storage';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const FarmerDayAccount = () => {
@@ -27,7 +27,7 @@ const FarmerDayAccount = () => {
     const fetchDaySummary = async () => {
         setIsLoading(true);
         try {
-            const tenantId = sessionStorage.getItem('fm_tenantId') || 'default';
+            const tenantId = getTenant();
             
             // Fetch purchases for the selected day and prior
             const qPurchases = query(

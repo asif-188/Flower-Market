@@ -25,6 +25,7 @@ const Login = () => {
             await signInWithEmailAndPassword(auth, email, password);
             sessionStorage.removeItem('fm_logout_active');
             sessionStorage.setItem('fm_tenantId', tenantId);
+            localStorage.setItem('fm_tenantId', tenantId);
             navigate('/app');
         } catch (err) {
             console.error('Login error:', err);

@@ -16,7 +16,7 @@ import {
   increment,
   runTransaction
 } from "firebase/firestore";
-import { db } from "../firebase";
+import { db } from "../firebase.js";
 
 export { db };
 
@@ -53,14 +53,23 @@ export const COLLECTIONS = {
   F_BILL_CLOSINGS: 'f_bill_closings',
 };
 
+// Data sanitization helper to strip undefined values before sending to Firestore
+export const sanitizeData = (data) => {
+    if (!data || typeof data !== 'object') return data;
+    const clean = {};
+    for (const key in data) {
+        if (data[key] !== undefined) {
+            clean[key] = data[key];
+        }
+    }
+    return clean;
+};
+
 // Helper to get current tenant
 export const getTenant = () => {
-    // Check session storage first (set during login)
-    const tid = sessionStorage.getItem('fm_tenantId');
+    const tid = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('fm_tenantId') : null) ||
+                (typeof localStorage !== 'undefined' ? localStorage.getItem('fm_tenantId') : null);
     if (tid) return tid;
-    
-    // Fallback if not in session (might happen on page refresh before context loads)
-    // but ideally we should rely on TenantContext in React components.
     return 'default';
 };
 
@@ -100,10 +109,16 @@ export const subscribeToCollection = (collectionName, callback, filterByTenant =
       ...constraints
     );
 
-    activeUnsub = onSnapshot(fallbackQ, (snapshot) => {
-      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      callback(data);
-    });
+    activeUnsub = onSnapshot(
+      fallbackQ,
+      (snapshot) => {
+        const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        callback(data);
+      },
+      (error) => {
+        console.error(`subscribeToCollection(${collectionName}) fallback query error:`, error.code, error.message);
+      }
+    );
   };
 
   // Start with the ordered query
@@ -114,12 +129,12 @@ export const subscribeToCollection = (collectionName, callback, filterByTenant =
       callback(data);
     },
     (error) => {
-      // Only fall back when the error is a missing-index / permission error.
-      // Crucially: unsubscribe the broken listener BEFORE starting a new one
-      // to avoid triggering Firestore's internal watch-stream assertion.
-      console.warn(`subscribeToCollection(${collectionName}) ordered query failed, using fallback:`, error.code, error.message);
+      console.warn(`subscribeToCollection(${collectionName}) ordered query failed:`, error.code, error.message);
       if (activeUnsub) { try { activeUnsub(); } catch (_) {} }
-      startFallback();
+      // Only fall back if the error indicates a missing index
+      if (error.code === 'failed-precondition' || (error.message && error.message.includes('index'))) {
+        startFallback();
+      }
     }
   );
 
@@ -131,8 +146,9 @@ export const subscribeToCollection = (collectionName, callback, filterByTenant =
 
 export const addData = async (colName, data) => {
     const tenantId = getTenant();
+    const cleanData = sanitizeData(data);
     return await addDoc(collection(db, colName), {
-        ...data,
+        ...cleanData,
         tenantId,
         createdAt: serverTimestamp()
     });
@@ -140,9 +156,10 @@ export const addData = async (colName, data) => {
 
 export const updateData = async (colName, id, data) => {
     const tenantId = getTenant();
+    const cleanData = sanitizeData(data);
     const docRef = doc(db, colName, id);
     return await updateDoc(docRef, {
-        ...data,
+        ...cleanData,
         tenantId, // Ensure it stays tied to tenant
         updatedAt: serverTimestamp()
     });
@@ -286,46 +303,45 @@ export const deleteBuyer = async (id, name = '') => {
 };
 
 export const saveSale = async (saleData) => {
-  const tenantId = getTenant();
-  const saleDocRef = doc(collection(db, COLLECTIONS.SALES));
   const isDirect = saleData.buyerId === 'direct' || !saleData.buyerId;
+  const cleanSaleData = sanitizeData(saleData);
 
-  await runTransaction(db, async (transaction) => {
-    if (!isDirect) {
+  const docRef = await addData(COLLECTIONS.SALES, cleanSaleData);
+
+  if (!isDirect && saleData.buyerId) {
+    try {
       const buyerRef = doc(db, COLLECTIONS.BUYERS, saleData.buyerId);
-      const buyerSnap = await transaction.get(buyerRef);
+      const buyerSnap = await getDoc(buyerRef);
       if (buyerSnap.exists()) {
-        const currentBalance = buyerSnap.data().balance || 0;
-        transaction.update(buyerRef, { balance: currentBalance + (saleData.grandTotal || 0) });
+        await updateDoc(buyerRef, { balance: increment(saleData.grandTotal || 0) });
       }
+    } catch (e) {
+      console.warn("Could not update buyer balance on sale:", e);
     }
-    transaction.set(saleDocRef, {
-      ...saleData,
-      tenantId,
-      createdAt: serverTimestamp()
-    });
-  });
+  }
 
   const itemSummary = (saleData.items || []).map(item => `${item.flowerType} (${item.quantity}kg @ ₹${item.price} = ₹${item.total})`).join(', ');
   await logHistoryAction('Add', 'Sale', saleData.buyerName || 'Unknown', `Added sale of ₹${saleData.grandTotal}: ${itemSummary}`);
-  return { id: saleDocRef.id, ...saleData };
+  return { id: docRef.id, ...saleData };
 };
 
 export const deleteSaleEntry = async (sale, buyerName) => {
   const saleRef = doc(db, COLLECTIONS.SALES, sale.id);
   const isDirect = sale.buyerId === 'direct' || !sale.buyerId;
 
-  await runTransaction(db, async (transaction) => {
-    if (!isDirect) {
+  await deleteDoc(saleRef);
+
+  if (!isDirect && sale.buyerId) {
+    try {
       const buyerRef = doc(db, COLLECTIONS.BUYERS, sale.buyerId);
-      const buyerSnap = await transaction.get(buyerRef);
+      const buyerSnap = await getDoc(buyerRef);
       if (buyerSnap.exists()) {
-        const currentBalance = buyerSnap.data().balance || 0;
-        transaction.update(buyerRef, { balance: currentBalance - (sale.grandTotal || 0) });
+        await updateDoc(buyerRef, { balance: increment(-(sale.grandTotal || 0)) });
       }
+    } catch (e) {
+      console.warn("Could not update buyer balance on delete sale:", e);
     }
-    transaction.delete(saleRef);
-  });
+  }
 
   const itemSummary = (sale.items || []).map(item => `${item.flowerType} (${item.quantity}kg @ ₹${item.price} = ₹${item.total})`).join(', ');
   await logHistoryAction('Delete', 'Sale', buyerName, `Deleted sale of ₹${sale.grandTotal}: ${itemSummary}`);
@@ -377,7 +393,17 @@ export const saveOutsidePurchase = async (purchaseData) => {
 
 export const deleteOutsidePurchaseEntry = async (p, vendorName) => {
     await deleteDoc(doc(db, COLLECTIONS.OUTSIDE_PURCHASES, p.id));
-    await updateDoc(doc(db, COLLECTIONS.VENDORS, p.vendorId), { balance: increment(-p.grandTotal) });
+    if (p.vendorId) {
+      try {
+        const vRef = doc(db, COLLECTIONS.VENDORS, p.vendorId);
+        const vSnap = await getDoc(vRef);
+        if (vSnap.exists()) {
+          await updateDoc(vRef, { balance: increment(-p.grandTotal) });
+        }
+      } catch (e) {
+        console.warn("Could not update vendor balance on delete outside purchase:", e);
+      }
+    }
     const itemsSummary = (p.items || []).map(item => `${item.flowerType} (${item.quantity}kg @ ₹${item.price} = ₹${item.total})`).join(', ');
     await logHistoryAction('Delete', 'Outside Purchase', vendorName, `Deleted outside purchase of ₹${p.grandTotal}: ${itemsSummary}`);
 };
@@ -393,8 +419,18 @@ export const savePayment = async (paymentData) => {
 
 export const deletePaymentEntry = async (p, entityName) => {
     await deleteDoc(doc(db, COLLECTIONS.PAYMENTS, p.id));
-    const collectionName = p.type === 'buyer' ? COLLECTIONS.BUYERS : COLLECTIONS.VENDORS;
-    await updateDoc(doc(db, collectionName, p.entityId), { balance: increment((p.amount || 0) + (p.cashLess || 0)) });
+    if (p.entityId) {
+      const collectionName = p.type === 'buyer' ? COLLECTIONS.BUYERS : COLLECTIONS.VENDORS;
+      try {
+        const eRef = doc(db, collectionName, p.entityId);
+        const eSnap = await getDoc(eRef);
+        if (eSnap.exists()) {
+          await updateDoc(eRef, { balance: increment((p.amount || 0) + (p.cashLess || 0)) });
+        }
+      } catch (e) {
+        console.warn("Could not update entity balance on delete payment:", e);
+      }
+    }
     await logHistoryAction('Delete', 'Payment', entityName, `Deleted payment of ₹${p.amount || 0} (Cash Less: ₹${p.cashLess || 0})`);
 };
 
@@ -456,43 +492,42 @@ export const deletePbProduct = async (id) => {
 
 // --- PB SALES ---
 export const savePbSale = async (saleData) => {
-  const tenantId = getTenant();
-  const saleDocRef = doc(collection(db, COLLECTIONS.PB_SALES));
   const isDirect = saleData.buyerId === 'direct' || !saleData.buyerId;
+  const cleanSaleData = sanitizeData(saleData);
 
-  await runTransaction(db, async (transaction) => {
-    if (!isDirect) {
+  const docRef = await addData(COLLECTIONS.PB_SALES, cleanSaleData);
+
+  if (!isDirect && saleData.buyerId) {
+    try {
       const buyerRef = doc(db, COLLECTIONS.PB_BUYERS, saleData.buyerId);
-      const buyerSnap = await transaction.get(buyerRef);
+      const buyerSnap = await getDoc(buyerRef);
       if (buyerSnap.exists()) {
-        const currentBalance = buyerSnap.data().balance || 0;
-        transaction.update(buyerRef, { balance: currentBalance + (saleData.grandTotal || 0) });
+        await updateDoc(buyerRef, { balance: increment(saleData.grandTotal || 0) });
       }
+    } catch (e) {
+      console.warn("Could not update pb_buyer balance on sale:", e);
     }
-    transaction.set(saleDocRef, {
-      ...saleData,
-      tenantId,
-      createdAt: serverTimestamp()
-    });
-  });
-  return { id: saleDocRef.id, ...saleData };
+  }
+  return { id: docRef.id, ...saleData };
 };
 
 export const deletePbSale = async (sale) => {
   const saleRef = doc(db, COLLECTIONS.PB_SALES, sale.id);
   const isDirect = sale.buyerId === 'direct' || !sale.buyerId;
 
-  await runTransaction(db, async (transaction) => {
-    if (!isDirect) {
+  await deleteDoc(saleRef);
+
+  if (!isDirect && sale.buyerId) {
+    try {
       const buyerRef = doc(db, COLLECTIONS.PB_BUYERS, sale.buyerId);
-      const buyerSnap = await transaction.get(buyerRef);
+      const buyerSnap = await getDoc(buyerRef);
       if (buyerSnap.exists()) {
-        const currentBalance = buyerSnap.data().balance || 0;
-        transaction.update(buyerRef, { balance: currentBalance - (sale.grandTotal || 0) });
+        await updateDoc(buyerRef, { balance: increment(-(sale.grandTotal || 0)) });
       }
+    } catch (e) {
+      console.warn("Could not update pb_buyer balance on delete sale:", e);
     }
-    transaction.delete(saleRef);
-  });
+  }
 };
 
 export const getPbSales = async () => {
