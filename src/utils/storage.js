@@ -51,6 +51,8 @@ export const COLLECTIONS = {
   F_PAYMENTS: 'f_payments',
   F_LEDGERS: 'f_ledgers',
   F_BILL_CLOSINGS: 'f_bill_closings',
+  // ── Standalone Payment Reminders (Sales Entry only) ──
+  PAYMENT_REMINDERS: 'payment_reminders',
 };
 
 // Data sanitization helper to strip undefined values before sending to Firestore
@@ -879,5 +881,138 @@ export const deleteFBillClosing = async (id) => {
   await deleteDoc(doc(db, COLLECTIONS.F_BILL_CLOSINGS, id));
 };
 
+// ══════════════════════════════════════════════════════════════════════════════
+// ── PAYMENT REMINDERS — Standalone Payment Reminders Module ───────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 
+export const savePaymentReminder = async (reminderData) => {
+  const cleanData = sanitizeData({
+    ...reminderData,
+    status: reminderData.status || 'Pending',
+    createdAt: serverTimestamp()
+  });
+  const docRef = await addData(COLLECTIONS.PAYMENT_REMINDERS, cleanData);
+  return { id: docRef.id, ...reminderData };
+};
 
+export const updatePaymentReminder = async (id, updateFields) => {
+  const cleanData = sanitizeData(updateFields);
+  await updateData(COLLECTIONS.PAYMENT_REMINDERS, id, cleanData);
+};
+
+export const deletePaymentReminder = async (id) => {
+  await deleteDoc(doc(db, COLLECTIONS.PAYMENT_REMINDERS, id));
+};
+
+export const getPaymentReminders = async () => {
+  const tenantId = getTenant();
+  const q = query(collection(db, COLLECTIONS.PAYMENT_REMINDERS), where('tenantId', '==', tenantId), orderBy('createdAt', 'desc'));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+export const subscribeToPaymentReminders = (callback) => {
+  return subscribeToCollection(COLLECTIONS.PAYMENT_REMINDERS, callback, true);
+};
+
+export const combineRemindersWithExistingSales = (storedReminders = [], allSales = [], buyers = []) => {
+  const result = [];
+  
+  // Helper to convert date
+  const toDateStr = (d) => {
+    if (!d) return new Date().toISOString().split('T')[0];
+    if (typeof d === 'string') return d.substring(0, 10);
+    if (d.toDate) return d.toDate().toISOString().split('T')[0];
+    return new Date(d).toISOString().split('T')[0];
+  };
+
+  const parseAmt = (v) => {
+    if (v === undefined || v === null) return 0;
+    if (typeof v === 'number') return v;
+    const cleaned = String(v).replace(/[^0-9.-]/g, '');
+    return parseFloat(cleaned) || 0;
+  };
+
+  // Map of stored reminders keyed by buyerId / buyerName
+  const storedByBuyer = {};
+  storedReminders.forEach(rem => {
+    if (rem.buyerId) storedByBuyer[rem.buyerId] = rem;
+    if (rem.buyerName) storedByBuyer[rem.buyerName.toLowerCase()] = rem;
+  });
+
+  // Group sales by buyerId / buyerName to find latest sales date
+  const buyerLatestSaleDate = {};
+  allSales.forEach(s => {
+    const key = s.buyerId || (s.buyerName ? s.buyerName.toLowerCase() : null);
+    if (!key || key === 'direct') return;
+    const sDate = s.date || toDateStr(s.timestamp);
+    if (!buyerLatestSaleDate[key] || sDate > buyerLatestSaleDate[key]) {
+      buyerLatestSaleDate[key] = sDate;
+    }
+  });
+
+  // Ensure ALL buyers in `buyers` array are evaluated
+  const processedBuyerIds = new Set();
+
+  buyers.forEach(buyerObj => {
+    const buyerId = buyerObj.id;
+    processedBuyerIds.add(buyerId);
+
+    const storedRem = storedByBuyer[buyerId] || (buyerObj.name ? storedByBuyer[buyerObj.name.toLowerCase()] : null);
+    const currentBalance = parseAmt(buyerObj.balance);
+    
+    // Skip if no dues and no explicit stored reminder
+    if (currentBalance <= 0 && !storedRem) {
+      return;
+    }
+
+    const latestSalesDate = buyerLatestSaleDate[buyerId] || (buyerObj.name ? buyerLatestSaleDate[buyerObj.name.toLowerCase()] : null) || storedRem?.salesDate || toDateStr(new Date());
+
+    let defaultRemDate = latestSalesDate;
+    try {
+      const d = new Date(latestSalesDate);
+      if (!isNaN(d.getTime())) {
+        d.setDate(d.getDate() + 2);
+        defaultRemDate = d.toISOString().split('T')[0];
+      }
+    } catch (e) {}
+
+    const reminderDate = storedRem?.reminderDate || defaultRemDate;
+    const status = currentBalance <= 0 ? 'Completed' : (storedRem?.status || 'Pending');
+
+    result.push({
+      id: storedRem?.id || `cust_rem_${buyerId}`,
+      buyerId: buyerId,
+      buyerName: buyerObj.name || storedRem?.buyerName || 'Customer',
+      contact: buyerObj.contact || storedRem?.contact || '',
+      salesDate: latestSalesDate,
+      reminderDate: reminderDate,
+      pendingAmount: Math.max(0, currentBalance),
+      originalAmount: Math.max(0, currentBalance),
+      status: status,
+      isSynthesized: !storedRem
+    });
+  });
+
+  // Check any stored reminders for buyers not in main buyers list
+  storedReminders.forEach(storedRem => {
+    if (storedRem.buyerId && processedBuyerIds.has(storedRem.buyerId)) return;
+    const amt = parseAmt(storedRem.pendingAmount);
+    if (amt <= 0 && storedRem.status === 'Completed') return;
+
+    result.push({
+      id: storedRem.id,
+      buyerId: storedRem.buyerId || '',
+      buyerName: storedRem.buyerName || 'Customer',
+      contact: storedRem.contact || '',
+      salesDate: storedRem.salesDate || toDateStr(new Date()),
+      reminderDate: storedRem.reminderDate || toDateStr(new Date()),
+      pendingAmount: Math.max(0, amt),
+      originalAmount: Math.max(0, amt),
+      status: storedRem.status || 'Pending',
+      isSynthesized: false
+    });
+  });
+
+  return result;
+};

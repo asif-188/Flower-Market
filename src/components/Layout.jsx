@@ -1,8 +1,10 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, ChevronLeft, Globe, User, Settings, History } from 'lucide-react';
+import { LogOut, ChevronLeft, Globe, User, Settings, History, Bell } from 'lucide-react';
 import Petals from './Petals';
 import { useTenant } from '../utils/TenantContext';
+import { subscribeToPaymentReminders, subscribeToCollection, combineRemindersWithExistingSales } from '../utils/storage';
+import PaymentRemindersModal from './PaymentRemindersModal';
 
 // ── Language Context ──────────────────────────────────────────────────────────
 export const LangContext = createContext({ lang: 'en', t: (k) => k });
@@ -135,12 +137,12 @@ const strings = {
     thisYear: 'This Year',
     prevYear: 'Prev Year',
     filter: 'Filter',
-    farmerMaster: 'Farmer Name',
-    farmerPurchase: 'Purchase',
-    farmerCashPay: 'Cash Pay',
+    farmerMaster: 'Farmer Master',
+    farmerPurchase: 'Farmer Purchase',
+    farmerCashPay: 'Farmer Cash Pay',
     farmerReport: 'Farmer Report',
-    farmerDayAccount: 'Day Account',
-    farmerBillClose: 'Bill Closed',
+    farmerDayAccount: 'Farmer Day Account',
+    farmerBillClose: 'Farmer Bill Close',
     export: 'Export',
     addFarmer: 'Add Farmer',
     farmerName: 'Farmer Name',
@@ -163,7 +165,7 @@ const strings = {
     saving: 'Saving...',
     farmerId: 'Farmer ID',
     loadingLedger: 'Loading ledger history...',
-    farmerMonthReport: 'Report',
+    farmerMonthReport: 'Farmer Month Report',
     searchFarmer: 'Search Farmer',
     searchPlaceholderShort: 'Name or ID...',
     allFarmers: 'All Farmers',
@@ -298,12 +300,12 @@ const strings = {
     thisYear: 'இந்த ஆண்டு',
     prevYear: 'கடந்த ஆண்டு',
     filter: 'தேடல்',
-    farmerMaster: 'விவசாயி பெயர்',
+    farmerMaster: 'விவசாயி பட்டியல்',
     farmerPurchase: 'கொள்முதல் பதிவு',
     farmerCashPay: 'பணக் கொடுப்பனவு',
     farmerReport: 'விவசாயி அறிக்கை',
     farmerDayAccount: 'தினசரி கணக்கு',
-    farmerBillClose: 'பில் மூடப்பட்டது',
+    farmerBillClose: 'பில் மூடுதல்',
     export: 'ஏற்றுமதி',
     addFarmer: 'விவசாயியைச் சேர்',
     farmerName: 'விவசாயி பெயர்',
@@ -326,7 +328,7 @@ const strings = {
     saving: 'சேமிக்கப்படுகிறது...',
     farmerId: 'விவசாயி ஐடி',
     loadingLedger: 'வரலாறு ஏற்றப்படுகிறது...',
-    farmerMonthReport: 'அறிக்கை',
+    farmerMonthReport: 'மாதாந்திர அறிக்கை',
     searchFarmer: 'விவசாயி தேடல்',
     searchPlaceholderShort: 'பெயர் அல்லது ஐடி...',
     allFarmers: 'அனைத்து விவசாயிகள்',
@@ -343,6 +345,26 @@ const Layout = () => {
 
   // ── Language state (persisted) ──
   const [lang, setLang] = useState(() => sessionStorage.getItem('fm_lang') || 'en');
+  const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+  const [activeRemindersCount, setActiveRemindersCount] = useState(0);
+
+  useEffect(() => {
+    let stored = [];
+    let sales = [];
+    let buyers = [];
+
+    const updateCount = () => {
+      const combined = combineRemindersWithExistingSales(stored, sales, buyers);
+      const activeCount = combined.filter(r => (r.status === 'Pending' || r.status === 'Remind Later') && r.pendingAmount > 0).length;
+      setActiveRemindersCount(activeCount);
+    };
+
+    const u1 = subscribeToPaymentReminders((d) => { stored = d; updateCount(); });
+    const u2 = subscribeToCollection('sales', (d) => { sales = d; updateCount(); }, true);
+    const u3 = subscribeToCollection('buyers', (d) => { buyers = d; updateCount(); }, true);
+
+    return () => { u1(); u2(); u3(); };
+  }, []);
 
   const t = (key) => strings[lang]?.[key] ?? strings['en']?.[key] ?? key;
 
@@ -508,6 +530,39 @@ const Layout = () => {
           </div>
 
           <div style={{minWidth:'320px', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'flex-end', gap:'8px'}}>
+            {/* Payment Reminders Notification Link */}
+            <button
+              onClick={() => setIsReminderModalOpen(true)}
+              title={lang === 'ta' ? 'கட்டண விழிப்பூட்டல்கள்' : 'Payment Reminders'}
+              style={{
+                display:'flex', alignItems:'center', justifyContent:'center',
+                width:'34px', height:'34px', background: activeRemindersCount > 0 ? '#f0fdf4' : '#f8fafc',
+                border: activeRemindersCount > 0 ? '1.5px solid #86efac' : '1.5px solid #e2e8f0',
+                borderRadius:'10px', color: activeRemindersCount > 0 ? '#16a34a' : '#475569',
+                cursor:'pointer', transition:'all 0.2s', position:'relative'
+              }}
+              onMouseEnter={e => Object.assign(e.currentTarget.style, {background:'#ecfdf5', borderColor:'#a7f3d0', color:'#047857'})}
+              onMouseLeave={e => Object.assign(e.currentTarget.style, {
+                background: activeRemindersCount > 0 ? '#f0fdf4' : '#f8fafc',
+                borderColor: activeRemindersCount > 0 ? '#86efac' : '#e2e8f0',
+                color: activeRemindersCount > 0 ? '#16a34a' : '#475569'
+              })}
+            >
+              <Bell size={16} />
+              {activeRemindersCount > 0 && (
+                <span style={{
+                  position:'absolute', top:'-4px', right:'-4px',
+                  background:'#ef4444', color:'#ffffff',
+                  fontSize:'10px', fontWeight:900,
+                  width:'18px', height:'18px', borderRadius:'100px',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  boxShadow:'0 2px 4px rgba(239,68,68,0.4)'
+                }}>
+                  {activeRemindersCount}
+                </span>
+              )}
+            </button>
+
             {/* History Link */}
             <button
               onClick={() => navigate('/app/history')}
@@ -589,6 +644,11 @@ const Layout = () => {
             <Outlet />
           </div>
         </main>
+
+        <PaymentRemindersModal
+          isOpen={isReminderModalOpen}
+          onClose={() => setIsReminderModalOpen(false)}
+        />
       </div>
     </LangContext.Provider>
   );

@@ -41,7 +41,7 @@ const MENU_ITEMS = [
     },
 ];
 
-const CARD_W = 280;
+const CARD_W = 310;
 
 const MenuCard = ({ emoji, label, color, onClick, delay }) => {
     const [hovered, setHovered] = React.useState(false);
@@ -54,10 +54,10 @@ const MenuCard = ({ emoji, label, color, onClick, delay }) => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
-                padding: '18px 20px',
+                padding: '16px 18px',
                 background: hovered ? color.bg : '#ffffff',
                 border: `2.5px solid ${color.border}`,
-                borderRadius: '18px',
+                borderRadius: '20px',
                 cursor: 'pointer',
                 transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
                 transform: hovered ? 'translateY(-4px) scale(1.03)' : 'translateY(0) scale(1)',
@@ -69,10 +69,11 @@ const MenuCard = ({ emoji, label, color, onClick, delay }) => {
                 fontFamily: 'var(--font-display)',
                 animationDelay: delay,
                 flexShrink: 0,
+                overflow: 'hidden'
             }}
         >
             <div style={{
-                width: '54px', height: '54px', flexShrink: 0,
+                width: '50px', height: '50px', flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: hovered ? '#ffffff' : '#f8fafc',
                 border: '1px solid #e2e8f0', borderRadius: '12px',
@@ -80,17 +81,19 @@ const MenuCard = ({ emoji, label, color, onClick, delay }) => {
                 transform: hovered ? 'rotate(6deg) scale(1.08)' : 'none',
                 boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
             }}>
-                <span style={{ fontSize: '28px', lineHeight: 1 }}>{emoji}</span>
+                <span style={{ fontSize: '26px', lineHeight: 1 }}>{emoji}</span>
             </div>
 
             <span style={{
-                fontSize: '19px',
+                fontSize: '17px',
                 fontWeight: 800,
                 color: color.text,
                 letterSpacing: '-0.02em',
-                lineHeight: 1.1,
+                lineHeight: 1.2,
                 textAlign: 'left',
                 flex: 1,
+                wordBreak: 'break-word',
+                overflowWrap: 'break-word'
             }}>
                 {label}
             </span>
