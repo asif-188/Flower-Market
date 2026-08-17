@@ -345,13 +345,13 @@ const PbPayments = () => {
               <span style={{ fontSize: '18px', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-display)' }}>⚜️ VV — Cash Receive</span>
               <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', display: 'flex' }}><X size={24} strokeWidth={2.5} /></button>
             </div>
-            <div style={{ padding: '32px', overflowY: 'auto', flex: 1 }}>
-              <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingRight: '12px' }}>
+            <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
+              <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {/* Date */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <label style={{ width: '130px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Date</label>
                   <input ref={dateRef} type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} onKeyDown={e => handleKeyDown(e, customerRef)} required
-                    style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '14px', fontWeight: 600, color: '#1e293b', outline: 'none' }} />
+                    style={{ flex: 1, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '13.5px', fontWeight: 600, color: '#1e293b', outline: 'none' }} />
                 </div>
                 {/* Customer */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -374,17 +374,17 @@ const PbPayments = () => {
                           }
                         }
                       }}
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '14px', fontWeight: 600, color: '#1e293b', outline: 'none' }} />
+                      style={{ width: '100%', padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '13.5px', fontWeight: 600, color: '#1e293b', outline: 'none' }} />
                     {isDropdownOpen && (
-                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 110, background: '#fff', borderRadius: '10px', border: '1.5px solid #e2e8f0', marginTop: '4px', maxHeight: '250px', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}>
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 110, background: '#fff', borderRadius: '8px', border: '1.5px solid #e2e8f0', marginTop: '4px', maxHeight: '220px', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}>
                         {filteredBuyers.length > 0 ? filteredBuyers.map((b, idx) => (
                           <div key={b.id} onClick={() => { setFormData({ ...formData, entityId: b.id }); setCustomerSearch(''); setIsDropdownOpen(false); setSelectedIndex(-1); setTimeout(() => amountRef.current?.focus(), 50); }}
                             onMouseEnter={() => setSelectedIndex(idx)}
-                            style={{ padding: '12px 14px', cursor: 'pointer', fontSize: '14px', borderBottom: '1px solid #f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: selectedIndex === idx ? PB.primary : '#fff', color: selectedIndex === idx ? '#fff' : '#1e293b', fontWeight: 700 }}>
+                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: selectedIndex === idx ? PB.primary : '#fff', color: selectedIndex === idx ? '#fff' : '#1e293b', fontWeight: 700 }}>
                             <span>{b.name}</span>
-                            <span style={{ fontSize: '11px', fontWeight: 800, color: selectedIndex === idx ? 'rgba(255,255,255,0.9)' : '#64748b', background: selectedIndex === idx ? 'rgba(255,255,255,0.2)' : '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>#{b.displayId}</span>
+                            <span style={{ fontSize: '11px', fontWeight: 800, color: selectedIndex === idx ? 'rgba(255,255,255,0.9)' : '#64748b', background: selectedIndex === idx ? 'rgba(255,255,255,0.2)' : '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>#{b.displayId}</span>
                           </div>
-                        )) : <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>No customers found</div>}
+                        )) : <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>No customers found</div>}
                       </div>
                     )}
                   </div>
@@ -392,29 +392,24 @@ const PbPayments = () => {
                 {/* Opening Balance */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <label style={{ width: '130px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Opening Balance</label>
-                  <div style={{ fontSize: '18px', fontWeight: 900, color: '#1e293b', background: '#f8fafc', padding: '8px 16px', borderRadius: '10px', flex: 1, border: '1.5px solid #f1f5f9' }}>{fmt(openingBalance)}</div>
+                  <div style={{ fontSize: '15px', fontWeight: 900, color: '#1e293b', background: '#f8fafc', padding: '6px 12px', borderRadius: '8px', flex: 1, border: '1.5px solid #f1f5f9' }}>{fmt(openingBalance)}</div>
                 </div>
                 {/* Amount */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <label style={{ width: '130px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Given Amount</label>
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <input ref={amountRef} type="number" placeholder="0" value={formData.amount} onChange={e => setFormData({ ...formData, amount: e.target.value })} onKeyDown={e => handleKeyDown(e, cashLessRef)} required min="1"
-                      style={{ flex: 1, padding: '12px 14px', borderRadius: '10px', border: `1.5px solid ${PB.primary}`, fontSize: '18px', fontWeight: 900, color: PB.primary, outline: 'none' }} />
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: formData.method === 'UPI' ? PB.primary : '#64748b', whiteSpace: 'nowrap' }}>
-                      <input type="checkbox" checked={formData.method === 'UPI'} onChange={e => setFormData({ ...formData, method: e.target.checked ? 'UPI' : 'Cash' })} style={{ accentColor: PB.primary, width: '18px', height: '18px' }} /> GPAY
-                    </label>
-                  </div>
+                  <input ref={amountRef} type="number" placeholder="0" value={formData.amount} onChange={e => setFormData({ ...formData, amount: e.target.value })} onKeyDown={e => handleKeyDown(e, cashLessRef)} required min="1"
+                    style={{ flex: 1, padding: '6px 12px', borderRadius: '8px', border: `1.5px solid ${PB.primary}`, fontSize: '15px', fontWeight: 900, color: PB.primary, outline: 'none' }} />
                 </div>
                 {/* Cash Less */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <label style={{ width: '130px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Cash Less</label>
                   <input ref={cashLessRef} type="number" placeholder="0" value={formData.cashLess} onChange={e => setFormData({ ...formData, cashLess: e.target.value })} onKeyDown={e => handleKeyDown(e, saveRef)}
-                    style={{ flex: 1, padding: '12px 14px', borderRadius: '10px', border: '1.5px solid #f43f5e', fontSize: '18px', fontWeight: 900, color: '#f43f5e', outline: 'none' }} />
+                    style={{ flex: 1, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #f43f5e', fontSize: '15px', fontWeight: 900, color: '#f43f5e', outline: 'none' }} />
                 </div>
                 {/* Closing Balance */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <label style={{ width: '130px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Closing Balance</label>
-                  <div style={{ fontSize: '22px', fontWeight: 950, color: closingBalance < 0 ? '#f43f5e' : PB.primary, background: closingBalance < 0 ? '#fff1f2' : PB.light, padding: '12px 16px', borderRadius: '12px', flex: 1, textAlign: 'center', border: `2px solid ${closingBalance < 0 ? '#fecdd3' : PB.border}` }}>
+                  <div style={{ fontSize: '15px', fontWeight: 950, color: closingBalance < 0 ? '#f43f5e' : PB.primary, background: closingBalance < 0 ? '#fff1f2' : PB.light, padding: '6px 12px', borderRadius: '8px', flex: 1, border: `1.5px solid ${closingBalance < 0 ? '#fecdd3' : PB.border}` }}>
                     {fmt(closingBalance)}
                   </div>
                 </div>
@@ -422,15 +417,15 @@ const PbPayments = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <label style={{ width: '130px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Note</label>
                   <input type="text" placeholder="Short note..." value={formData.note} onChange={e => setFormData({ ...formData, note: e.target.value })}
-                    style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '14px', color: '#1e293b', outline: 'none' }} />
+                    style={{ flex: 1, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '13.5px', color: '#1e293b', outline: 'none' }} />
                 </div>
-                <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
                   <button type="button" onClick={() => setIsModalOpen(false)}
-                    style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontWeight: 700, fontSize: '15px', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+                    style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontWeight: 700, fontSize: '13.5px', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
                     Cancel
                   </button>
                   <button ref={saveRef} type="submit" disabled={isSaving || !formData.entityId || !formData.amount}
-                    style={{ flex: 2, padding: '14px', borderRadius: '12px', border: 'none', background: `linear-gradient(135deg, ${PB.primary}, #6d28d9)`, color: '#fff', fontWeight: 800, fontSize: '15px', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: (!formData.entityId || !formData.amount) ? 0.5 : 1, fontFamily: 'var(--font-display)', boxShadow: `0 6px 20px ${PB.border}` }}>
+                    style={{ flex: 2, padding: '10px', borderRadius: '8px', border: 'none', background: `linear-gradient(135deg, ${PB.primary}, #6d28d9)`, color: '#fff', fontWeight: 800, fontSize: '14px', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: (!formData.entityId || !formData.amount) ? 0.5 : 1, fontFamily: 'var(--font-display)', boxShadow: `0 6px 20px ${PB.border}` }}>
                     {isSaving ? 'Saving...' : '⚡ Record Payment'}
                   </button>
                 </div>

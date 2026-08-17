@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Search, X, User, FileText, Upload } from 'lucide-react';
 import { saveBuyer, subscribeToCollection, deleteBuyer } from '../utils/storage';
 import { doc } from 'firebase/firestore';
@@ -137,6 +138,7 @@ const getBuyerBalanceDate = (buyer) => {
 };
 
 const Buyer = () => {
+    const location = useLocation();
     const { isEditDeleteAllowed } = useTenant();
     const { t, lang } = useContext(LangContext);
     const [buyers, setBuyers] = useState([]);
@@ -157,6 +159,19 @@ const Buyer = () => {
         const u3 = subscribeToCollection('payments', setPayments);
         return () => { u1(); u2(); u3(); };
     }, []);
+
+    useEffect(() => {
+        if ((location.state?.buyerId || location.state?.buyerName) && buyers.length > 0) {
+            const target = buyers.find(b => 
+                (location.state.buyerId && b.id === location.state.buyerId) ||
+                (location.state.buyerName && b.name.toLowerCase() === location.state.buyerName.toLowerCase())
+            );
+            if (target) {
+                setViewingBuyer(target);
+                setSearchTerm(target.name);
+            }
+        }
+    }, [location.state, buyers]);
 
     useEffect(() => {
         if (isModalOpen || viewingBuyer) {

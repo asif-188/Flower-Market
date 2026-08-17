@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Plus, Trash2, Printer, MessageCircle, Pencil, History, Clock } from 'lucide-react';
-import { saveSale, subscribeToCollection, deleteSaleEntry, logHistoryAction, db } from '../utils/storage';
+import { saveSale, subscribeToCollection, deleteSaleEntry, logHistoryAction, savePaymentReminder, db } from '../utils/storage';
 import { doc, updateDoc, increment, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import { generateBuyerReceiptCanvas } from '../utils/receiptCanvas';
@@ -255,7 +255,28 @@ const SalesEntry = () => {
                 grandTotal: total,
                 timestamp: serverTimestamp()
             };
-            await saveSale(saleData);
+            const savedSale = await saveSale(saleData);
+
+            // Create separate Payment Reminder if customer is valid and pending total > 0
+            if (buyerId && buyerId !== 'direct' && total > 0) {
+                try {
+                    const saleDateObj = new Date(date);
+                    saleDateObj.setDate(saleDateObj.getDate() + 2);
+                    const remDateStr = saleDateObj.toISOString().split('T')[0];
+                    await savePaymentReminder({
+                        saleId: savedSale?.id || '',
+                        buyerId,
+                        buyerName: buyer?.name || 'Unknown',
+                        salesDate: date,
+                        reminderDate: remDateStr,
+                        pendingAmount: total,
+                        originalAmount: total,
+                        status: 'Pending'
+                    });
+                } catch (remErr) {
+                    console.warn('Could not save payment reminder:', remErr);
+                }
+            }
             
             setCurrentItem({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
             setTimeout(() => refFlower.current?.focus(), 50);

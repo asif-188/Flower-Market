@@ -595,8 +595,8 @@ const Payments = () => {
 
                         <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
                             {/* Left Side: Entry Form */}
-                            <div style={{ width: '450px', flexShrink: 0, borderRight: '1.5px solid #f1f5f9', padding: '32px', overflowY: 'auto', boxSizing: 'border-box' }}>
-                                <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingRight: '12px' }}>
+                            <div style={{ width: '420px', flexShrink: 0, borderRight: '1.5px solid #f1f5f9', padding: '20px 24px', overflowY: 'auto', boxSizing: 'border-box' }}>
+                                <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                     {/* Date */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                         <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{t('date')}</label>
@@ -607,7 +607,7 @@ const Payments = () => {
                                             onChange={e => setFormData({ ...formData, date: e.target.value })}
                                             onKeyDown={(e) => handleKeyDown(e, customerRef)}
                                             required
-                                            style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '14px', fontWeight: 600, color: '#1e293b', outline: 'none' }}
+                                            style={{ flex: 1, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '13.5px', fontWeight: 600, color: '#1e293b', outline: 'none' }}
                                         />
                                     </div>
 
@@ -652,10 +652,10 @@ const Payments = () => {
                                                         handleKeyDown(e, amountRef);
                                                     }
                                                 }}
-                                                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '14px', fontWeight: 600, color: '#1e293b', outline: 'none' }}
+                                                style={{ width: '100%', padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '13.5px', fontWeight: 600, color: '#1e293b', outline: 'none' }}
                                             />
                                             {isDropdownOpen && (
-                                                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 110, background: '#fff', borderRadius: '10px', border: '1.5px solid #e2e8f0', marginTop: '4px', maxHeight: '250px', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}>
+                                                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 110, background: '#fff', borderRadius: '8px', border: '1.5px solid #e2e8f0', marginTop: '4px', maxHeight: '220px', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}>
                                                     {filteredBuyers.length > 0 ? (
                                                         filteredBuyers.map((b, idx) => (
                                                             <div
@@ -668,9 +668,9 @@ const Payments = () => {
                                                                     setTimeout(() => amountRef.current?.focus(), 50);
                                                                 }}
                                                                 style={{ 
-                                                                    padding: '12px 14px', 
+                                                                    padding: '8px 12px', 
                                                                     cursor: 'pointer', 
-                                                                    fontSize: '14px', 
+                                                                    fontSize: '13px', 
                                                                     borderBottom: '1px solid #f8fafc', 
                                                                     display: 'flex', 
                                                                     justifyContent: 'space-between', 
@@ -686,13 +686,13 @@ const Payments = () => {
                                                                     fontWeight: 800,
                                                                     color: selectedIndex === idx ? 'rgba(255,255,255,0.9)' : '#64748b', 
                                                                     background: selectedIndex === idx ? 'rgba(255,255,255,0.2)' : '#f1f5f9', 
-                                                                    padding: '3px 8px', 
-                                                                    borderRadius: '6px' 
+                                                                    padding: '2px 6px', 
+                                                                    borderRadius: '4px' 
                                                                 }}>#{b.displayId}</span>
                                                             </div>
                                                         ))
                                                     ) : (
-                                                        <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>{t('noRecords')}</div>
+                                                        <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>{t('noRecords')}</div>
                                                     )}
                                                 </div>
                                             )}
@@ -702,7 +702,7 @@ const Payments = () => {
                                     {/* Opening Balance */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                         <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{t('openingBalance')}</label>
-                                        <div style={{ fontSize: '18px', fontWeight: 900, color: '#1e293b', background: '#f8fafc', padding: '8px 16px', borderRadius: '10px', flex: 1, border: '1.5px solid #f1f5f9' }}>
+                                        <div style={{ fontSize: '15px', fontWeight: 900, color: '#1e293b', background: '#f8fafc', padding: '6px 12px', borderRadius: '8px', flex: 1, border: '1.5px solid #f1f5f9' }}>
                                             {fmt(openingBalance)}
                                         </div>
                                     </div>
@@ -710,30 +710,17 @@ const Payments = () => {
                                     {/* Given Amount */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                         <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{t('givenAmount')}</label>
-                                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                            <input
-                                                ref={amountRef}
-                                                type="number"
-                                                placeholder="0"
-                                                value={formData.amount}
-                                                onChange={e => setFormData({ ...formData, amount: e.target.value })}
-                                                onKeyDown={(e) => handleKeyDown(e, cashLessRef)}
-                                                required
-                                                min="1"
-                                                style={{ flex: 1, padding: '12px 14px', borderRadius: '10px', border: '1.5px solid #16a34a', fontSize: '18px', fontWeight: 900, color: '#16a34a', outline: 'none' }}
-                                            />
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: formData.method === 'UPI' ? '#16a34a' : '#64748b', whiteSpace: 'nowrap' }}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={formData.method === 'UPI'}
-                                                        onChange={e => setFormData({ ...formData, method: e.target.checked ? 'UPI' : 'Cash' })}
-                                                        style={{ accentColor: '#16a34a', width: '18px', height: '18px' }}
-                                                    />
-                                                    GPAY
-                                                </label>
-                                            </div>
-                                        </div>
+                                        <input
+                                            ref={amountRef}
+                                            type="number"
+                                            placeholder="0"
+                                            value={formData.amount}
+                                            onChange={e => setFormData({ ...formData, amount: e.target.value })}
+                                            onKeyDown={(e) => handleKeyDown(e, cashLessRef)}
+                                            required
+                                            min="1"
+                                            style={{ flex: 1, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #16a34a', fontSize: '15px', fontWeight: 900, color: '#16a34a', outline: 'none' }}
+                                        />
                                     </div>
 
                                     {/* Cash Less */}
@@ -746,32 +733,32 @@ const Payments = () => {
                                             value={formData.cashLess}
                                             onChange={e => setFormData({ ...formData, cashLess: e.target.value })}
                                             onKeyDown={(e) => handleKeyDown(e, saveRef)}
-                                            style={{ flex: 1, padding: '12px 14px', borderRadius: '10px', border: '1.5px solid #f43f5e', fontSize: '18px', fontWeight: 900, color: '#f43f5e', outline: 'none' }}
+                                            style={{ flex: 1, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #f43f5e', fontSize: '15px', fontWeight: 900, color: '#f43f5e', outline: 'none' }}
                                         />
                                     </div>
 
                                     {/* Closing Balance */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                         <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{t('closingBalance')}</label>
-                                        <div style={{ fontSize: '22px', fontWeight: 950, color: closingBalance < 0 ? '#f43f5e' : '#16a34a', background: closingBalance < 0 ? '#fff1f2' : '#f0fdf4', padding: '12px 16px', borderRadius: '12px', flex: 1, textAlign: 'center', border: '2px solid ' + (closingBalance < 0 ? '#fecdd3' : '#bbf7d0') }}>
+                                        <div style={{ fontSize: '15px', fontWeight: 950, color: closingBalance < 0 ? '#f43f5e' : '#16a34a', background: closingBalance < 0 ? '#fff1f2' : '#f0fdf4', padding: '6px 12px', borderRadius: '8px', flex: 1, border: '1.5px solid ' + (closingBalance < 0 ? '#fecdd3' : '#bbf7d0') }}>
                                             {fmt(closingBalance)}
                                         </div>
                                     </div>
 
                                     {/* Actions */}
-                                    <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                                    <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
                                         <button type="button" onClick={() => setIsModalOpen(false)}
-                                            style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
+                                            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontWeight: 700, fontSize: '13.5px', cursor: 'pointer' }}>
                                             {t('close')}
                                         </button>
                                         <button 
                                             ref={saveRef}
                                             type="submit" 
                                             disabled={isSaving}
-                                            style={{ flex: 2, padding: '14px', borderRadius: '12px', background: '#16a34a', border: 'none', color: '#fff', fontWeight: 800, fontSize: '16px', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                                            style={{ flex: 2, padding: '10px', borderRadius: '8px', background: '#16a34a', border: 'none', color: '#fff', fontWeight: 800, fontSize: '14px', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                                             {isSaving
-                                                ? <div style={{ width: '20px', height: '20px', border: '3px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-                                                : <CheckCircle2 size={20} />
+                                                ? <div style={{ width: '18px', height: '18px', border: '2.5px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                                                : <CheckCircle2 size={18} />
                                             }
                                             SAVE PAYMENT
                                         </button>
