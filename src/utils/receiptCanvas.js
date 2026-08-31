@@ -15,6 +15,20 @@
  *   phone1  — e.g. "9952535057"
  *   phone2  — e.g. "9443247771"
  */
+export function parseMottoLines(motto) {
+    if (!motto) return [];
+    const str = String(motto).trim();
+    if (!str) return [];
+    if (str.includes('\n')) {
+        return str.split('\n').map(s => s.trim()).filter(Boolean);
+    }
+    const parts = str.split(/\s+(?=(?:ஸ்ரீ|SRI|Sri))/i).map(s => s.trim()).filter(Boolean);
+    if (parts.length > 1) {
+        return parts;
+    }
+    return [str];
+}
+
 export async function generateBuyerReceiptCanvas({
     buyer,
     salesItems    = [],
@@ -118,8 +132,12 @@ export async function generateBuyerReceiptCanvas({
 
     // 1. Mottos
     if (motto) {
-        drawText(motto, W/2, y, { size: 22, weight: '700', align: 'center' });
-        y += 40;
+        const mottoLines = parseMottoLines(motto);
+        mottoLines.forEach(line => {
+            drawText(line, W/2, y, { size: 22, weight: '700', align: 'center' });
+            y += 30;
+        });
+        y += 10;
     }
 
     // 2. Shop Info Box
@@ -841,8 +859,14 @@ export async function generatePaymentReceiptCanvas({
     };
 
     let y = 50;
-    drawText(motto, W/2, y, { size: 24, weight: '600', align: 'center' });
-    y += 60;
+    if (motto) {
+        const mottoLines = parseMottoLines(motto);
+        mottoLines.forEach(line => {
+            drawText(line, W/2, y, { size: 24, weight: '600', align: 'center' });
+            y += 32;
+        });
+        y += 15;
+    }
 
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 2;
@@ -936,8 +960,14 @@ export async function generatePurchaseReceiptCanvas({
     };
 
     let y = 50;
-    drawText(motto, W/2, y, { size: 24, weight: '600', align: 'center' });
-    y += 60;
+    if (motto) {
+        const mottoLines = parseMottoLines(motto);
+        mottoLines.forEach(line => {
+            drawText(line, W/2, y, { size: 24, weight: '600', align: 'center' });
+            y += 32;
+        });
+        y += 15;
+    }
 
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 2;

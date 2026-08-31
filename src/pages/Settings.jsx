@@ -3,6 +3,7 @@ import { Save, CheckCircle2, Lock, Unlock, ShieldAlert } from 'lucide-react';
 import { useTenant } from '../utils/TenantContext';
 import { db, COLLECTIONS } from '../utils/storage';
 import { doc, setDoc } from 'firebase/firestore';
+import { parseMottoLines } from '../utils/receiptCanvas';
 
 const DEFAULTS = {
     motto:   'SRI RAMA JAYAM',
@@ -70,8 +71,11 @@ const Settings = () => {
         if (!tenantId) return;
         setSaving(true);
         try {
-            await setDoc(doc(db, COLLECTIONS.TENANTS, tenantId), form, { merge: true });
-            setTenantData(form);
+            const mottoFormatted = parseMottoLines(form.motto).join('\n');
+            const dataToSave = { ...form, motto: mottoFormatted };
+            await setDoc(doc(db, COLLECTIONS.TENANTS, tenantId), dataToSave, { merge: true });
+            setForm(dataToSave);
+            setTenantData(dataToSave);
             setSaved(true);
             addToast('Settings saved successfully!', 'success');
             setTimeout(() => setSaved(false), 3000);
@@ -90,6 +94,26 @@ const Settings = () => {
                 onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
                 placeholder={placeholder}
                 style={S.input}
+                onFocus={e => e.target.style.borderColor = '#16a34a'}
+                onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+            />
+        </div>
+    );
+
+    const textareaField = (key, label, placeholder) => (
+        <div style={{ marginBottom: '16px' }}>
+            <label style={S.label}>{label}</label>
+            <textarea
+                rows={2}
+                value={form[key] || ''}
+                onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
+                placeholder={placeholder}
+                style={{
+                    ...S.input,
+                    resize: 'vertical',
+                    minHeight: '56px',
+                    lineHeight: '1.4',
+                }}
                 onFocus={e => e.target.style.borderColor = '#16a34a'}
                 onBlur={e => e.target.style.borderColor = '#e2e8f0'}
             />
@@ -139,9 +163,13 @@ const Settings = () => {
 
             {/* Preview box — letterhead style */}
             <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px 20px', marginBottom: '24px', textAlign: 'center', fontFamily: 'serif' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>
                     <span>{form.phone1 ? `CELL : ${form.phone1}` : ''}</span>
-                    <span style={{ fontStyle: 'italic' }}>{form.motto}</span>
+                    <div style={{ fontStyle: 'italic', textAlign: 'center', lineHeight: '1.4' }}>
+                        {parseMottoLines(form.motto).map((line, idx) => (
+                            <div key={idx}>{line}</div>
+                        ))}
+                    </div>
                     <span>{form.phone2 ? `CELL : ${form.phone2}` : ''}</span>
                 </div>
                 <div style={{ fontSize: '22px', fontWeight: 900, color: '#111827', letterSpacing: '1px' }}>{form.name || 'Shop Name'}</div>
@@ -150,7 +178,7 @@ const Settings = () => {
             </div>
 
             <form onSubmit={handleSave}>
-                {field('motto',   'Blessing / Motto (top center)', 'e.g. SRI RAMA JAYAM')}
+                {textareaField('motto', 'Blessing / Motto (top center - supports 2 or more lines)', 'e.g.\nஸ்ரீ பச்சை வாழியம்மன் துணை\nஸ்ரீ ஐய்யனாரப்பன் துணை')}
                 {field('name',    'Shop Name (large bold)',         'e.g. S.V.M')}
                 {field('type',    'Business Type',                  'e.g. Sri Valli Flower Merchant')}
                 {field('address', 'Address',                        'e.g. B-7, Flower Market, Tindivanam.')}

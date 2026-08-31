@@ -4,9 +4,10 @@ import * as XLSX from 'xlsx';
 import { subscribeToCollection, db } from '../utils/storage';
 import { doc, getDoc } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
-import { generateBuyerReceiptCanvas, generateLedgerCanvas } from '../utils/receiptCanvas';
+import { generateBuyerReceiptCanvas, generateLedgerCanvas, parseMottoLines } from '../utils/receiptCanvas';
 import WhatsAppIcon from '../components/WhatsAppIcon';
 import { useTenant } from '../utils/TenantContext';
+import { openWhatsAppDirect } from '../utils/whatsappHelper';
 import { jsPDF } from 'jspdf';
 
 const fmt = (n) =>
@@ -264,7 +265,7 @@ const Reports = () => {
             <body onload="window.print(); window.close();">
                 <div class="print-wrapper">
                     <div class="header">
-                        <div style="font-size: 18px; font-style: italic; margin-bottom: 4px;">${bizInfo.motto || ''}</div>
+                        ${parseMottoLines(bizInfo.motto).map(line => `<div style="font-size: 18px; font-style: italic; margin-bottom: 2px;">${line}</div>`).join('')}
                         <div class="shop-name">${bizInfo.name || 'S.V.M'}</div>
                         <div style="font-size: 22px; font-weight: 800;">${bizInfo.type || ''}</div>
                         <div style="font-size: 18px;">${bizInfo.address || ''}</div>
@@ -563,27 +564,16 @@ const Reports = () => {
                 lang: lang
             });
 
-            const buyerContact = (buyer?.contact || '').replace(/\D/g, '');
-            const whatsappNumber = buyerContact.length === 10 ? '91' + buyerContact : buyerContact;
+            const summaryText = `🌹 *${bizInfo?.name || 'Poovanam'}* 🌹\n` +
+                `*Statement For:* ${buyer.name}\n` +
+                `*Period:* ${appliedFrom === appliedTo ? displayDate(appliedFrom) : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`}`;
 
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], 'statement.png', { type: 'image/png' })] })) {
-                await navigator.share({
-                    files: [new File([blob], 'statement.png', { type: 'image/png' })],
-                    title: `${buyer.name} - Statement`,
-                });
-            } else {
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `statement_${buyer.name.replace(/\s+/g,'_')}.png`;
-                a.click();
-                setTimeout(() => URL.revokeObjectURL(url), 30000);
-
-                if (whatsappNumber) {
-                    setTimeout(() => {
-                        window.open(`https://wa.me/${whatsappNumber}`, '_blank');
-                    }, 500);
-                }
-            }
+            await openWhatsAppDirect({
+                phone: buyer?.contact,
+                text: summaryText,
+                blob,
+                fileName: `statement_${buyer.name.replace(/\s+/g, '_')}.png`
+            });
         } catch (err) {
             console.error('Ledger Share Error:', err);
             alert('❌ Failed to share statement: ' + err.message);
@@ -659,20 +649,17 @@ const Reports = () => {
                 lang: lang
             });
 
-            // Try native share (mobile) first, else open image
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], 'receipt.png', { type: 'image/png' })] })) {
-                await navigator.share({
-                    files: [new File([blob], 'receipt.png', { type: 'image/png' })],
-                    title: `Receipt – ${row.name}`,
-                });
-            } else {
-                // Fallback: open image in new tab (user can save & share manually)
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `receipt_${row.name.replace(/\s+/g,'_')}.png`;
-                a.click();
-                setTimeout(() => URL.revokeObjectURL(url), 30000);
-            }
+            const buyerObj = buyers.find(b => b.id === row.id) || row;
+            const textMsg = `🌹 *${bizInfo?.name || 'Poovanam'}* 🌹\n` +
+                `*${t('name')}:* ${row.name}\n` +
+                `*${t('balance')}:* ₹${row.balance || 0}`;
+
+            await openWhatsAppDirect({
+                phone: buyerObj?.contact || row.contact,
+                text: textMsg,
+                blob,
+                fileName: `receipt_${row.name.replace(/\s+/g, '_')}.png`
+            });
         } catch (err) {
             console.error('Receipt error:', err);
             alert('❌ Could not generate receipt: ' + err.message);
@@ -681,11 +668,14 @@ const Reports = () => {
         }
     };
 
-    const handleWhatsAppShare = () => {
+    const handleWhatsAppShare = async () => {
         if (report.length === 0) return;
         const rangeText = appliedFrom === appliedTo ? appliedFrom : `${appliedFrom} to ${appliedTo}`;
         let msg = `*CUSTOMER REPORT*\nPeriod: ${rangeText}\n\nOpening Balance: ${fmt(totalOpening)}\nSales: ${fmt(totalSales)}\nPaid: ${fmt(totalPaid)}\nCash Less: ${fmt(totalLess)}\nDues: ${fmt(totalDues)}`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+        await openWhatsAppDirect({
+            phone: detailBuyer?.contact || '',
+            text: msg
+        });
     };
 
     const handleDownloadXLSX = async () => {

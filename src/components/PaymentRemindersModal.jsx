@@ -11,6 +11,7 @@ import {
 } from '../utils/storage';
 import { LangContext } from './Layout';
 import { useTenant } from '../utils/TenantContext';
+import { openWhatsAppDirect } from '../utils/whatsappHelper';
 
 const PaymentRemindersModal = ({ isOpen, onClose }) => {
     const { lang } = useContext(LangContext);
@@ -45,11 +46,21 @@ const PaymentRemindersModal = ({ isOpen, onClose }) => {
         return true;
     });
 
+    const getBuyerDisplayName = (rem) => {
+        const buyer = buyers.find(b => b.id === rem.buyerId || (b.name && b.name.toLowerCase() === (rem.buyerName || '').toLowerCase()));
+        if (lang === 'ta') {
+            return buyer?.nameTa || buyer?.taName || rem.buyerNameTa || rem.buyerName || 'வாடிக்கையாளர்';
+        }
+        return buyer?.name || rem.buyerName || 'Customer';
+    };
+
     // Filter further by search term
     const searchedReminders = filteredReminders.filter(r => {
         if (!searchTerm.trim()) return true;
         const q = searchTerm.toLowerCase().trim();
+        const displayName = getBuyerDisplayName(r);
         return (
+            (displayName && displayName.toLowerCase().includes(q)) ||
             (r.buyerName && r.buyerName.toLowerCase().includes(q)) ||
             (r.buyerId && String(r.buyerId).toLowerCase().includes(q))
         );
@@ -136,93 +147,119 @@ const PaymentRemindersModal = ({ isOpen, onClose }) => {
         navigate('/app/buyer', { state: { buyerId, buyerName } });
     };
 
-    const handleSendWhatsApp = (rem) => {
-        const buyer = buyers.find(b => b.id === rem.buyerId || b.name.toLowerCase() === (rem.buyerName || '').toLowerCase());
+    const handleSendWhatsApp = async (rem) => {
+        const buyer = buyers.find(b => b.id === rem.buyerId || (b.name && b.name.toLowerCase() === (rem.buyerName || '').toLowerCase()));
         const rawContact = buyer?.contact || rem.contact || '';
+        const customerDisplayName = getBuyerDisplayName(rem);
 
         if (!rawContact) {
-            alert(`No WhatsApp contact number found for ${rem.buyerName}. Please register a phone number in Customer Directory.`);
+            alert(lang === 'ta' 
+                ? `${customerDisplayName} வாடிக்கையாளருக்கு வாட்ஸ்அப் தொடர்பு எண் இல்லை. வாடிக்கையாளர் பட்டியலில் எண்ணைப் பதிவு செய்யவும்.` 
+                : `No WhatsApp contact number found for ${customerDisplayName}. Please register a phone number in Customer Directory.`);
             return;
         }
 
-        const cleanPhone = rawContact.replace(/\D/g, '');
-        const phone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
         const shopTitle = tenantData?.name || 'SVM Flowers';
 
         const message = lang === 'ta'
-            ? `வணக்கம் ${rem.buyerName},\n\n${shopTitle} - கட்டண நினைவூட்டல்:\nகடைசி விற்பனை தேதி: ${rem.salesDate}\nமொத்த நிலுவை தொகை: ₹${Number(rem.pendingAmount).toLocaleString('en-IN')}\n\nதயவுசெய்து கட்டணத்தை விரைவில் செலுத்தவும். நன்றி!`
-            : `Hello ${rem.buyerName},\n\nPayment Reminder from ${shopTitle}:\nLatest Sales Date: ${rem.salesDate}\nTotal Outstanding Balance: ₹${Number(rem.pendingAmount).toLocaleString('en-IN')}\n\nPlease clear your pending balance at your earliest convenience. Thank you!`;
+            ? `வணக்கம் ${customerDisplayName},\n\n${shopTitle} - கட்டண நினைவூட்டல்:\nகடைசி விற்பனை தேதி: ${rem.salesDate}\nமொத்த நிலுவை தொகை: ₹${Number(rem.pendingAmount).toLocaleString('en-IN')}\n\nதயவுசெய்து கட்டணத்தை விரைவில் செலுத்தவும். நன்றி!`
+            : `Hello ${customerDisplayName},\n\nPayment Reminder from ${shopTitle}:\nLatest Sales Date: ${rem.salesDate}\nTotal Outstanding Balance: ₹${Number(rem.pendingAmount).toLocaleString('en-IN')}\n\nPlease clear your pending balance at your earliest convenience. Thank you!`;
 
-        const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
-        window.open(url, '_blank');
+        await openWhatsAppDirect({
+            phone: rawContact,
+            text: message
+        });
     };
 
     const handleExportExcel = () => {
         if (searchedReminders.length === 0) {
-            alert('No reminders to export.');
+            alert(lang === 'ta' ? 'ஏற்றுமதி செய்ய நினைவூட்டல்கள் எதுவும் இல்லை.' : 'No reminders to export.');
             return;
         }
+        const isTa = lang === 'ta';
         const totalPending = searchedReminders.reduce((sum, r) => sum + (Number(r.pendingAmount) || 0), 0);
 
         const exportData = searchedReminders.map((r, index) => {
-            const buyer = buyers.find(b => b.id === r.buyerId || b.name.toLowerCase() === (r.buyerName || '').toLowerCase());
+            const buyer = buyers.find(b => b.id === r.buyerId || (b.name && b.name.toLowerCase() === (r.buyerName || '').toLowerCase()));
+            const customerName = getBuyerDisplayName(r);
+            const statusLabel = isTa
+                ? (r.status === 'Completed' ? 'முடிவடைந்தது' : r.status === 'Remind Later' ? 'பின்னர் நினைவூட்டு' : 'நிலுவையில் உள்ளது')
+                : (r.status || 'Pending');
+
             return {
-                'S.No': index + 1,
-                'Customer Name': r.buyerName || 'Customer',
-                'Contact Number': buyer?.contact || '',
-                'Latest Sales Date': r.salesDate || '',
-                'Pending Amount (INR)': Number(r.pendingAmount || 0),
-                'Status': r.status || 'Pending'
+                [isTa ? 'வ.எண்' : 'S.No']: index + 1,
+                [isTa ? 'வாடிக்கையாளர் பெயர்' : 'Customer Name']: customerName,
+                [isTa ? 'தொடர்பு எண்' : 'Contact Number']: buyer?.contact || '',
+                [isTa ? 'கடைசி விற்பனை தேதி' : 'Latest Sales Date']: r.salesDate || '',
+                [isTa ? 'நிலுவை தொகை (ரூ)' : 'Pending Amount (INR)']: Number(r.pendingAmount || 0),
+                [isTa ? 'நிலை' : 'Status']: statusLabel
             };
         });
 
         // Add Total Pending Amount summary row
         exportData.push({
-            'S.No': '',
-            'Customer Name': 'TOTAL PENDING AMOUNT',
-            'Contact Number': '',
-            'Latest Sales Date': '',
-            'Pending Amount (INR)': totalPending,
-            'Status': ''
+            [isTa ? 'வ.எண்' : 'S.No']: '',
+            [isTa ? 'வாடிக்கையாளர் பெயர்' : 'Customer Name']: isTa ? 'மொத்த நிலுவை தொகை' : 'TOTAL PENDING AMOUNT',
+            [isTa ? 'தொடர்பு எண்' : 'Contact Number']: '',
+            [isTa ? 'கடைசி விற்பனை தேதி' : 'Latest Sales Date']: '',
+            [isTa ? 'நிலுவை தொகை (ரூ)' : 'Pending Amount (INR)']: totalPending,
+            [isTa ? 'நிலை' : 'Status']: ''
         });
 
         const worksheet = XLSX.utils.json_to_sheet(exportData);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Payment_Reminders');
+        const sheetName = isTa ? 'கட்டண_நினைவூட்டல்கள்' : 'Payment_Reminders';
+        XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
         const today = new Date().toISOString().split('T')[0];
         const searchSuffix = searchTerm ? `_${searchTerm.trim().replace(/\s+/g, '_')}` : '';
-        XLSX.writeFile(workbook, `Payment_Reminders_${filterStatus}${searchSuffix}_${today}.xlsx`);
+        XLSX.writeFile(workbook, `${sheetName}_${filterStatus}${searchSuffix}_${today}.xlsx`);
     };
 
     const handlePrint = () => {
         if (searchedReminders.length === 0) {
-            alert('No reminders to print.');
+            alert(lang === 'ta' ? 'அச்சிட நினைவூட்டல்கள் எதுவும் இல்லை.' : 'No reminders to print.');
             return;
         }
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
+        const isTa = lang === 'ta';
         const totalPending = searchedReminders.reduce((sum, r) => sum + (Number(r.pendingAmount) || 0), 0);
-        const today = new Date().toLocaleDateString('en-IN');
+        const today = new Date().toLocaleDateString(isTa ? 'ta-IN' : 'en-IN');
         const rowsHtml = searchedReminders.map((r, i) => {
-            const buyer = buyers.find(b => b.id === r.buyerId || b.name.toLowerCase() === (r.buyerName || '').toLowerCase());
+            const buyer = buyers.find(b => b.id === r.buyerId || (b.name && b.name.toLowerCase() === (r.buyerName || '').toLowerCase()));
+            const customerName = getBuyerDisplayName(r);
+            const statusLabel = isTa
+                ? (r.status === 'Completed' ? 'முடிவடைந்தது' : r.status === 'Remind Later' ? 'பின்னர் நினைவூட்டு' : 'நிலுவையில் உள்ளது')
+                : r.status;
+
             return `
                 <tr>
                     <td>${i + 1}</td>
-                    <td><strong>${r.buyerName || 'Customer'}</strong></td>
+                    <td><strong>${customerName}</strong></td>
                     <td>${buyer?.contact || '—'}</td>
                     <td>${r.salesDate || '—'}</td>
                     <td style="text-align: right; color: #dc2626; font-weight: bold;">₹${Number(r.pendingAmount || 0).toLocaleString('en-IN')}</td>
-                    <td>${r.status}</td>
+                    <td>${statusLabel}</td>
                 </tr>
             `;
         }).join('');
+
+        const docTitle = isTa ? 'கட்டண நினைவூட்டல்கள் அறிக்கை' : 'Payment Reminders Report';
+        const filterLabelMap = {
+            'Active': isTa ? 'செயலில் உள்ளவை' : 'Active Pending',
+            'All': isTa ? 'அனைத்தும்' : 'All Reminders',
+            'Completed': isTa ? 'முடிவடைந்தது' : 'Completed'
+        };
+
+        const titleText = `${tenantData?.name || 'SVM Flowers'} — ${docTitle}`;
+        const filterStr = `${isTa ? 'வடிகட்டி' : 'Filter'}: ${filterLabelMap[filterStatus] || filterStatus} ${searchTerm ? `| ${isTa ? 'வாடிக்கையாளர் தேடல்' : 'Customer Search'}: "${searchTerm}"` : ''} | ${isTa ? 'தேதி' : 'Date'}: ${today} | ${isTa ? 'மொத்த பதிவுகள்' : 'Total Records'}: ${searchedReminders.length}`;
 
         printWindow.document.write(`
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Payment Reminders Report</title>
+                <title>${docTitle}</title>
                 <style>
                     body { font-family: Arial, sans-serif; padding: 20px; color: #1e293b; }
                     h2 { color: #16a34a; margin-bottom: 4px; }
@@ -235,29 +272,29 @@ const PaymentRemindersModal = ({ isOpen, onClose }) => {
                 </style>
             </head>
             <body>
-                <h2>${tenantData?.name || 'SVM Flowers'} — Payment Reminders Report</h2>
-                <p>Filter: ${filterStatus} ${searchTerm ? `| Customer Search: "${searchTerm}"` : ''} | Date: ${today} | Total Records: ${searchedReminders.length}</p>
+                <h2>${titleText}</h2>
+                <p>${filterStr}</p>
                 <table>
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Customer Name</th>
-                            <th>Contact</th>
-                            <th>Latest Sales Date</th>
-                            <th style="text-align: right;">Pending Amount</th>
-                            <th>Status</th>
+                            <th>${isTa ? 'வ.எண்' : '#'}</th>
+                            <th>${isTa ? 'வாடிக்கையாளர் பெயர்' : 'Customer Name'}</th>
+                            <th>${isTa ? 'தொடர்பு எண்' : 'Contact'}</th>
+                            <th>${isTa ? 'கடைசி விற்பனை தேதி' : 'Latest Sales Date'}</th>
+                            <th style="text-align: right;">${isTa ? 'நிலுவை தொகை' : 'Pending Amount'}</th>
+                            <th>${isTa ? 'நிலை' : 'Status'}</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${rowsHtml}
                         <tr class="total-row">
-                            <td colspan="4" style="text-align: right; text-transform: uppercase; color: #15803d;">Total Pending Amount:</td>
+                            <td colspan="4" style="text-align: right; text-transform: uppercase; color: #15803d;">${isTa ? 'மொத்த நிலுவை தொகை' : 'Total Pending Amount'}:</td>
                             <td style="text-align: right; color: #dc2626; font-size: 15px; font-weight: 900;">₹${totalPending.toLocaleString('en-IN')}</td>
                             <td></td>
                         </tr>
                     </tbody>
                 </table>
-                <div class="footer">Generated on ${new Date().toLocaleString('en-IN')}</div>
+                <div class="footer">${isTa ? 'உருவாக்கப்பட்ட நேரம்' : 'Generated on'} ${new Date().toLocaleString(isTa ? 'ta-IN' : 'en-IN')}</div>
                 <script>
                     window.onload = function() { window.print(); window.close(); }
                 </script>
@@ -352,7 +389,7 @@ const PaymentRemindersModal = ({ isOpen, onClose }) => {
                                 fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'
                             }}
                         >
-                            <Printer size={14} color="#16a34a" /> Print
+                            <Printer size={14} color="#16a34a" /> {lang === 'ta' ? 'அச்சிடு' : 'Print'}
                         </button>
                         <button
                             onClick={handleExportExcel}
@@ -362,7 +399,7 @@ const PaymentRemindersModal = ({ isOpen, onClose }) => {
                                 fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'
                             }}
                         >
-                            <FileSpreadsheet size={14} color="#16a34a" /> Export Excel
+                            <FileSpreadsheet size={14} color="#16a34a" /> {lang === 'ta' ? 'எக்செல் ஏற்றுமதி' : 'Export Excel'}
                         </button>
                     </div>
                 </div>
@@ -432,7 +469,7 @@ const PaymentRemindersModal = ({ isOpen, onClose }) => {
                                             </div>
                                             <div>
                                                 <div style={{ fontSize: '15px', fontWeight: 800, color: '#1e293b' }}>
-                                                    {rem.buyerName || 'Customer'}
+                                                    {getBuyerDisplayName(rem)}
                                                 </div>
                                                 <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginTop: '2px' }}>
                                                     {lang === 'ta' ? 'கடைசி விற்பனை தேதி' : 'Latest Sales Date'}: <span style={{ fontWeight: 700, color: '#334155' }}>{rem.salesDate}</span>
@@ -449,7 +486,9 @@ const PaymentRemindersModal = ({ isOpen, onClose }) => {
                                                 background: rem.status === 'Completed' ? '#dcfce7' : rem.status === 'Remind Later' ? '#e0f2fe' : '#fef3c7',
                                                 color: rem.status === 'Completed' ? '#15803d' : rem.status === 'Remind Later' ? '#0369a1' : '#b45309'
                                             }}>
-                                                {rem.status}
+                                                {lang === 'ta' 
+                                                    ? (rem.status === 'Completed' ? 'முடிவடைந்தது' : rem.status === 'Remind Later' ? 'பின்னர் நினைவூட்டு' : 'நிலுவையில் உள்ளது')
+                                                    : rem.status}
                                             </span>
                                         </div>
                                     </div>
@@ -499,7 +538,7 @@ const PaymentRemindersModal = ({ isOpen, onClose }) => {
                                     {rem.status === 'Completed' && (
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                                             <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                <CheckCircle size={14} /> Reminder Completed
+                                                <CheckCircle size={14} /> {lang === 'ta' ? 'நினைவூட்டல் முடிவடைந்தது' : 'Reminder Completed'}
                                             </div>
                                             <button
                                                 onClick={() => handleViewCustomer(rem.buyerId)}
@@ -509,7 +548,7 @@ const PaymentRemindersModal = ({ isOpen, onClose }) => {
                                                     fontWeight: 700, cursor: 'pointer'
                                                 }}
                                             >
-                                                View Customer
+                                                {lang === 'ta' ? 'வாடிக்கையாளரைப் பார்' : 'View Customer'}
                                             </button>
                                         </div>
                                     )}
