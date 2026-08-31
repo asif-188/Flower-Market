@@ -5,6 +5,7 @@ import { doc, updateDoc, increment } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import { Check, Edit3, Save } from 'lucide-react';
 import { useTenant } from '../utils/TenantContext';
+import { parseMottoLines } from '../utils/receiptCanvas';
 
 const fmt = (n) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n || 0);
@@ -150,7 +151,7 @@ const DailyReport = () => {
             </head>
             <body onload="window.print(); window.close();">
                 <div class="header">
-                    <div style="font-size: 14px; font-style: italic; margin-bottom: 4px;">${biz.motto || ''}</div>
+                    ${parseMottoLines(biz.motto).map(line => `<div style="font-size: 14px; font-style: italic; margin-bottom: 2px;">${line}</div>`).join('')}
                     <div class="shop-name">${biz.name}</div>
                     <div style="font-size: 16px; font-weight: 700;">${biz.type || ''}</div>
                     <div style="font-size: 14px;">${biz.address || ''}</div>

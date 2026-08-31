@@ -3,6 +3,7 @@ import { Search, MessageCircle, BarChart2, X, ChevronRight, Download } from 'luc
 import * as XLSX from 'xlsx';
 import { subscribeToCollection, db } from '../../utils/storage';
 import { useTenant } from '../../utils/TenantContext';
+import { openWhatsAppDirect } from '../../utils/whatsappHelper';
 import { LangContext } from '../../components/Layout';
 import { generateBuyerReceiptCanvas, generateLedgerCanvas } from '../../utils/receiptCanvas';
 import WhatsAppIcon from '../../components/WhatsAppIcon';
@@ -217,27 +218,17 @@ const PbReports = () => {
         lang: lang
       });
 
-      const buyerContact = (row?.contact || '').replace(/\D/g, '');
-      const whatsappNumber = buyerContact.length === 10 ? '91' + buyerContact : buyerContact;
+      const buyerObj = buyers.find(b => b.id === row.id) || row;
+      const textMsg = `🌹 *${bizInfo?.name || 'Poovanam'}* 🌹\n` +
+        `*${t('name')}:* ${row.name}\n` +
+        `*${t('balance')}:* ₹${row.balance || 0}`;
 
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], 'receipt.png', { type: 'image/png' })] })) {
-        await navigator.share({
-          files: [new File([blob], 'receipt.png', { type: 'image/png' })],
-          title: `Receipt – ${row.name}`,
-        });
-      } else {
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `receipt_${row.name.replace(/\s+/g,'_')}.png`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 30000);
-
-        if (whatsappNumber) {
-          setTimeout(() => {
-            window.open(`https://wa.me/${whatsappNumber}`, '_blank');
-          }, 500);
-        }
-      }
+      await openWhatsAppDirect({
+        phone: buyerObj?.contact || row.contact,
+        text: textMsg,
+        blob,
+        fileName: `receipt_${row.name.replace(/\s+/g, '_')}.png`
+      });
     } catch (err) {
       console.error('Receipt share error:', err);
       alert('❌ Could not share receipt: ' + err.message);
@@ -363,11 +354,14 @@ const PbReports = () => {
   };
 
   // WhatsApp Share general report info
-  const handleWhatsAppShare = () => {
+  const handleWhatsAppShare = async () => {
     if (report.length === 0) return;
     const rangeText = appliedFrom === appliedTo ? appliedFrom : `${appliedFrom} to ${appliedTo}`;
     let msg = `*VV CUSTOMER REPORT*\nPeriod: ${rangeText}\n\nOpening Balance: ${fmt(totalOpening)}\nSales: ${fmt(totalSales)}\nPaid: ${fmt(totalPaid)}\nCash Less: ${fmt(totalLess)}\nDues: ${fmt(totalDues)}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    await openWhatsAppDirect({
+      phone: detailBuyer?.contact || '',
+      text: msg
+    });
   };
 
   // WhatsApp share statement/ledger from details modal
@@ -454,27 +448,16 @@ const PbReports = () => {
         lang: lang
       });
 
-      const buyerContact = (buyer?.contact || '').replace(/\D/g, '');
-      const whatsappNumber = buyerContact.length === 10 ? '91' + buyerContact : buyerContact;
+      const summaryText = `🌹 *${bizInfo?.name || 'Poovanam'}* 🌹\n` +
+        `*Statement For:* ${buyer.name}\n` +
+        `*Period:* ${appliedFrom === appliedTo ? displayDate(appliedFrom) : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`}`;
 
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], 'statement.png', { type: 'image/png' })] })) {
-        await navigator.share({
-          files: [new File([blob], 'statement.png', { type: 'image/png' })],
-          title: `${buyer.name} - Statement`,
-        });
-      } else {
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `statement_${buyer.name.replace(/\s+/g,'_')}.png`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 30000);
-
-        if (whatsappNumber) {
-          setTimeout(() => {
-            window.open(`https://wa.me/${whatsappNumber}`, '_blank');
-          }, 500);
-        }
-      }
+      await openWhatsAppDirect({
+        phone: buyer?.contact,
+        text: summaryText,
+        blob,
+        fileName: `statement_${buyer.name.replace(/\s+/g, '_')}.png`
+      });
     } catch (err) {
       console.error('Ledger Share Error:', err);
       alert('❌ Failed to share statement: ' + err.message);

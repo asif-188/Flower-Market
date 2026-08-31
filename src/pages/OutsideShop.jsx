@@ -4,9 +4,10 @@ import { db, subscribeToCollection, saveOutsidePurchase, saveVendor, deleteVendo
 import { doc, updateDoc, increment, serverTimestamp, deleteDoc, collection, addDoc, getDoc, deleteField } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import * as XLSX from 'xlsx';
-import { generateLedgerCanvas, generatePaymentReceiptCanvas, generatePurchaseReceiptCanvas } from '../utils/receiptCanvas';
+import { generateLedgerCanvas, generatePaymentReceiptCanvas, generatePurchaseReceiptCanvas, parseMottoLines } from '../utils/receiptCanvas';
 import WhatsAppIcon from '../components/WhatsAppIcon';
 import { useTenant } from '../utils/TenantContext';
+import { openWhatsAppDirect } from '../utils/whatsappHelper';
 import Tesseract from 'tesseract.js';
 
 /* ── Shared Style Tokens (Matching Sales UI) ── */
@@ -774,16 +775,18 @@ const OutsideShop = () => {
             thankYou: '🌹 Poovanam 🌹'
         };
 
-        const { url, blob } = await generatePurchaseReceiptCanvas({ entity: vendor, purchase: p, bizInfo, labels, lang });
-        const file = new File([blob], `purchase_${p.id}.png`, { type: 'image/png' });
+        const textMsg = `🌹 *${bizInfo?.name || 'Poovanam'}* 🌹\n` +
+            `*${t('purchaseReceipt') || 'PURCHASE RECEIPT'}*\n` +
+            `*${t('vendorName')}:* ${vendor.name}\n` +
+            `*${t('date')}:* ${p.date}\n` +
+            `*${t('total')}:* ₹${p.grandTotal}`;
 
-        if (navigator.share) {
-            await navigator.share({ files: [file], title: 'Purchase Receipt' });
-        } else {
-            const win = window.open('', '_blank');
-            win.document.write(`<html><body style="margin:0;display:flex;justify-content:center;background:#f0f0f0;"><img src="${url}" style="max-width:100%;box-shadow:0 0 20px rgba(0,0,0,0.2);"></body></html>`);
-            win.document.close();
-        }
+        await openWhatsAppDirect({
+            phone: vendor.contact,
+            text: textMsg,
+            blob,
+            fileName: `purchase_${p.id}.png`
+        });
     };
 
     const handlePrintPurchase = async (p) => {
@@ -1203,7 +1206,7 @@ const OutsideShop = () => {
                 <div class="box">
                     <div class="header" style="margin-bottom: ${isTwelve ? '5px' : '10px'};">
                         <h1 style="margin:0; font-size: ${isTwelve ? '11px' : '14px'};">OUTSIDE PURCHASE BILL</h1>
-                        <p style="margin:0; font-size: ${isTwelve ? '8px' : '10px'}; font-style: italic; opacity: 0.8;">${bizInfo.motto || ''}</p>
+                        ${parseMottoLines(bizInfo.motto).map(line => `<p style="margin:0; font-size: ${isTwelve ? '8px' : '10px'}; font-style: italic; opacity: 0.8;">${line}</p>`).join('')}
                         <p style="margin:1px 0; font-size: ${isTwelve ? '9px' : '11px'}; font-weight: 900;">${bizInfo.name}</p>
                     </div>
                     <div class="line" style="font-size: ${isTwelve ? '9px' : '11px'}; margin-bottom: ${isTwelve ? '4px' : '8px'};">VENDOR: <span class="field"></span></div>
@@ -1305,16 +1308,17 @@ const OutsideShop = () => {
             notesLabel: t('notes'), paymentReceipt: t('paymentReceipt'), thankYou: '🌹 Poovanam 🌹'
         };
 
-        const { url, blob } = await generatePaymentReceiptCanvas({ entity: vendor, payment: p, bizInfo, labels, lang });
-        const file = new File([blob], `payment_${p.id}.png`, { type: 'image/png' });
+        const textMsg = `🌹 *${bizInfo?.name || 'Poovanam'}* 🌹\n` +
+            `*${t('paymentReceipt') || 'PAYMENT RECEIPT'}*\n` +
+            `*${t('name')}:* ${vendor.name}\n` +
+            `*${t('amount')}:* ₹${p.amount}`;
 
-        if (navigator.share) {
-            await navigator.share({ files: [file], title: 'Payment Receipt' });
-        } else {
-            const win = window.open('', '_blank');
-            win.document.write(`<html><body style="margin:0;display:flex;justify-content:center;background:#f0f0f0;"><img src="${url}" style="max-width:100%;box-shadow:0 0 20px rgba(0,0,0,0.2);"></body></html>`);
-            win.document.close();
-        }
+        await openWhatsAppDirect({
+            phone: vendor.contact,
+            text: textMsg,
+            blob,
+            fileName: `payment_${p.id}.png`
+        });
     };
 
     const handlePrintPayment = async (p) => {
@@ -2203,13 +2207,15 @@ const OutsideShop = () => {
 
         const handleWhatsAppVendorLedger = async (v) => {
             const { url, blob } = await generateLedgerCanvas(getVendorLedgerData(v));
-            const file = new File([blob], `statement_${v.displayId}.png`, { type: 'image/png' });
-            if (navigator.share) await navigator.share({ files: [file], title: 'Vendor Statement' });
-            else {
-                const win = window.open('', '_blank');
-                win.document.write(`<html><body style="margin:0;display:flex;justify-content:center;background:#f0f0f0;"><img src="${url}" style="max-width:100%;"></body></html>`);
-                win.document.close();
-            }
+            const textMsg = `🌹 *${bizInfo?.name || 'Poovanam'}* 🌹\n` +
+                `*Vendor Statement - ${v.name}*`;
+
+            await openWhatsAppDirect({
+                phone: v.contact,
+                text: textMsg,
+                blob,
+                fileName: `statement_${v.displayId}.png`
+            });
         };
 
         return (

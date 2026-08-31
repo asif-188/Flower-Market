@@ -4,8 +4,9 @@ import { savePbSale, deletePbSale, getNextPbInvoiceNo, subscribeToCollection, db
 import { doc, updateDoc, increment, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { useTenant } from '../../utils/TenantContext';
 import { LangContext } from '../../components/Layout';
-import { generateBuyerReceiptCanvas } from '../../utils/receiptCanvas';
+import { generateBuyerReceiptCanvas, parseMottoLines } from '../../utils/receiptCanvas';
 import WhatsAppIcon from '../../components/WhatsAppIcon';
+import { openWhatsAppDirect } from '../../utils/whatsappHelper';
 
 const PB = {
   primary: '#7c3aed',
@@ -249,15 +250,18 @@ const PbSalesEntry = () => {
         }
       });
 
-      const file = new File([blob], 'bill.png', { type: 'image/png' });
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: `Bill – ${buyer.name}` });
-      } else {
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `bill_${buyer.name.replace(/\s+/g,'_')}.png`;
-        a.click();
-      }
+      const textMsg = `🌹 *${settings?.name || 'Poovanam'}* 🌹\n` +
+        `*${t('name')}:* ${buyer.name}\n` +
+        `*${t('date')}:* ${date.split('-').reverse().join('/')}\n` +
+        `*${t('totalSales')}:* ₹${todayTotal}\n` +
+        `*${t('balance')}:* ₹${oldBalance - cashRec - cashLess + todayTotal}`;
+
+      await openWhatsAppDirect({
+        phone: buyer.contact,
+        text: textMsg,
+        blob,
+        fileName: `bill_${buyer.name.replace(/\s+/g, '_')}.png`
+      });
     } catch (err) { alert('Share failed: ' + err.message); }
   };
 
@@ -452,9 +456,11 @@ const PbSalesEntry = () => {
       </style>
       <div id="print-bill" style={{ display: 'none', width: '210mm', padding: '10mm', background: '#fff', color: '#000', fontFamily: 'serif' }}>
         {/* 1. Mottos */}
-        {settings.motto && (
-          <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '18px', marginBottom: '15px' }}>{settings.motto}</div>
-        )}
+        {settings.motto && parseMottoLines(settings.motto).map((mottoLine, idx, arr) => (
+          <div key={idx} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '18px', marginBottom: idx === arr.length - 1 ? '15px' : '4px' }}>
+            {mottoLine}
+          </div>
+        ))}
 
         {/* 2. Shop Box */}
         <div style={{ border: '2px solid #000', padding: '15px', textAlign: 'center', marginBottom: '10px', position: 'relative' }}>
