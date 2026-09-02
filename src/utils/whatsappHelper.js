@@ -49,3 +49,59 @@ export const openWhatsAppDirect = async ({ phone, text = '', blob = null, fileNa
         window.open(waUrl, '_blank');
     }, blob ? 400 : 0);
 };
+
+/**
+ * Formats date string (YYYY-MM-DD or ISO/timestamp) to DD/MM/YYYY DDMMYYYY format
+ */
+export const formatDateDDMMYYYY = (dateVal, separator = '/') => {
+    if (!dateVal) return '—';
+    try {
+        let str = '';
+        if (typeof dateVal === 'string') {
+            str = dateVal.trim();
+        } else if (dateVal.toDate && typeof dateVal.toDate === 'function') {
+            str = dateVal.toDate().toISOString();
+        } else if (dateVal instanceof Date) {
+            str = dateVal.toISOString();
+        } else {
+            str = String(dateVal);
+        }
+
+        if (str.includes('T')) {
+            str = str.split('T')[0];
+        }
+
+        if (str.includes('-')) {
+            const parts = str.split('-');
+            if (parts.length === 3) {
+                if (parts[0].length === 4) {
+                    const [y, m, d] = parts;
+                    return `${d.padStart(2, '0')}${separator}${m.padStart(2, '0')}${separator}${y}`;
+                }
+                if (parts[2].length === 4) {
+                    const [d, m, y] = parts;
+                    return `${d.padStart(2, '0')}${separator}${m.padStart(2, '0')}${separator}${y}`;
+                }
+            }
+        }
+
+        if (str.includes('/')) {
+            const parts = str.split('/');
+            if (parts.length === 3) {
+                if (parts[0].length === 4) {
+                    const [y, m, d] = parts;
+                    return `${d.padStart(2, '0')}${separator}${m.padStart(2, '0')}${separator}${y}`;
+                }
+                if (parts[2].length === 4) {
+                    const [d, m, y] = parts;
+                    return `${d.padStart(2, '0')}${separator}${m.padStart(2, '0')}${separator}${y}`;
+                }
+            }
+        }
+
+        return str;
+    } catch (e) {
+        return String(dateVal || '—');
+    }
+};
+

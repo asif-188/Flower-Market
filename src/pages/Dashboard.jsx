@@ -12,6 +12,7 @@ import {
 } from '../utils/storage';
 import PaymentRemindersModal from '../components/PaymentRemindersModal';
 import VVLogo from '../components/VVLogo';
+import { formatDateDDMMYYYY } from '../utils/whatsappHelper';
 
 const Dashboard = () => {
     const navigate = useNavigate();
@@ -55,9 +56,12 @@ const Dashboard = () => {
         const cleanPhone = rawContact.replace(/\D/g, '');
         const phone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
+        const formattedSalesDate = formatDateDDMMYYYY(rem.salesDate);
+        const formattedReminderDate = formatDateDDMMYYYY(rem.reminderDate);
+
         const message = lang === 'ta'
-            ? `வணக்கம் ${rem.buyerName},\n\nGreen Bridge - கட்டண நினைவூட்டல்:\nகடைசி விற்பனை தேதி: ${rem.salesDate}\nநினைவூட்டல் தேதி: ${rem.reminderDate}\nமொத்த நிலுவை தொகை: ₹${Number(rem.pendingAmount).toLocaleString('en-IN')}\n\nதயவுசெய்து கட்டணத்தை விரைவில் செலுத்தவும். நன்றி!`
-            : `Hello ${rem.buyerName},\n\nPayment Reminder from Green Bridge:\nLatest Sales Date: ${rem.salesDate}\nReminder Date: ${rem.reminderDate}\nTotal Outstanding Balance: ₹${Number(rem.pendingAmount).toLocaleString('en-IN')}\n\nPlease clear your pending balance at your earliest convenience. Thank you!`;
+            ? `வணக்கம் ${rem.buyerName},\n\n${shopName} - கட்டண நினைவூட்டல்:\nகடைசி விற்பனை தேதி: ${formattedSalesDate}\nநினைவூட்டல் தேதி: ${formattedReminderDate}\nமொத்த நிலுவை தொகை: ₹${Number(rem.pendingAmount).toLocaleString('en-IN')}\n\nதயவுசெய்து கட்டணத்தை விரைவில் செலுத்தவும். நன்றி!`
+            : `Hello ${rem.buyerName},\n\nPayment Reminder from ${shopName}:\nLatest Sales Date: ${formattedSalesDate}\nReminder Date: ${formattedReminderDate}\nTotal Outstanding Balance: ₹${Number(rem.pendingAmount).toLocaleString('en-IN')}\n\nPlease clear your pending balance at your earliest convenience. Thank you!`;
 
         const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
         window.open(url, '_blank');
