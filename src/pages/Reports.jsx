@@ -7,7 +7,7 @@ import { LangContext } from '../components/Layout';
 import { generateBuyerReceiptCanvas, generateLedgerCanvas, parseMottoLines } from '../utils/receiptCanvas';
 import WhatsAppIcon from '../components/WhatsAppIcon';
 import { useTenant } from '../utils/TenantContext';
-import { openWhatsAppDirect } from '../utils/whatsappHelper';
+import { openWhatsAppDirect, formatDateDDMMYYYY } from '../utils/whatsappHelper';
 import { jsPDF } from 'jspdf';
 
 const fmt = (n) =>
@@ -670,7 +670,9 @@ const Reports = () => {
 
     const handleWhatsAppShare = async () => {
         if (report.length === 0) return;
-        const rangeText = appliedFrom === appliedTo ? appliedFrom : `${appliedFrom} to ${appliedTo}`;
+        const fromStr = formatDateDDMMYYYY(appliedFrom);
+        const toStr = formatDateDDMMYYYY(appliedTo);
+        const rangeText = appliedFrom === appliedTo ? fromStr : `${fromStr} to ${toStr}`;
         let msg = `*CUSTOMER REPORT*\nPeriod: ${rangeText}\n\nOpening Balance: ${fmt(totalOpening)}\nSales: ${fmt(totalSales)}\nPaid: ${fmt(totalPaid)}\nCash Less: ${fmt(totalLess)}\nDues: ${fmt(totalDues)}`;
         await openWhatsAppDirect({
             phone: detailBuyer?.contact || '',

@@ -7,7 +7,7 @@ import * as XLSX from 'xlsx';
 import { generateLedgerCanvas, generatePaymentReceiptCanvas, generatePurchaseReceiptCanvas, parseMottoLines } from '../utils/receiptCanvas';
 import WhatsAppIcon from '../components/WhatsAppIcon';
 import { useTenant } from '../utils/TenantContext';
-import { openWhatsAppDirect } from '../utils/whatsappHelper';
+import { openWhatsAppDirect, formatDateDDMMYYYY } from '../utils/whatsappHelper';
 import Tesseract from 'tesseract.js';
 
 /* ── Shared Style Tokens (Matching Sales UI) ── */
@@ -778,7 +778,7 @@ const OutsideShop = () => {
         const textMsg = `🌹 *${bizInfo?.name || 'Poovanam'}* 🌹\n` +
             `*${t('purchaseReceipt') || 'PURCHASE RECEIPT'}*\n` +
             `*${t('vendorName')}:* ${vendor.name}\n` +
-            `*${t('date')}:* ${p.date}\n` +
+            `*${t('date')}:* ${formatDateDDMMYYYY(p.date)}\n` +
             `*${t('total')}:* ₹${p.grandTotal}`;
 
         await openWhatsAppDirect({
