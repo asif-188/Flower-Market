@@ -261,6 +261,8 @@ const Buyer = () => {
         setIsModalOpen(true);
     };
 
+    const [highlightedId, setHighlightedId] = useState(null);
+
     const handleSave = async (e) => {
         e.preventDefault();
         if (isSaving) return;
@@ -272,6 +274,11 @@ const Buyer = () => {
                 balanceDate: currentBuyer.balance ? (currentBuyer.balanceDate || toDateStr(new Date())) : '',
                 nameTa: currentBuyer.nameTa || currentBuyer.name
             };
+            if (buyerToSave.id) {
+                const targetId = buyerToSave.id;
+                setHighlightedId(targetId);
+                setTimeout(() => setHighlightedId(prev => prev === targetId ? null : prev), 2500);
+            }
             if (!buyerToSave.id) delete buyerToSave.id;
             await saveBuyer(buyerToSave);
             setIsModalOpen(false);
@@ -421,6 +428,7 @@ const Buyer = () => {
                         ) : (
                             filteredBuyers.map((buyer, idx) => {
                                 const isHighlighted = tableSelectedIndex === idx;
+                                const isRecentlySaved = buyer.id === highlightedId;
                                 return (
                                     <tr key={buyer.id}
                                         ref={el => rowRefs.current[idx] = el}
@@ -438,13 +446,14 @@ const Buyer = () => {
                                             }
                                         }}
                                         style={{
-                                            background: isHighlighted ? '#16a34a' : (idx % 2 === 0 ? '#fff' : '#fafafa'),
+                                            background: isRecentlySaved ? '#fef08a' : (isHighlighted ? '#16a34a' : (idx % 2 === 0 ? '#fff' : '#fafafa')),
+                                            color: isRecentlySaved ? '#854d0e' : (isHighlighted ? '#fff' : 'inherit'),
                                             cursor: 'pointer',
                                             outline: 'none',
-                                            transition: 'all 0.1s'
+                                            transition: 'background-color 0.5s ease'
                                         }}
-                                        onMouseEnter={e => !isHighlighted && (e.currentTarget.style.background='#f0fdf4')}
-                                        onMouseLeave={e => !isHighlighted && (e.currentTarget.style.background=idx % 2 === 0 ? '#fff' : '#fafafa')}
+                                        onMouseEnter={e => !isHighlighted && !isRecentlySaved && (e.currentTarget.style.background='#f0fdf4')}
+                                        onMouseLeave={e => !isHighlighted && !isRecentlySaved && (e.currentTarget.style.background=idx % 2 === 0 ? '#fff' : '#fafafa')}
                                     >
                                         <td style={S.td}>
                                             <span style={{

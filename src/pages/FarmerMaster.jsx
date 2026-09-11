@@ -181,6 +181,8 @@ const FarmerMaster = () => {
         setIsModalOpen(true);
     };
 
+    const [highlightedId, setHighlightedId] = useState(null);
+
     const handleSave = async (e) => {
         e.preventDefault();
         if (isSaving) return;
@@ -197,6 +199,11 @@ const FarmerMaster = () => {
             };
 
             await saveFFarmer(farmerData);
+            if (currentFarmer.id) {
+                const targetId = currentFarmer.id;
+                setHighlightedId(targetId);
+                setTimeout(() => setHighlightedId(prev => prev === targetId ? null : prev), 2500);
+            }
             addToast(currentFarmer.id ? 'Farmer updated successfully!' : 'Farmer added successfully!');
             setIsModalOpen(false);
         } catch (error) {
@@ -621,7 +628,7 @@ const FarmerMaster = () => {
                         </thead>
                         <tbody>
                             {paginatedFarmers.map((farmer, idx) => (
-                                <tr key={farmer.id} style={{ background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
+                                <tr key={farmer.id} style={{ background: farmer.id === highlightedId ? '#fef08a' : (idx % 2 === 0 ? '#fff' : '#fafafa'), transition: 'background-color 0.5s ease' }}>
                                     <td style={{ ...TD_S, fontWeight: 700, color: '#ea580c', whiteSpace: 'nowrap' }}>
                                         #{farmer.displayId || '—'}
                                     </td>

@@ -193,11 +193,19 @@ const SalesmanMaster = () => {
         setIsModalOpen(true);
     };
 
+    const [highlightedId, setHighlightedId] = useState(null);
+
     const handleSave = async (e) => {
         e.preventDefault();
+        if (isSaving) return;
         setIsSaving(true);
         try {
             await saveSalesman(currentSalesman);
+            if (currentSalesman.id) {
+                const targetId = currentSalesman.id;
+                setHighlightedId(targetId);
+                setTimeout(() => setHighlightedId(prev => prev === targetId ? null : prev), 2500);
+            }
             setIsModalOpen(false);
         } catch (error) {
             console.error("Error saving salesman:", error);
@@ -367,7 +375,7 @@ const SalesmanMaster = () => {
                             </tr>
                         ) : (
                             filteredSalesmen.map((salesman) => (
-                                <tr key={salesman.id} className="group" style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                <tr key={salesman.id} className="group" style={{ background: salesman.id === highlightedId ? '#fef08a' : 'inherit', borderBottom: '1px solid #f3f4f6', transition: 'background-color 0.5s ease' }}>
                                     <td style={S.td}>
                                         <span style={S.idBadge}>#{salesman.displayId || '---'}</span>
                                     </td>

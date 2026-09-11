@@ -133,10 +133,17 @@ const PbPayments = () => {
     } catch { alert('❌ Delete failed'); }
   };
 
+  const [highlightedId, setHighlightedId] = useState(null);
+
   const handleEditNote = async (p) => {
     const newNote = window.prompt('Edit Note:', p.note || '');
     if (newNote === null) return;
-    try { await updateDoc(doc(db, 'pb_payments', p.id), { note: newNote }); }
+    try {
+      await updateDoc(doc(db, 'pb_payments', p.id), { note: newNote });
+      const targetId = p.id;
+      setHighlightedId(targetId);
+      setTimeout(() => setHighlightedId(prev => prev === targetId ? null : prev), 2500);
+    }
     catch (err) { alert('❌ Update failed: ' + err.message); }
   };
 
@@ -287,14 +294,15 @@ const PbPayments = () => {
             ) : (
               buyerPayments.map((p, idx) => {
                 const isHighlighted = mainTableSelectedIndex === idx;
+                const isRecentlySaved = p.id === highlightedId;
                 return (
                   <tr key={p.id}
                     ref={el => mainTableRowRefs.current[idx] = el}
                     tabIndex={0}
                     onClick={() => setMainTableSelectedIndex(idx)}
-                    style={{ background: isHighlighted ? PB.primary : (idx % 2 === 0 ? '#fff' : '#fafafa'), color: isHighlighted ? '#fff' : '#374151', cursor: 'pointer', outline: 'none' }}
-                    onMouseEnter={e => !isHighlighted && (e.currentTarget.style.background = PB.light)}
-                    onMouseLeave={e => !isHighlighted && (e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa')}
+                    style={{ background: isRecentlySaved ? '#fef08a' : (isHighlighted ? PB.primary : (idx % 2 === 0 ? '#fff' : '#fafafa')), color: isRecentlySaved ? '#854d0e' : (isHighlighted ? '#fff' : '#374151'), transition: 'background-color 0.5s ease', cursor: 'pointer', outline: 'none' }}
+                    onMouseEnter={e => !isHighlighted && !isRecentlySaved && (e.currentTarget.style.background = PB.light)}
+                    onMouseLeave={e => !isHighlighted && !isRecentlySaved && (e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa')}
                   >
                     <td style={{ ...S.td, color: isHighlighted ? 'rgba(255,255,255,0.9)' : '#64748b', fontSize: '13px' }}>{formatDate(p.timestamp)}</td>
                     <td style={{ ...S.td, fontWeight: 600 }}>

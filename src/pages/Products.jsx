@@ -24,10 +24,17 @@ const Products = () => {
         }
         setIsModalOpen(true);
     };
+    const [highlightedId, setHighlightedId] = useState(null);
+
     const handleSave = async (e) => {
         e.preventDefault();
         try {
             await saveProduct(currentProduct);
+            if (currentProduct.id) {
+                const targetId = currentProduct.id;
+                setHighlightedId(targetId);
+                setTimeout(() => setHighlightedId(prev => prev === targetId ? null : prev), 2500);
+            }
             setIsModalOpen(false);
         } catch (error) {
             console.error("Error saving product:", error);
@@ -93,7 +100,7 @@ const Products = () => {
             {/* Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8">
                 {filteredProducts.map((product) => (
-                    <div key={product.id} className="group relative bg-gray-50/50 rounded-[40px] p-8 border-2 border-transparent hover:border-orange-500 hover:bg-white hover:shadow-2xl transition-all duration-300">
+                    <div key={product.id} className={`group relative rounded-[40px] p-8 border-2 transition-all duration-500 ${product.id === highlightedId ? 'bg-amber-100 border-amber-400 shadow-2xl scale-[1.02]' : 'bg-gray-50/50 border-transparent hover:border-orange-500 hover:bg-white hover:shadow-2xl'}`}>
                         <div className="absolute top-6 right-6 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity translate-x-4 group-hover:translate-x-0 duration-300">
                             {isEditDeleteAllowed() && (
                                 <>

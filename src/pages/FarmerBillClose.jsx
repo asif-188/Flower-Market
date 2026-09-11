@@ -446,25 +446,25 @@ const FarmerBillClose = () => {
         }
     };
 
+    const [highlightedId, setHighlightedId] = useState(null);
+
     const handleUpdateSingleBillClose = async (fid) => {
         const calc = calculations[fid];
         if (!calc || !calc.savedBillId) return;
-        if (!window.confirm(`Save changes for ${calc.farmerName}?`)) return;
 
         setIsSaving(true);
         try {
-            const tenantId = getTenant();
-            const closeDocRef = doc(db, COLLECTIONS.F_BILL_CLOSINGS, calc.savedBillId);
-
-            // 1. Update Bill Closing document
-            await updateDoc(closeDocRef, {
+            // 1. Update Bill Close Document in Firestore
+            await updateDoc(doc(db, COLLECTIONS.F_BILL_CLOSINGS, calc.savedBillId), {
                 commissionRate: parseFloat(calc.commissionRate || 0),
                 commissionAmount: calc.commissionAmount,
                 otherCharges: parseFloat(calc.otherCharges || 0),
-                netBalance: calc.netBalance
+                otherChargesNote: calc.otherChargesNote || '',
+                netBalance: calc.netBalance,
+                updatedAt: serverTimestamp()
             });
 
-            // 2. Find and update corresponding Ledger Entry
+            // 2. Update Ledger document
             const ledgerSnap = await getDocs(query(
                 collection(db, COLLECTIONS.F_LEDGERS),
                 where('refId', '==', calc.savedBillId)
@@ -492,6 +492,9 @@ const FarmerBillClose = () => {
                     isEditing: false
                 }
             }));
+
+            setHighlightedId(fid);
+            setTimeout(() => setHighlightedId(prev => prev === fid ? null : prev), 2500);
 
             addToast(`Statement for ${calc.farmerName} updated successfully!`);
         } catch (error) {
@@ -1138,7 +1141,7 @@ Thank you!`;
                                 Object.keys(calculations).map((fid, idx) => {
                                     const calc = calculations[fid];
                                     return (
-                                        <tr key={fid} style={{ background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
+                                        <tr key={fid} style={{ background: fid === highlightedId ? '#fef08a' : (idx % 2 === 0 ? '#fff' : '#fafafa'), transition: 'background-color 0.5s ease' }}>
                                             <td style={{ ...TD_S, fontWeight: 700, color: '#ea580c', whiteSpace: 'nowrap' }}>
                                                 #{calc.farmerDisplayId}
                                             </td>
