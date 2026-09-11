@@ -78,7 +78,7 @@ const SearchSelect = ({ items, value, onChange, onKeyDown, inputRef, placeholder
             <input
                 ref={inputRef} type="text" placeholder={placeholder}
                 value={open ? query : selectedName}
-                onFocus={() => { setQuery(''); setOpen(true); setCursor(0); }}
+                onFocus={() => { setQuery(selectedName || ''); setOpen(true); setCursor(0); }}
                 onBlur={() => setTimeout(() => setOpen(false), 200)}
                 onChange={e => { setQuery(e.target.value); setCursor(0); }}
                 onKeyDown={handleKey} autoComplete="off" 
@@ -761,7 +761,6 @@ const OutsideShop = () => {
             setDraftItems(rest.map(item => ({...item, id: Math.random()})));
         }
         setActiveTab('purchase');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleWhatsAppPurchase = async (p) => {
@@ -1296,7 +1295,6 @@ const OutsideShop = () => {
             date: p.date,
             note: p.note || ''
         });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleWhatsAppPayment = async (p) => {

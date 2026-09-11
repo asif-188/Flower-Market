@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Plus, Trash2, Printer, MessageCircle, Pencil, History, Clock } from 'lucide-react';
-import { saveSale, subscribeToCollection, deleteSaleEntry, logHistoryAction, savePaymentReminder, db } from '../utils/storage';
+import { saveSale, updateSaleEntry, subscribeToCollection, deleteSaleEntry, logHistoryAction, savePaymentReminder, db } from '../utils/storage';
 import { doc, updateDoc, increment, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import { generateBuyerReceiptCanvas, parseMottoLines } from '../utils/receiptCanvas';
@@ -66,7 +66,7 @@ const SearchSelect = ({ items, value, onChange, onKeyDown, inputRef, placeholder
                 type="text"
                 placeholder={placeholder}
                 value={open ? query : selectedName}
-                onFocus={() => { setQuery(''); setOpen(true); setCursor(0); }}
+                onFocus={() => { setQuery(selectedName || ''); setOpen(true); setCursor(0); }}
                 onBlur={() => setTimeout(() => setOpen(false), 200)}
                 onChange={e => { setQuery(e.target.value); setCursor(0); }}
                 onKeyDown={handleKey}
@@ -137,6 +137,8 @@ const SalesEntry = () => {
     const [currentItem, setCurrentItem] = useState({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
     const [isSaving, setIsSaving] = useState(false);
     const [mainTableSelectedIndex, setMainTableSelectedIndex] = useState(-1);
+    const [editingSale, setEditingSale] = useState(null);
+    const [highlightedId, setHighlightedId] = useState(null);
 
     // Reset selected index when customer selection changes
     useEffect(() => {
@@ -248,34 +250,50 @@ const SalesEntry = () => {
         
         try {
             const buyer = buyers.find(b => b.id === buyerId);
-            const saleData = {
-                buyerId,
-                date,
-                buyerName: buyer?.name || 'Unknown',
-                items: [{ ...currentItem, total }],
-                grandTotal: total,
-                timestamp: serverTimestamp()
-            };
-            const savedSale = await saveSale(saleData);
+            if (editingSale) {
+                const saleData = {
+                    ...editingSale,
+                    buyerId,
+                    date,
+                    buyerName: buyer?.name || 'Unknown',
+                    items: [{ ...currentItem, total }],
+                    grandTotal: total
+                };
+                await updateSaleEntry(editingSale.id, saleData, editingSale);
+                const targetId = editingSale.id;
+                setHighlightedId(targetId);
+                setTimeout(() => setHighlightedId(prev => prev === targetId ? null : prev), 2500);
+                setEditingSale(null);
+            } else {
+                const saleData = {
+                    buyerId,
+                    date,
+                    buyerName: buyer?.name || 'Unknown',
+                    items: [{ ...currentItem, total }],
+                    grandTotal: total,
+                    timestamp: serverTimestamp()
+                };
+                const savedSale = await saveSale(saleData);
 
-            // Create separate Payment Reminder if customer is valid and pending total > 0
-            if (buyerId && buyerId !== 'direct' && total > 0) {
-                try {
-                    const saleDateObj = new Date(date);
-                    saleDateObj.setDate(saleDateObj.getDate() + 2);
-                    const remDateStr = saleDateObj.toISOString().split('T')[0];
-                    await savePaymentReminder({
-                        saleId: savedSale?.id || '',
-                        buyerId,
-                        buyerName: buyer?.name || 'Unknown',
-                        salesDate: date,
-                        reminderDate: remDateStr,
-                        pendingAmount: total,
-                        originalAmount: total,
-                        status: 'Pending'
-                    });
-                } catch (remErr) {
-                    console.warn('Could not save payment reminder:', remErr);
+                // Create separate Payment Reminder if customer is valid and pending total > 0
+                if (buyerId && buyerId !== 'direct' && total > 0) {
+                    try {
+                        const saleDateObj = new Date(date);
+                        saleDateObj.setDate(saleDateObj.getDate() + 2);
+                        const remDateStr = saleDateObj.toISOString().split('T')[0];
+                        await savePaymentReminder({
+                            saleId: savedSale?.id || '',
+                            buyerId,
+                            buyerName: buyer?.name || 'Unknown',
+                            salesDate: date,
+                            reminderDate: remDateStr,
+                            pendingAmount: total,
+                            originalAmount: total,
+                            status: 'Pending'
+                        });
+                    } catch (remErr) {
+                        console.warn('Could not save payment reminder:', remErr);
+                    }
                 }
             }
             
@@ -289,19 +307,11 @@ const SalesEntry = () => {
         }
     };
 
-    const handleEditItem = async (sale) => {
+    const handleEditItem = (sale) => {
+        setEditingSale(sale);
         setBuyerId(sale.buyerId);
         setCurrentItem(sale.items[0]);
-        // To edit, we basically populate the fields and delete the old entry
-        // so when they click 'Save' again, it creates a clean updated version.
-        try {
-            await deleteSaleEntry(sale, sale.buyerName || 'Unknown');
-            await logHistoryAction('Edit', 'Sale', sale.buyerName || 'Unknown', `Initiated edit for sale of ₹${sale.grandTotal}`);
-            // Move focus to flower dropdown or qty
-            setTimeout(() => refFlower.current?.focus(), 100);
-        } catch (err) {
-            console.error('Edit initialization failed:', err);
-        }
+        setTimeout(() => refFlower.current?.focus(), 100);
     };
 
     const handleDeleteItem = async (sale) => {
@@ -553,6 +563,7 @@ const SalesEntry = () => {
                                 buyerTodayEntries.map((sale, idx) => {
                                     const buyer = buyers.find(b => b.id === sale.buyerId);
                                     const isHighlighted = mainTableSelectedIndex === idx;
+                                    const isRecentlySaved = sale.id === highlightedId;
                                     return (
                                         <tr key={sale.id}
                                             ref={el => mainTableRowRefs.current[idx] = el}
@@ -572,13 +583,14 @@ const SalesEntry = () => {
                                                 }
                                             }}
                                             style={{ 
-                                                background: isHighlighted ? '#16a34a' : (idx % 2 === 0 ? '#fff' : '#fafafa'),
-                                                color: isHighlighted ? '#fff' : '#374151',
+                                                background: isRecentlySaved ? '#fef08a' : (isHighlighted ? '#16a34a' : (idx % 2 === 0 ? '#fff' : '#fafafa')),
+                                                color: isRecentlySaved ? '#854d0e' : (isHighlighted ? '#fff' : '#374151'),
+                                                transition: 'background-color 0.5s ease',
                                                 cursor: 'pointer',
                                                 outline: 'none'
                                             }}
-                                            onMouseEnter={e => !isHighlighted && (e.currentTarget.style.background = '#f0fdf4')}
-                                            onMouseLeave={e => !isHighlighted && (e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa')}
+                                            onMouseEnter={e => !isHighlighted && !isRecentlySaved && (e.currentTarget.style.background = '#f0fdf4')}
+                                            onMouseLeave={e => !isHighlighted && !isRecentlySaved && (e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa')}
                                         >
                                             <td style={TD_S}>
                                                 <span style={{ 

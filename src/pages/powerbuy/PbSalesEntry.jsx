@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Plus, Trash2, Printer, MessageCircle, Clock, Pencil, History } from 'lucide-react';
-import { savePbSale, deletePbSale, getNextPbInvoiceNo, subscribeToCollection, db } from '../../utils/storage';
+import { savePbSale, updatePbSale, deletePbSale, getNextPbInvoiceNo, subscribeToCollection, db } from '../../utils/storage';
 import { doc, updateDoc, increment, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { useTenant } from '../../utils/TenantContext';
 import { LangContext } from '../../components/Layout';
@@ -77,7 +77,7 @@ const SearchSelect = ({ items, value, onChange, onKeyDown, inputRef, placeholder
   return (
     <div style={{ position: 'relative' }}>
       <input ref={inputRef} type="text" placeholder={placeholder} value={open ? query : selectedName}
-        onFocus={() => { setQuery(''); setOpen(true); setCursor(0); }}
+        onFocus={() => { setQuery(selectedName || ''); setOpen(true); setCursor(0); }}
         onBlur={() => setTimeout(() => setOpen(false), 200)}
         onChange={e => { setQuery(e.target.value); setCursor(0); }}
         onKeyDown={handleKey} autoComplete="off" style={INPUT_S} />
@@ -111,6 +111,8 @@ const PbSalesEntry = () => {
   const [currentItem, setCurrentItem] = useState({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
   const [isSaving, setIsSaving] = useState(false);
   const [mainTableSelectedIndex, setMainTableSelectedIndex] = useState(-1);
+  const [editingSale, setEditingSale] = useState(null);
+  const [highlightedId, setHighlightedId] = useState(null);
 
   useEffect(() => { setMainTableSelectedIndex(-1); }, [buyerId]);
 
@@ -192,9 +194,25 @@ const PbSalesEntry = () => {
     const total = qty * rate;
     try {
       const buyer = buyers.find(b => b.id === buyerId);
-      let invoiceNo;
-      try { invoiceNo = await getNextPbInvoiceNo(); } catch { invoiceNo = `PB-${Date.now()}`; }
-      await savePbSale({ buyerId, date, buyerName: buyer?.name || 'Unknown', items: [{ ...currentItem, total }], grandTotal: total, invoiceNo, timestamp: serverTimestamp() });
+      if (editingSale) {
+        const saleData = {
+          ...editingSale,
+          buyerId,
+          date,
+          buyerName: buyer?.name || 'Unknown',
+          items: [{ ...currentItem, total }],
+          grandTotal: total
+        };
+        await updatePbSale(editingSale.id, saleData, editingSale);
+        const targetId = editingSale.id;
+        setHighlightedId(targetId);
+        setTimeout(() => setHighlightedId(prev => prev === targetId ? null : prev), 2500);
+        setEditingSale(null);
+      } else {
+        let invoiceNo;
+        try { invoiceNo = await getNextPbInvoiceNo(); } catch { invoiceNo = `PB-${Date.now()}`; }
+        await savePbSale({ buyerId, date, buyerName: buyer?.name || 'Unknown', items: [{ ...currentItem, total }], grandTotal: total, invoiceNo, timestamp: serverTimestamp() });
+      }
       setCurrentItem({ flowerType: '', flowerTypeTa: '', quantity: '', price: '' });
       setTimeout(() => refFlower.current?.focus(), 50);
     } catch (err) { alert('Error saving item: ' + err.message); }
@@ -211,13 +229,11 @@ const PbSalesEntry = () => {
     } catch (err) { alert('Delete failed: ' + err.message); }
   };
 
-  const handleEditItem = async (sale) => {
+  const handleEditItem = (sale) => {
+    setEditingSale(sale);
     setBuyerId(sale.buyerId);
     setCurrentItem(sale.items[0]);
-    try {
-      await deletePbSale(sale);
-      setTimeout(() => refFlower.current?.focus(), 100);
-    } catch (err) { console.error('Edit init failed:', err); }
+    setTimeout(() => refFlower.current?.focus(), 100);
   };
 
   const handleShareWhatsApp = async () => {
@@ -376,6 +392,7 @@ const PbSalesEntry = () => {
                 buyerTodayEntries.map((sale, idx) => {
                   const buyer = buyers.find(b => b.id === sale.buyerId);
                   const isHighlighted = mainTableSelectedIndex === idx;
+                  const isRecentlySaved = sale.id === highlightedId;
                   return (
                     <tr key={sale.id}
                       ref={el => mainTableRowRefs.current[idx] = el}
@@ -385,9 +402,9 @@ const PbSalesEntry = () => {
                         if (e.key === 'ArrowDown') { e.preventDefault(); const n = Math.min(idx + 1, buyerTodayEntries.length - 1); setMainTableSelectedIndex(n); mainTableRowRefs.current[n]?.focus(); }
                         else if (e.key === 'ArrowUp') { e.preventDefault(); const p = Math.max(idx - 1, 0); setMainTableSelectedIndex(p); mainTableRowRefs.current[p]?.focus(); }
                       }}
-                      style={{ background: isHighlighted ? PB.primary : (idx % 2 === 0 ? '#fff' : '#fafafa'), color: isHighlighted ? '#fff' : '#374151', cursor: 'pointer', outline: 'none' }}
-                      onMouseEnter={e => !isHighlighted && (e.currentTarget.style.background = PB.light)}
-                      onMouseLeave={e => !isHighlighted && (e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa')}
+                      style={{ background: isRecentlySaved ? '#fef08a' : (isHighlighted ? PB.primary : (idx % 2 === 0 ? '#fff' : '#fafafa')), color: isRecentlySaved ? '#854d0e' : (isHighlighted ? '#fff' : '#374151'), transition: 'background-color 0.5s ease', cursor: 'pointer', outline: 'none' }}
+                      onMouseEnter={e => !isHighlighted && !isRecentlySaved && (e.currentTarget.style.background = PB.light)}
+                      onMouseLeave={e => !isHighlighted && !isRecentlySaved && (e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa')}
                     >
                       <td style={TD_S}><span style={{ fontSize: '11px', fontWeight: 700, color: isHighlighted ? '#fff' : '#94a3b8', background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#f1f5f9', padding: '3px 8px', borderRadius: '6px' }}>{formatTime(sale.timestamp || sale.createdAt)}</span></td>
                       <td style={{ ...TD_S, textAlign: 'center', fontWeight: 600, color: isHighlighted ? '#fff' : '#64748b' }}>{idx + 1}</td>

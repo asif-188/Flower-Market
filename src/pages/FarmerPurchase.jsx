@@ -74,7 +74,7 @@ const SearchSelect = ({ items, value, onChange, onKeyDown, inputRef, placeholder
                 type="text"
                 placeholder={placeholder}
                 value={open ? queryVal : selectedName}
-                onFocus={() => { setQueryVal(''); setOpen(true); setCursor(0); }}
+                onFocus={() => { setQueryVal(selectedName || ''); setOpen(true); setCursor(0); }}
                 onBlur={() => setTimeout(() => setOpen(false), 200)}
                 onChange={e => { 
                     const val = e.target.value;
@@ -252,52 +252,88 @@ const FarmerPurchase = () => {
         return dailyEntries.filter(s => !selectedFarmerId || s.farmerId === selectedFarmerId);
     }, [dailyEntries, selectedFarmerId]);
 
+    const [editingPurchase, setEditingPurchase] = useState(null);
+    const [highlightedId, setHighlightedId] = useState(null);
+
     const handleAddItem = async () => {
-        if (!selectedFarmerId || !currentItem.flowerName || !currentItem.weight || !currentItem.rate || isSaving) return;
+        if (!selectedFarmerId || !currentItem.flowerId || !currentItem.weight || !currentItem.rate || isSaving) return;
         setIsSaving(true);
-        const qty  = parseFloat(currentItem.weight);
-        const rate = parseFloat(currentItem.rate);
+        const qty   = parseFloat(currentItem.weight);
+        const rate  = parseFloat(currentItem.rate);
         const total = qty * rate;
         
         try {
             const farmerObj = farmers.find(f => f.id === selectedFarmerId);
-            const purchaseData = {
-                farmerId: selectedFarmerId,
-                date,
-                farmerName: farmerObj?.name || 'Unknown',
-                items: [{
-                    flowerId: currentItem.flowerId,
-                    flowerName: currentItem.flowerName,
-                    flowerNameTa: currentItem.flowerNameTa,
-                    weight: qty,
-                    rate: rate,
-                    amount: total
-                }],
-                totalAmount: total,
-                timestamp: serverTimestamp()
-            };
-            const savedDocRef = await addData(COLLECTIONS.F_PURCHASES, purchaseData);
+            if (editingPurchase) {
+                const diff = total - (editingPurchase.totalAmount || 0);
+                const purchaseData = {
+                    ...editingPurchase,
+                    farmerId: selectedFarmerId,
+                    farmerName: farmerObj?.name || 'Unknown',
+                    items: [{
+                        flowerId: currentItem.flowerId,
+                        flowerName: currentItem.flowerName,
+                        flowerNameTa: currentItem.flowerNameTa,
+                        weight: qty,
+                        rate: rate,
+                        amount: total
+                    }],
+                    totalAmount: total
+                };
+                await updateDoc(doc(db, COLLECTIONS.F_PURCHASES, editingPurchase.id), purchaseData);
 
-            // Save Ledger Record (Credit transaction: increases balance we owe farmer)
-            const ledgerDoc = {
-                farmerId: selectedFarmerId,
-                date,
-                type: 'purchase',
-                refId: savedDocRef.id,
-                description: `Flower Purchase (${currentItem.flowerName})`,
-                debit: 0,
-                credit: total,
-                commission: 0,
-                balance: (farmerObj?.balance || 0) + total
-            };
-            await addData(COLLECTIONS.F_LEDGERS, ledgerDoc);
+                const qLedger = query(collection(db, COLLECTIONS.F_LEDGERS), where('refId', '==', editingPurchase.id));
+                const snapLedger = await getDocs(qLedger);
+                for (const docRef of snapLedger.docs) {
+                    await updateDoc(docRef.ref, { credit: total, balance: (docRef.data().balance || 0) + diff });
+                }
+                if (diff !== 0) {
+                    await updateDoc(doc(db, COLLECTIONS.F_FARMERS, selectedFarmerId), { balance: increment(diff) });
+                }
+                const targetId = editingPurchase.id;
+                setHighlightedId(targetId);
+                setTimeout(() => setHighlightedId(prev => prev === targetId ? null : prev), 2500);
+                setEditingPurchase(null);
+                addToast('Purchase entry updated successfully!');
+            } else {
+                const purchaseData = {
+                    farmerId: selectedFarmerId,
+                    date,
+                    farmerName: farmerObj?.name || 'Unknown',
+                    items: [{
+                        flowerId: currentItem.flowerId,
+                        flowerName: currentItem.flowerName,
+                        flowerNameTa: currentItem.flowerNameTa,
+                        weight: qty,
+                        rate: rate,
+                        amount: total
+                    }],
+                    totalAmount: total,
+                    timestamp: serverTimestamp()
+                };
+                const savedDocRef = await addData(COLLECTIONS.F_PURCHASES, purchaseData);
 
-            // Update Farmer's Balance
-            await updateDoc(doc(db, COLLECTIONS.F_FARMERS, selectedFarmerId), {
-                balance: increment(total)
-            });
+                // Save Ledger Record (Credit transaction: increases balance we owe farmer)
+                const ledgerDoc = {
+                    farmerId: selectedFarmerId,
+                    date,
+                    type: 'purchase',
+                    refId: savedDocRef.id,
+                    description: `Flower Purchase (${currentItem.flowerName})`,
+                    debit: 0,
+                    credit: total,
+                    commission: 0,
+                    balance: (farmerObj?.balance || 0) + total
+                };
+                await addData(COLLECTIONS.F_LEDGERS, ledgerDoc);
 
-            addToast('Purchase entry saved successfully!');
+                // Update Farmer's Balance
+                await updateDoc(doc(db, COLLECTIONS.F_FARMERS, selectedFarmerId), {
+                    balance: increment(total)
+                });
+
+                addToast('Purchase entry saved successfully!');
+            }
             setCurrentItem({ flowerId: '', flowerName: '', flowerNameTa: '', weight: '', rate: '', amount: '' });
             setTimeout(() => refFlower.current?.focus(), 50);
         } catch (err) {
@@ -307,7 +343,8 @@ const FarmerPurchase = () => {
         }
     };
 
-    const handleEditItem = async (purchase) => {
+    const handleEditItem = (purchase) => {
+        setEditingPurchase(purchase);
         setSelectedFarmerId(purchase.farmerId);
         const item = purchase.items[0];
         setCurrentItem({
@@ -318,24 +355,7 @@ const FarmerPurchase = () => {
             rate: String(item.rate),
             amount: String(item.amount)
         });
-
-        try {
-            await deleteDoc(doc(db, COLLECTIONS.F_PURCHASES, purchase.id));
-            const q = query(
-                collection(db, COLLECTIONS.F_LEDGERS),
-                where('refId', '==', purchase.id)
-            );
-            const snap = await getDocs(q);
-            for (const docRef of snap.docs) {
-                await deleteDoc(docRef.ref);
-            }
-            await updateDoc(doc(db, COLLECTIONS.F_FARMERS, purchase.farmerId), {
-                balance: increment(-purchase.totalAmount)
-            });
-            setTimeout(() => refFlower.current?.focus(), 100);
-        } catch (err) {
-            console.error('Edit init failed:', err);
-        }
+        setTimeout(() => refFlower.current?.focus(), 100);
     };
 
     const handleDeleteItem = async (purchase) => {
@@ -736,6 +756,7 @@ const FarmerPurchase = () => {
                                 farmerTodayEntries.map((purchase, idx) => {
                                     const farmer = farmers.find(b => b.id === purchase.farmerId);
                                     const isHighlighted = mainTableSelectedIndex === idx;
+                                    const isRecentlySaved = purchase.id === highlightedId;
                                     return (
                                         <tr key={purchase.id}
                                             ref={el => mainTableRowRefs.current[idx] = el}
@@ -755,13 +776,14 @@ const FarmerPurchase = () => {
                                                 }
                                             }}
                                             style={{ 
-                                                background: isHighlighted ? '#ea580c' : (idx % 2 === 0 ? '#fff' : '#fafafa'),
-                                                color: isHighlighted ? '#fff' : '#374151',
+                                                background: isRecentlySaved ? '#fef08a' : (isHighlighted ? '#ea580c' : (idx % 2 === 0 ? '#fff' : '#fafafa')),
+                                                color: isRecentlySaved ? '#854d0e' : (isHighlighted ? '#fff' : '#374151'),
+                                                transition: 'background-color 0.5s ease',
                                                 cursor: 'pointer',
                                                 outline: 'none'
                                             }}
-                                            onMouseEnter={e => !isHighlighted && (e.currentTarget.style.background = '#fff7ed')}
-                                            onMouseLeave={e => !isHighlighted && (e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa')}
+                                            onMouseEnter={e => !isHighlighted && !isRecentlySaved && (e.currentTarget.style.background = '#fff7ed')}
+                                            onMouseLeave={e => !isHighlighted && !isRecentlySaved && (e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa')}
                                         >
                                             <td style={TD_S}>
                                                 <span style={{ 

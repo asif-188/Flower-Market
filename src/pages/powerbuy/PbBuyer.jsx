@@ -208,6 +208,8 @@ const PbBuyer = () => {
     setIsModalOpen(true);
   };
 
+  const [highlightedId, setHighlightedId] = useState(null);
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (isSaving) return;
@@ -219,6 +221,11 @@ const PbBuyer = () => {
         balanceDate: currentBuyer.balance ? (currentBuyer.balanceDate || toDateStr(new Date())) : '',
         nameTa: currentBuyer.nameTa || currentBuyer.name
       };
+      if (buyerToSave.id) {
+        const targetId = buyerToSave.id;
+        setHighlightedId(targetId);
+        setTimeout(() => setHighlightedId(prev => prev === targetId ? null : prev), 2500);
+      }
       if (!buyerToSave.id) delete buyerToSave.id;
       await savePbBuyer(buyerToSave);
       setIsModalOpen(false);
@@ -351,6 +358,7 @@ const PbBuyer = () => {
             ) : (
               filteredBuyers.map((buyer, idx) => {
                 const isHighlighted = tableSelectedIndex === idx;
+                const isRecentlySaved = buyer.id === highlightedId;
                 return (
                   <tr key={buyer.id}
                     ref={el => rowRefs.current[idx] = el}
@@ -362,11 +370,12 @@ const PbBuyer = () => {
                       else if (e.key === 'Enter') { setViewingBuyer(buyer); }
                     }}
                     style={{
-                      background: isHighlighted ? PB.primary : (idx % 2 === 0 ? '#fff' : '#fafafa'),
-                      cursor: 'pointer', outline: 'none', transition: 'all 0.1s'
+                      background: isRecentlySaved ? '#fef08a' : (isHighlighted ? PB.primary : (idx % 2 === 0 ? '#fff' : '#fafafa')),
+                      color: isRecentlySaved ? '#854d0e' : (isHighlighted ? '#fff' : 'inherit'),
+                      cursor: 'pointer', outline: 'none', transition: 'background-color 0.5s ease'
                     }}
-                    onMouseEnter={e => !isHighlighted && (e.currentTarget.style.background = PB.light)}
-                    onMouseLeave={e => !isHighlighted && (e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa')}
+                    onMouseEnter={e => !isHighlighted && !isRecentlySaved && (e.currentTarget.style.background = PB.light)}
+                    onMouseLeave={e => !isHighlighted && !isRecentlySaved && (e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa')}
                   >
                     <td style={S.td}>
                       <span style={{ ...S.idBadge, background: isHighlighted ? 'rgba(255,255,255,0.2)' : PB.badge, color: isHighlighted ? '#fff' : PB.badgeText, borderColor: isHighlighted ? 'rgba(255,255,255,0.4)' : PB.border }}>

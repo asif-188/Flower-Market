@@ -103,7 +103,7 @@ const SearchSelect = ({ items, value, onChange, placeholder, lang, onClear }) =>
         type="text"
         placeholder={placeholder}
         value={open ? query : selectedName}
-        onFocus={() => { setQuery(''); setOpen(true); setCursor(0); }}
+        onFocus={() => { setQuery(selectedName || ''); setOpen(true); setCursor(0); }}
         onBlur={() => setTimeout(() => setOpen(false), 200)}
         onChange={e => { setQuery(e.target.value); setCursor(0); }}
         onKeyDown={handleKey}

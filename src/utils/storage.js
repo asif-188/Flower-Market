@@ -349,6 +349,33 @@ export const deleteSaleEntry = async (sale, buyerName) => {
   await logHistoryAction('Delete', 'Sale', buyerName, `Deleted sale of ₹${sale.grandTotal}: ${itemSummary}`);
 };
 
+export const updateSaleEntry = async (id, saleData, oldSale) => {
+  const isDirect = saleData.buyerId === 'direct' || !saleData.buyerId;
+  const cleanSaleData = sanitizeData(saleData);
+  delete cleanSaleData.id;
+
+  const saleRef = doc(db, COLLECTIONS.SALES, id);
+  await updateDoc(saleRef, cleanSaleData);
+
+  if (!isDirect && saleData.buyerId) {
+    const diff = (saleData.grandTotal || 0) - (oldSale?.grandTotal || 0);
+    if (diff !== 0) {
+      try {
+        const buyerRef = doc(db, COLLECTIONS.BUYERS, saleData.buyerId);
+        const buyerSnap = await getDoc(buyerRef);
+        if (buyerSnap.exists()) {
+          await updateDoc(buyerRef, { balance: increment(diff) });
+        }
+      } catch (e) {
+        console.warn("Could not update buyer balance on sale update:", e);
+      }
+    }
+  }
+
+  const itemSummary = (saleData.items || []).map(item => `${item.flowerType} (${item.quantity}kg @ ₹${item.price} = ₹${item.total})`).join(', ');
+  await logHistoryAction('Edit', 'Sale', saleData.buyerName || 'Unknown', `Updated sale of ₹${saleData.grandTotal}: ${itemSummary}`);
+};
+
 export const getSales = async () => {
   const tenantId = getTenant();
   const q = query(collection(db, COLLECTIONS.SALES), where('tenantId', '==', tenantId), orderBy('createdAt', 'desc'));
@@ -528,6 +555,30 @@ export const deletePbSale = async (sale) => {
       }
     } catch (e) {
       console.warn("Could not update pb_buyer balance on delete sale:", e);
+    }
+  }
+};
+
+export const updatePbSale = async (id, saleData, oldSale) => {
+  const isDirect = saleData.buyerId === 'direct' || !saleData.buyerId;
+  const cleanSaleData = sanitizeData(saleData);
+  delete cleanSaleData.id;
+
+  const saleRef = doc(db, COLLECTIONS.PB_SALES, id);
+  await updateDoc(saleRef, cleanSaleData);
+
+  if (!isDirect && saleData.buyerId) {
+    const diff = (saleData.grandTotal || 0) - (oldSale?.grandTotal || 0);
+    if (diff !== 0) {
+      try {
+        const buyerRef = doc(db, COLLECTIONS.PB_BUYERS, saleData.buyerId);
+        const buyerSnap = await getDoc(buyerRef);
+        if (buyerSnap.exists()) {
+          await updateDoc(buyerRef, { balance: increment(diff) });
+        }
+      } catch (e) {
+        console.warn("Could not update pb_buyer balance on sale update:", e);
+      }
     }
   }
 };

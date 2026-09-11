@@ -74,12 +74,19 @@ const PbFlowers = () => {
     setTimeout(() => nameRef.current?.focus(), 80);
   };
 
+  const [highlightedId, setHighlightedId] = useState(null);
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.name.trim() || isSaving) return;
     setIsSaving(true);
     try {
       await savePbProduct({ id: editing?.id, name: form.name.trim(), taName: form.taName.trim(), unit: form.unit });
+      if (editing?.id) {
+        const targetId = editing.id;
+        setHighlightedId(targetId);
+        setTimeout(() => setHighlightedId(prev => prev === targetId ? null : prev), 2500);
+      }
       setIsModalOpen(false);
     } catch (err) { alert('❌ Failed: ' + err.message); }
     finally { setIsSaving(false); }
@@ -123,9 +130,9 @@ const PbFlowers = () => {
             ) : (
               flowers.map((f, idx) => (
                 <tr key={f.id}
-                  style={{ background: idx % 2 === 0 ? '#fff' : '#fafafa' }}
-                  onMouseEnter={e => e.currentTarget.style.background = PB.light}
-                  onMouseLeave={e => e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa'}
+                  style={{ background: f.id === highlightedId ? '#fef08a' : (idx % 2 === 0 ? '#fff' : '#fafafa'), transition: 'background-color 0.5s ease' }}
+                  onMouseEnter={e => f.id !== highlightedId && (e.currentTarget.style.background = PB.light)}
+                  onMouseLeave={e => f.id !== highlightedId && (e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fafafa')}
                 >
                   <td style={{ ...S.td, color: '#9ca3af', fontWeight: 600, width: '48px' }}>{idx + 1}</td>
                   <td style={{ ...S.td, fontWeight: 700, color: '#1e293b' }}>
