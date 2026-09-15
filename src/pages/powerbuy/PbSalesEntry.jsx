@@ -77,7 +77,7 @@ const SearchSelect = ({ items, value, onChange, onKeyDown, inputRef, placeholder
   return (
     <div style={{ position: 'relative' }}>
       <input ref={inputRef} type="text" placeholder={placeholder} value={open ? query : selectedName}
-        onFocus={() => { setQuery(selectedName || ''); setOpen(true); setCursor(0); }}
+        onFocus={(e) => { setQuery(selectedName || ''); setOpen(true); setCursor(0); e.target.select(); }}
         onBlur={() => setTimeout(() => setOpen(false), 200)}
         onChange={e => { setQuery(e.target.value); setCursor(0); }}
         onKeyDown={handleKey} autoComplete="off" style={INPUT_S} />
@@ -232,7 +232,6 @@ const PbSalesEntry = () => {
     setEditingSale(sale);
     setBuyerId(sale.buyerId);
     setCurrentItem(sale.items[0]);
-    setTimeout(() => refFlower.current?.focus(), 100);
   };
 
   const handleShareWhatsApp = async () => {
