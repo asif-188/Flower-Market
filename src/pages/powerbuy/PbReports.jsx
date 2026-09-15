@@ -183,6 +183,7 @@ const PbReports = () => {
       });
       const paymentsTotal = buyerPayments.reduce((s, p) => s + (p.amount || 0), 0);
       const cashLessTotal = buyerPayments.reduce((s, p) => s + (p.cashLess || 0), 0);
+      const notesTotal = buyerPayments.map(p => p.note || p.notes).filter(Boolean).join(', ');
       const prevBalance = row.opening;
 
       const dateLabel = appliedFrom === appliedTo 
@@ -197,6 +198,7 @@ const PbReports = () => {
         cashLess: cashLessTotal,
         prevBalance,
         dateLabel,
+        notes: notesTotal,
         bizInfo,
         labels: {
           date: t('date'),

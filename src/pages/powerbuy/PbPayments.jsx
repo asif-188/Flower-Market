@@ -359,12 +359,12 @@ const PbPayments = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <label style={{ width: '130px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Date</label>
                   <input ref={dateRef} type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} onKeyDown={e => handleKeyDown(e, customerRef)} required
-                    style={{ flex: 1, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '13.5px', fontWeight: 600, color: '#1e293b', outline: 'none' }} />
+                    style={{ flex: 1, width: '100%', boxSizing: 'border-box', minWidth: 0, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '13.5px', fontWeight: 600, color: '#1e293b', outline: 'none' }} />
                 </div>
                 {/* Customer */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <label style={{ width: '130px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Customer</label>
-                  <div style={{ flex: 1, position: 'relative' }}>
+                  <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
                     <input ref={customerRef} type="text" placeholder="Select PB Customer..."
                       value={formData.entityId ? buyers.find(b => b.id === formData.entityId)?.name || '' : customerSearch}
                       onChange={e => { setCustomerSearch(e.target.value); setFormData({ ...formData, entityId: '' }); setIsDropdownOpen(true); setSelectedIndex(-1); }}
@@ -382,7 +382,7 @@ const PbPayments = () => {
                           }
                         }
                       }}
-                      style={{ width: '100%', padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '13.5px', fontWeight: 600, color: '#1e293b', outline: 'none' }} />
+                      style={{ width: '100%', boxSizing: 'border-box', minWidth: 0, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '13.5px', fontWeight: 600, color: '#1e293b', outline: 'none' }} />
                     {isDropdownOpen && (
                       <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 110, background: '#fff', borderRadius: '8px', border: '1.5px solid #e2e8f0', marginTop: '4px', maxHeight: '220px', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}>
                         {filteredBuyers.length > 0 ? filteredBuyers.map((b, idx) => (
@@ -400,24 +400,24 @@ const PbPayments = () => {
                 {/* Opening Balance */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <label style={{ width: '130px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Opening Balance</label>
-                  <div style={{ fontSize: '15px', fontWeight: 900, color: '#1e293b', background: '#f8fafc', padding: '6px 12px', borderRadius: '8px', flex: 1, border: '1.5px solid #f1f5f9' }}>{fmt(openingBalance)}</div>
+                  <div style={{ fontSize: '15px', fontWeight: 900, color: '#1e293b', background: '#f8fafc', padding: '6px 12px', borderRadius: '8px', flex: 1, minWidth: 0, boxSizing: 'border-box', border: '1.5px solid #f1f5f9' }}>{fmt(openingBalance)}</div>
                 </div>
                 {/* Amount */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <label style={{ width: '130px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Given Amount</label>
                   <input ref={amountRef} type="number" placeholder="0" value={formData.amount} onChange={e => setFormData({ ...formData, amount: e.target.value })} onKeyDown={e => handleKeyDown(e, cashLessRef)} required min="1"
-                    style={{ flex: 1, padding: '6px 12px', borderRadius: '8px', border: `1.5px solid ${PB.primary}`, fontSize: '15px', fontWeight: 900, color: PB.primary, outline: 'none' }} />
+                    style={{ flex: 1, width: '100%', boxSizing: 'border-box', minWidth: 0, padding: '6px 12px', borderRadius: '8px', border: `1.5px solid ${PB.primary}`, fontSize: '15px', fontWeight: 900, color: PB.primary, outline: 'none' }} />
                 </div>
                 {/* Cash Less */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <label style={{ width: '130px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Cash Less</label>
                   <input ref={cashLessRef} type="number" placeholder="0" value={formData.cashLess} onChange={e => setFormData({ ...formData, cashLess: e.target.value })} onKeyDown={e => handleKeyDown(e, saveRef)}
-                    style={{ flex: 1, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #f43f5e', fontSize: '15px', fontWeight: 900, color: '#f43f5e', outline: 'none' }} />
+                    style={{ flex: 1, width: '100%', boxSizing: 'border-box', minWidth: 0, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #f43f5e', fontSize: '15px', fontWeight: 900, color: '#f43f5e', outline: 'none' }} />
                 </div>
                 {/* Closing Balance */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <label style={{ width: '130px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Closing Balance</label>
-                  <div style={{ fontSize: '15px', fontWeight: 950, color: closingBalance < 0 ? '#f43f5e' : PB.primary, background: closingBalance < 0 ? '#fff1f2' : PB.light, padding: '6px 12px', borderRadius: '8px', flex: 1, border: `1.5px solid ${closingBalance < 0 ? '#fecdd3' : PB.border}` }}>
+                  <div style={{ fontSize: '15px', fontWeight: 950, color: closingBalance < 0 ? '#f43f5e' : PB.primary, background: closingBalance < 0 ? '#fff1f2' : PB.light, padding: '6px 12px', borderRadius: '8px', flex: 1, minWidth: 0, boxSizing: 'border-box', border: `1.5px solid ${closingBalance < 0 ? '#fecdd3' : PB.border}` }}>
                     {fmt(closingBalance)}
                   </div>
                 </div>
@@ -425,7 +425,7 @@ const PbPayments = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <label style={{ width: '130px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Note</label>
                   <input type="text" placeholder="Short note..." value={formData.note} onChange={e => setFormData({ ...formData, note: e.target.value })}
-                    style={{ flex: 1, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '13.5px', color: '#1e293b', outline: 'none' }} />
+                    style={{ flex: 1, width: '100%', boxSizing: 'border-box', minWidth: 0, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '13.5px', color: '#1e293b', outline: 'none' }} />
                 </div>
                 <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
                   <button type="button" onClick={() => setIsModalOpen(false)}

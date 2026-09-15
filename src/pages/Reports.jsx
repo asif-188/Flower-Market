@@ -610,6 +610,7 @@ const Reports = () => {
             });
             const paymentsTotal  = buyerPayments.reduce((s, p) => s + (p.amount || 0), 0);
             const cashLessTotal  = buyerPayments.reduce((s, p) => s + (p.cashLess || 0), 0);
+            const notesTotal     = buyerPayments.map(p => p.note || p.notes).filter(Boolean).join(', ');
 
             // prevBalance should be the opening balance at the start of the period
             const prevBalance = row.opening;
@@ -629,6 +630,7 @@ const Reports = () => {
                 cashLess:      cashLessTotal,
                 prevBalance,
                 dateLabel,
+                notes:         notesTotal,
                 bizInfo,
                 labels: {
                     date: t('date'),

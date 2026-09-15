@@ -37,6 +37,8 @@ export async function generateBuyerReceiptCanvas({
     cashLess      = 0,
     prevBalance   = 0,
     dateLabel     = '',
+    notes         = '',
+    note          = '',
     bizInfo       = {},
     labels        = {}, // Translation labels
     lang          = 'en',
@@ -82,9 +84,12 @@ export async function generateBuyerReceiptCanvas({
     const runningBalance = prevBalance - paymentsTotal - cashLess;
     const absGrandTotal  = runningBalance + salesTotal;
 
+    const noteText = (notes || note || '').trim();
+    const noteExtraH = noteText ? 50 : 0;
+
     // ── Calculate Height ──
     const rowsCount = salesItems.length;
-    const H = 850 + (rowsCount * LINE_H); // Reduced base height since we don't force empty rows
+    const H = 850 + noteExtraH + (rowsCount * LINE_H); // Base height + note height + rows height
 
     const canvas  = document.createElement('canvas');
     canvas.width  = W;
@@ -257,14 +262,29 @@ export async function generateBuyerReceiptCanvas({
     drawText(fmtNum(salesTotal), W - PAD - 20, y + 25, { size: 28, weight: '800', align: 'right', color: '#b91c1c' });
     y += 70;
 
-    // 6. Grand Total
+    // 6. Grand Total (Bakki)
     ctx.lineWidth = 3.0;
     rect(PAD, y, W - PAD*2, 70);
     drawText(grandTotalLabel, PAD + 20, y + 35, { size: 28, weight: '900' });
     drawText(`₹${fmtNum(absGrandTotal, 2)}`, W - PAD - 20, y + 35, { size: 36, weight: '900', align: 'right' });
-    y += 90;
+    y += 85;
     ctx.lineWidth = 1.5;
 
+    // 6b. Notes (if present, rendered below Bakki)
+    if (noteText) {
+        const noteLabelText = lang === 'ta' ? 'குறிப்பு' : 'Note';
+        drawText(`${noteLabelText} : ${noteText}`, PAD + 10, y + 15, {
+            size: 22,
+            weight: '700',
+            align: 'left',
+            color: '#1e293b',
+            wrapWidth: W - PAD * 2 - 20,
+            lineHeight: 28
+        });
+        y += 45;
+    }
+
+    y += 15;
     drawText('🌹 நன்றி (Thank You) 🌹', W/2, y, { size: 28, align: 'center' });
 
     return new Promise((resolve) => {
