@@ -74,7 +74,7 @@ const SearchSelect = ({ items, value, onChange, onKeyDown, inputRef, placeholder
                 type="text"
                 placeholder={placeholder}
                 value={open ? queryVal : selectedName}
-                onFocus={() => { setQueryVal(selectedName || ''); setOpen(true); setCursor(0); }}
+                onFocus={(e) => { setQueryVal(selectedName || ''); setOpen(true); setCursor(0); e.target.select(); }}
                 onBlur={() => setTimeout(() => setOpen(false), 200)}
                 onChange={e => { 
                     const val = e.target.value;
@@ -355,7 +355,6 @@ const FarmerPurchase = () => {
             rate: String(item.rate),
             amount: String(item.amount)
         });
-        setTimeout(() => refFlower.current?.focus(), 100);
     };
 
     const handleDeleteItem = async (purchase) => {
