@@ -603,11 +603,11 @@ const Payments = () => {
 
                         <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
                             {/* Left Side: Entry Form */}
-                            <div style={{ width: '420px', flexShrink: 0, borderRight: '1.5px solid #f1f5f9', padding: '20px 24px', overflowY: 'auto', boxSizing: 'border-box' }}>
+                            <div style={{ width: '490px', flexShrink: 0, borderRight: '1.5px solid #f1f5f9', padding: '20px 24px', overflowY: 'auto', boxSizing: 'border-box' }}>
                                 <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                     {/* Date */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{t('date')}</label>
+                                        <label style={{ display: 'inline-block', width: '180px', minWidth: '180px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>{t('date')}</label>
                                         <input
                                             ref={dateRef}
                                             type="date"
@@ -621,7 +621,7 @@ const Payments = () => {
 
                                     {/* Customer Searchable Dropdown */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{t('customer')}</label>
+                                        <label style={{ display: 'inline-block', width: '180px', minWidth: '180px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>{t('customer')}</label>
                                         <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
                                             <input
                                                 ref={customerRef}
@@ -709,7 +709,7 @@ const Payments = () => {
 
                                     {/* Opening Balance */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{t('openingBalance')}</label>
+                                        <label style={{ display: 'inline-block', width: '180px', minWidth: '180px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>{t('openingBalance')}</label>
                                         <div style={{ fontSize: '15px', fontWeight: 900, color: '#1e293b', background: '#f8fafc', padding: '6px 12px', borderRadius: '8px', flex: 1, minWidth: 0, boxSizing: 'border-box', border: '1.5px solid #f1f5f9' }}>
                                             {fmt(openingBalance)}
                                         </div>
@@ -717,7 +717,7 @@ const Payments = () => {
 
                                     {/* Given Amount */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{t('givenAmount')}</label>
+                                        <label style={{ display: 'inline-block', width: '180px', minWidth: '180px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>{t('givenAmount')}</label>
                                         <input
                                             ref={amountRef}
                                             type="number"
@@ -733,7 +733,7 @@ const Payments = () => {
 
                                     {/* Cash Less */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>CASH LESS</label>
+                                        <label style={{ display: 'inline-block', width: '180px', minWidth: '180px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>{t('cashLess')}</label>
                                         <input
                                             ref={cashLessRef}
                                             type="number"
@@ -747,7 +747,7 @@ const Payments = () => {
 
                                     {/* Closing Balance */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{t('closingBalance')}</label>
+                                        <label style={{ display: 'inline-block', width: '180px', minWidth: '180px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>{t('closingBalance')}</label>
                                         <div style={{ fontSize: '15px', fontWeight: 950, color: closingBalance < 0 ? '#f43f5e' : '#16a34a', background: closingBalance < 0 ? '#fff1f2' : '#f0fdf4', padding: '6px 12px', borderRadius: '8px', flex: 1, minWidth: 0, boxSizing: 'border-box', border: '1.5px solid ' + (closingBalance < 0 ? '#fecdd3' : '#bbf7d0') }}>
                                             {fmt(closingBalance)}
                                         </div>
@@ -755,7 +755,7 @@ const Payments = () => {
 
                                     {/* Notes */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{t('notes')}</label>
+                                        <label style={{ display: 'inline-block', width: '180px', minWidth: '180px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>{t('notes')}</label>
                                         <input
                                             ref={noteRef}
                                             type="text"
