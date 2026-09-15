@@ -237,7 +237,9 @@ const SalesEntry = () => {
         // 7. Final Balance (at the end of selected date)
         const finalBalance = ledgerBalance + todayTotal;
 
-        return { oldBalance, cashRec, cashLess, todayTotal, finalBalance, ledgerBalance };
+        const dayNotes = dayPayments.map(p => p.note || p.notes).filter(Boolean).join(', ');
+
+        return { oldBalance, cashRec, cashLess, todayTotal, finalBalance, ledgerBalance, notes: dayNotes };
     }, [buyers, buyerId, allSales, allPayments, date]);
 
     const handleAddItem = async () => {
@@ -350,6 +352,7 @@ const SalesEntry = () => {
                 cashLess: cashLess,
                 prevBalance: oldBalance,
                 dateLabel: date.split('-').reverse().join('/'),
+                notes: financialStats.notes || '',
                 bizInfo: settings,
                 lang: lang,
                 labels: {

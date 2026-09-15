@@ -99,6 +99,7 @@ const Payments = () => {
     const customerRef = React.useRef(null);
     const amountRef = React.useRef(null);
     const cashLessRef = React.useRef(null);
+    const noteRef = React.useRef(null);
     const saveRef = React.useRef(null);
 
     useEffect(() => {
@@ -614,14 +615,14 @@ const Payments = () => {
                                             onChange={e => setFormData({ ...formData, date: e.target.value })}
                                             onKeyDown={(e) => handleKeyDown(e, customerRef)}
                                             required
-                                            style={{ flex: 1, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '13.5px', fontWeight: 600, color: '#1e293b', outline: 'none' }}
+                                            style={{ flex: 1, width: '100%', boxSizing: 'border-box', minWidth: 0, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '13.5px', fontWeight: 600, color: '#1e293b', outline: 'none' }}
                                         />
                                     </div>
 
                                     {/* Customer Searchable Dropdown */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                         <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{t('customer')}</label>
-                                        <div style={{ flex: 1, position: 'relative' }}>
+                                        <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
                                             <input
                                                 ref={customerRef}
                                                 type="text"
@@ -659,7 +660,7 @@ const Payments = () => {
                                                         handleKeyDown(e, amountRef);
                                                     }
                                                 }}
-                                                style={{ width: '100%', padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '13.5px', fontWeight: 600, color: '#1e293b', outline: 'none' }}
+                                                style={{ width: '100%', boxSizing: 'border-box', minWidth: 0, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '13.5px', fontWeight: 600, color: '#1e293b', outline: 'none' }}
                                             />
                                             {isDropdownOpen && (
                                                 <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 110, background: '#fff', borderRadius: '8px', border: '1.5px solid #e2e8f0', marginTop: '4px', maxHeight: '220px', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}>
@@ -709,7 +710,7 @@ const Payments = () => {
                                     {/* Opening Balance */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                         <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{t('openingBalance')}</label>
-                                        <div style={{ fontSize: '15px', fontWeight: 900, color: '#1e293b', background: '#f8fafc', padding: '6px 12px', borderRadius: '8px', flex: 1, border: '1.5px solid #f1f5f9' }}>
+                                        <div style={{ fontSize: '15px', fontWeight: 900, color: '#1e293b', background: '#f8fafc', padding: '6px 12px', borderRadius: '8px', flex: 1, minWidth: 0, boxSizing: 'border-box', border: '1.5px solid #f1f5f9' }}>
                                             {fmt(openingBalance)}
                                         </div>
                                     </div>
@@ -726,7 +727,7 @@ const Payments = () => {
                                             onKeyDown={(e) => handleKeyDown(e, cashLessRef)}
                                             required
                                             min="1"
-                                            style={{ flex: 1, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #16a34a', fontSize: '15px', fontWeight: 900, color: '#16a34a', outline: 'none' }}
+                                            style={{ flex: 1, width: '100%', boxSizing: 'border-box', minWidth: 0, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #16a34a', fontSize: '15px', fontWeight: 900, color: '#16a34a', outline: 'none' }}
                                         />
                                     </div>
 
@@ -739,17 +740,31 @@ const Payments = () => {
                                             placeholder="0"
                                             value={formData.cashLess}
                                             onChange={e => setFormData({ ...formData, cashLess: e.target.value })}
-                                            onKeyDown={(e) => handleKeyDown(e, saveRef)}
-                                            style={{ flex: 1, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #f43f5e', fontSize: '15px', fontWeight: 900, color: '#f43f5e', outline: 'none' }}
+                                            onKeyDown={(e) => handleKeyDown(e, noteRef)}
+                                            style={{ flex: 1, width: '100%', boxSizing: 'border-box', minWidth: 0, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #f43f5e', fontSize: '15px', fontWeight: 900, color: '#f43f5e', outline: 'none' }}
                                         />
                                     </div>
 
                                     {/* Closing Balance */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                         <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{t('closingBalance')}</label>
-                                        <div style={{ fontSize: '15px', fontWeight: 950, color: closingBalance < 0 ? '#f43f5e' : '#16a34a', background: closingBalance < 0 ? '#fff1f2' : '#f0fdf4', padding: '6px 12px', borderRadius: '8px', flex: 1, border: '1.5px solid ' + (closingBalance < 0 ? '#fecdd3' : '#bbf7d0') }}>
+                                        <div style={{ fontSize: '15px', fontWeight: 950, color: closingBalance < 0 ? '#f43f5e' : '#16a34a', background: closingBalance < 0 ? '#fff1f2' : '#f0fdf4', padding: '6px 12px', borderRadius: '8px', flex: 1, minWidth: 0, boxSizing: 'border-box', border: '1.5px solid ' + (closingBalance < 0 ? '#fecdd3' : '#bbf7d0') }}>
                                             {fmt(closingBalance)}
                                         </div>
+                                    </div>
+
+                                    {/* Notes */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{t('notes')}</label>
+                                        <input
+                                            ref={noteRef}
+                                            type="text"
+                                            placeholder="Short note..."
+                                            value={formData.note}
+                                            onChange={e => setFormData({ ...formData, note: e.target.value })}
+                                            onKeyDown={(e) => handleKeyDown(e, saveRef)}
+                                            style={{ flex: 1, width: '100%', boxSizing: 'border-box', minWidth: 0, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', fontSize: '13.5px', fontWeight: 600, color: '#1e293b', outline: 'none' }}
+                                        />
                                     </div>
 
                                     {/* Actions */}
