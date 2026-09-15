@@ -410,7 +410,7 @@ const PbPayments = () => {
                 </div>
                 {/* Cash Less */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <label style={{ width: '130px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Cash Less</label>
+                  <label style={{ width: '130px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{t('cashLess')}</label>
                   <input ref={cashLessRef} type="number" placeholder="0" value={formData.cashLess} onChange={e => setFormData({ ...formData, cashLess: e.target.value })} onKeyDown={e => handleKeyDown(e, saveRef)}
                     style={{ flex: 1, width: '100%', boxSizing: 'border-box', minWidth: 0, padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #f43f5e', fontSize: '15px', fontWeight: 900, color: '#f43f5e', outline: 'none' }} />
                 </div>
