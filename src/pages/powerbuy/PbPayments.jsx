@@ -41,6 +41,7 @@ const PbPayments = () => {
   const [buyers, setBuyers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [editingPayment, setEditingPayment] = useState(null);
   const [formData, setFormData] = useState({ entityId: '', amount: '', cashLess: '', method: 'Cash', note: '', date: new Date().toISOString().split('T')[0] });
   const [customerSearch, setCustomerSearch] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -100,8 +101,33 @@ const PbPayments = () => {
   }, []);
 
   const handleOpenModal = () => {
+    setEditingPayment(null);
     setFormData({ entityId: '', amount: '', cashLess: '', method: 'Cash', note: '', date: new Date().toISOString().split('T')[0] });
     setCustomerSearch('');
+    setIsDropdownOpen(false);
+    setIsModalOpen(true);
+  };
+
+  const handleEditRecord = (p) => {
+    setEditingPayment(p);
+    let dtStr = new Date().toISOString().split('T')[0];
+    if (p.timestamp) {
+      if (typeof p.timestamp === 'string') {
+        dtStr = p.timestamp.split('T')[0];
+      } else if (p.timestamp.toDate) {
+        dtStr = toDateStr(p.timestamp.toDate());
+      }
+    }
+    const custName = getName(p.entityId);
+    setFormData({
+      entityId: p.entityId || '',
+      amount: p.amount !== undefined && p.amount !== null ? p.amount : '',
+      cashLess: p.cashLess !== undefined && p.cashLess !== null ? p.cashLess : '',
+      method: p.method || 'Cash',
+      note: p.note || '',
+      date: dtStr
+    });
+    setCustomerSearch(custName !== '—' ? custName : '');
     setIsDropdownOpen(false);
     setIsModalOpen(true);
   };
@@ -113,11 +139,47 @@ const PbPayments = () => {
     try {
       const amountNum = parseFloat(formData.amount || 0);
       const cashLessNum = parseFloat(formData.cashLess || 0);
-      await savePbPayment({ ...formData, amount: amountNum, cashLess: cashLessNum, timestamp: new Date(formData.date).toISOString() });
-      await updateDoc(doc(db, 'pb_buyers', formData.entityId), { balance: increment(-(amountNum + cashLessNum)) });
-      setFormData(prev => ({ ...prev, entityId: '', amount: '', cashLess: '', note: '' }));
-      setCustomerSearch('');
-      setTimeout(() => customerRef.current?.focus(), 100);
+      
+      if (editingPayment) {
+        const oldAmountNum = parseFloat(editingPayment.amount || 0);
+        const oldCashLessNum = parseFloat(editingPayment.cashLess || 0);
+        const oldTotal = oldAmountNum + oldCashLessNum;
+        const newTotal = amountNum + cashLessNum;
+        const diff = newTotal - oldTotal;
+
+        await updateDoc(doc(db, 'pb_payments', editingPayment.id), {
+          entityId: formData.entityId,
+          amount: amountNum,
+          cashLess: cashLessNum,
+          method: formData.method,
+          note: formData.note,
+          timestamp: new Date(formData.date).toISOString()
+        });
+
+        if (editingPayment.entityId === formData.entityId) {
+          if (diff !== 0) {
+            await updateDoc(doc(db, 'pb_buyers', formData.entityId), { balance: increment(-diff) });
+          }
+        } else {
+          if (editingPayment.entityId) {
+            await updateDoc(doc(db, 'pb_buyers', editingPayment.entityId), { balance: increment(oldTotal) });
+          }
+          if (formData.entityId) {
+            await updateDoc(doc(db, 'pb_buyers', formData.entityId), { balance: increment(-newTotal) });
+          }
+        }
+
+        const targetId = editingPayment.id;
+        setHighlightedId(targetId);
+        setTimeout(() => setHighlightedId(prev => prev === targetId ? null : prev), 2500);
+        setIsModalOpen(false);
+      } else {
+        await savePbPayment({ ...formData, amount: amountNum, cashLess: cashLessNum, timestamp: new Date(formData.date).toISOString() });
+        await updateDoc(doc(db, 'pb_buyers', formData.entityId), { balance: increment(-(amountNum + cashLessNum)) });
+        setFormData(prev => ({ ...prev, entityId: '', amount: '', cashLess: '', note: '' }));
+        setCustomerSearch('');
+        setTimeout(() => customerRef.current?.focus(), 100);
+      }
     } catch (err) {
       alert('❌ Failed to record payment: ' + err.message);
     } finally {
@@ -330,11 +392,20 @@ const PbPayments = () => {
                     </td>
                     <td style={{ ...S.td, textAlign: 'center' }}>
                       {isEditDeleteAllowed() && (
-                        <button onClick={() => handleDelete(p)}
-                          style={{ background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#fff1f2', border: 'none', borderRadius: '8px', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: isHighlighted ? '#fff' : '#f43f5e' }}
-                          onMouseEnter={e => { if (!isHighlighted) { e.currentTarget.style.background = '#f43f5e'; e.currentTarget.style.color = '#fff'; } }}
-                          onMouseLeave={e => { if (!isHighlighted) { e.currentTarget.style.background = '#fff1f2'; e.currentTarget.style.color = '#f43f5e'; } }}
-                        ><Trash2 size={13} /></button>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          <button onClick={() => handleEditRecord(p)}
+                            title="Edit Payment"
+                            style={{ background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#e0f2fe', border: 'none', borderRadius: '8px', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: isHighlighted ? '#fff' : '#0284c7' }}
+                            onMouseEnter={e => { if (!isHighlighted) { e.currentTarget.style.background = '#0284c7'; e.currentTarget.style.color = '#fff'; } }}
+                            onMouseLeave={e => { if (!isHighlighted) { e.currentTarget.style.background = '#e0f2fe'; e.currentTarget.style.color = '#0284c7'; } }}
+                          ><Edit2 size={13} /></button>
+                          <button onClick={() => handleDelete(p)}
+                            title="Delete Payment"
+                            style={{ background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#fff1f2', border: 'none', borderRadius: '8px', width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: isHighlighted ? '#fff' : '#f43f5e' }}
+                            onMouseEnter={e => { if (!isHighlighted) { e.currentTarget.style.background = '#f43f5e'; e.currentTarget.style.color = '#fff'; } }}
+                            onMouseLeave={e => { if (!isHighlighted) { e.currentTarget.style.background = '#fff1f2'; e.currentTarget.style.color = '#f43f5e'; } }}
+                          ><Trash2 size={13} /></button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -350,8 +421,8 @@ const PbPayments = () => {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '16px' }}>
           <div style={{ background: '#fff', borderRadius: '16px', width: '95%', maxWidth: '520px', maxHeight: '90vh', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden', fontFamily: 'var(--font-sans)', display: 'flex', flexDirection: 'column' }}>
             <div style={{ background: `linear-gradient(135deg, ${PB.primary}, #6d28d9)`, padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-              <span style={{ fontSize: '18px', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-display)' }}>⚜️ VV — Cash Receive</span>
-              <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', display: 'flex' }}><X size={24} strokeWidth={2.5} /></button>
+              <span style={{ fontSize: '18px', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-display)' }}>{editingPayment ? '⚜️ VV — Edit Cash Receive' : '⚜️ VV — Cash Receive'}</span>
+              <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', display: 'flex' }}><X size={24} strokeWidth={2.5} stroke="currentColor" /></button>
             </div>
             <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
               <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
