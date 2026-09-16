@@ -55,6 +55,7 @@ const Payments = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [paymentType] = useState('buyer');
+    const [editingPayment, setEditingPayment] = useState(null);
 
     const [formData, setFormData] = useState({ entityId: '', amount: '', cashLess: '', method: 'Cash', note: '', date: new Date().toISOString().split('T')[0] });
     const [customerSearch, setCustomerSearch] = useState('');
@@ -152,6 +153,7 @@ const Payments = () => {
     }, [queryStart, queryEnd]);
 
     const handleOpenModal = () => {
+        setEditingPayment(null);
         setFormData({ 
             entityId: '', 
             amount: '', 
@@ -165,6 +167,30 @@ const Payments = () => {
         setIsModalOpen(true);
     };
 
+    const handleEditRecord = (p) => {
+        setEditingPayment(p);
+        let dtStr = new Date().toISOString().split('T')[0];
+        if (p.timestamp) {
+            if (typeof p.timestamp === 'string') {
+                dtStr = p.timestamp.split('T')[0];
+            } else if (p.timestamp.toDate) {
+                dtStr = toDateStr(p.timestamp.toDate());
+            }
+        }
+        const custName = getName(p.entityId, p.type);
+        setFormData({
+            entityId: p.entityId || '',
+            amount: p.amount !== undefined && p.amount !== null ? p.amount : '',
+            cashLess: p.cashLess !== undefined && p.cashLess !== null ? p.cashLess : '',
+            method: p.method || 'Cash',
+            note: p.note || '',
+            date: dtStr
+        });
+        setCustomerSearch(custName !== '—' ? custName : '');
+        setIsDropdownOpen(false);
+        setIsModalOpen(true);
+    };
+
     const handleSave = async (e) => {
         e.preventDefault();
         if (isSaving || !formData.entityId || !formData.amount) return;
@@ -172,28 +198,73 @@ const Payments = () => {
         try {
             const amountNum = parseFloat(formData.amount || 0);
             const cashLessNum = parseFloat(formData.cashLess || 0);
-            const entityRef = doc(db, paymentType === 'farmer' ? 'farmers' : 'buyers', formData.entityId);
-            await savePayment({
-                ...formData,
-                amount: amountNum,
-                cashLess: cashLessNum,
-                type: paymentType,
-                timestamp: new Date(formData.date).toISOString()
-            });
-            await updateDoc(entityRef, { balance: increment(-(amountNum + cashLessNum)) });
+            const entityName = (paymentType === 'farmer' ? farmers : buyers).find(b => b.id === formData.entityId)?.name || 'Unknown';
             
-            // Keep modal open and reset to fresh page
-            setFormData(prev => ({ 
-                ...prev, 
-                entityId: '', 
-                amount: '', 
-                cashLess: '', 
-                note: '' 
-            }));
-            setCustomerSearch('');
-            
-            // Re-focus customer search for next entry
-            setTimeout(() => customerRef.current?.focus(), 100);
+            if (editingPayment) {
+                const oldAmountNum = parseFloat(editingPayment.amount || 0);
+                const oldCashLessNum = parseFloat(editingPayment.cashLess || 0);
+                const oldTotal = oldAmountNum + oldCashLessNum;
+                const newTotal = amountNum + cashLessNum;
+                const diff = newTotal - oldTotal;
+
+                const paymentRef = doc(db, 'payments', editingPayment.id);
+                await updateDoc(paymentRef, {
+                    entityId: formData.entityId,
+                    amount: amountNum,
+                    cashLess: cashLessNum,
+                    method: formData.method,
+                    note: formData.note,
+                    type: editingPayment.type || paymentType,
+                    timestamp: new Date(formData.date).toISOString()
+                });
+
+                const collectionName = (editingPayment.type || paymentType) === 'farmer' ? 'farmers' : 'buyers';
+                if (editingPayment.entityId === formData.entityId) {
+                    if (diff !== 0) {
+                        const entityRef = doc(db, collectionName, formData.entityId);
+                        await updateDoc(entityRef, { balance: increment(-diff) });
+                    }
+                } else {
+                    if (editingPayment.entityId) {
+                        const oldRef = doc(db, collectionName, editingPayment.entityId);
+                        await updateDoc(oldRef, { balance: increment(oldTotal) });
+                    }
+                    if (formData.entityId) {
+                        const newRef = doc(db, collectionName, formData.entityId);
+                        await updateDoc(newRef, { balance: increment(-newTotal) });
+                    }
+                }
+
+                await logHistoryAction('Edit', 'Payment', entityName, `Updated payment from ₹${oldTotal} to ₹${newTotal}`);
+                
+                const targetId = editingPayment.id;
+                setHighlightedId(targetId);
+                setTimeout(() => setHighlightedId(prev => prev === targetId ? null : prev), 2500);
+                setIsModalOpen(false);
+            } else {
+                const entityRef = doc(db, paymentType === 'farmer' ? 'farmers' : 'buyers', formData.entityId);
+                await savePayment({
+                    ...formData,
+                    amount: amountNum,
+                    cashLess: cashLessNum,
+                    type: paymentType,
+                    timestamp: new Date(formData.date).toISOString()
+                });
+                await updateDoc(entityRef, { balance: increment(-(amountNum + cashLessNum)) });
+                
+                // Keep modal open and reset to fresh page
+                setFormData(prev => ({ 
+                    ...prev, 
+                    entityId: '', 
+                    amount: '', 
+                    cashLess: '', 
+                    note: '' 
+                }));
+                setCustomerSearch('');
+                
+                // Re-focus customer search for next entry
+                setTimeout(() => customerRef.current?.focus(), 100);
+            }
         } catch (err) {
             alert('❌ Failed to record payment: ' + err.message);
         } finally {
@@ -557,16 +628,30 @@ const Payments = () => {
                                         </td>
                                         <td style={{ ...S.td, textAlign: 'center' }}>
                                             {isEditDeleteAllowed() && (
-                                                <button onClick={() => handleDelete(p)}
-                                                    style={{ 
-                                                        background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#fff1f2', 
-                                                        border: 'none', borderRadius: '8px', width: '32px', height: '32px', 
-                                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', 
-                                                        cursor: 'pointer', color: isHighlighted ? '#fff' : '#f43f5e' 
-                                                    }}
-                                                    onMouseEnter={e => { if(!isHighlighted) { e.currentTarget.style.background = '#f43f5e'; e.currentTarget.style.color = '#fff'; } }}
-                                                    onMouseLeave={e => { if(!isHighlighted) { e.currentTarget.style.background = '#fff1f2'; e.currentTarget.style.color = '#f43f5e'; } }}
-                                                ><Trash2 size={13} /></button>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                                    <button onClick={() => handleEditRecord(p)}
+                                                        title="Edit Payment"
+                                                        style={{ 
+                                                            background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#e0f2fe', 
+                                                            border: 'none', borderRadius: '8px', width: '32px', height: '32px', 
+                                                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', 
+                                                            cursor: 'pointer', color: isHighlighted ? '#fff' : '#0284c7' 
+                                                        }}
+                                                        onMouseEnter={e => { if(!isHighlighted) { e.currentTarget.style.background = '#0284c7'; e.currentTarget.style.color = '#fff'; } }}
+                                                        onMouseLeave={e => { if(!isHighlighted) { e.currentTarget.style.background = '#e0f2fe'; e.currentTarget.style.color = '#0284c7'; } }}
+                                                    ><Edit2 size={13} /></button>
+                                                    <button onClick={() => handleDelete(p)}
+                                                        title="Delete Payment"
+                                                        style={{ 
+                                                            background: isHighlighted ? 'rgba(255,255,255,0.2)' : '#fff1f2', 
+                                                            border: 'none', borderRadius: '8px', width: '32px', height: '32px', 
+                                                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', 
+                                                            cursor: 'pointer', color: isHighlighted ? '#fff' : '#f43f5e' 
+                                                        }}
+                                                        onMouseEnter={e => { if(!isHighlighted) { e.currentTarget.style.background = '#f43f5e'; e.currentTarget.style.color = '#fff'; } }}
+                                                        onMouseLeave={e => { if(!isHighlighted) { e.currentTarget.style.background = '#fff1f2'; e.currentTarget.style.color = '#f43f5e'; } }}
+                                                    ><Trash2 size={13} /></button>
+                                                </div>
                                             )}
                                         </td>
                                     </tr>
@@ -595,7 +680,7 @@ const Payments = () => {
                     <div style={{ background: '#fff', borderRadius: '16px', width: '95%', maxWidth: '1200px', height: '90vh', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden', fontFamily: 'var(--font-sans)', display: 'flex', flexDirection: 'column' }}>
                         {/* Modal Header — solid green */}
                         <div style={{ background: '#16a34a', padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-                            <span style={{ fontSize: '18px', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-display)' }}>{t('cashReceive')}</span>
+                            <span style={{ fontSize: '18px', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-display)' }}>{editingPayment ? 'Edit Cash Receive' : t('cashReceive')}</span>
                             <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', display: 'flex' }}>
                                 <X size={24} strokeWidth={2.5} />
                             </button>
@@ -782,7 +867,7 @@ const Payments = () => {
                                                 ? <div style={{ width: '18px', height: '18px', border: '2.5px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
                                                 : <CheckCircle2 size={18} />
                                             }
-                                            SAVE PAYMENT
+                                            {editingPayment ? 'UPDATE PAYMENT' : 'SAVE PAYMENT'}
                                         </button>
                                     </div>
                                 </form>
