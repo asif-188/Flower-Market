@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Plus, X, Edit2, Trash2 } from 'lucide-react';
 import { subscribeToCollection, savePbPayment, db } from '../../utils/storage';
 import { doc, updateDoc, increment, deleteDoc } from 'firebase/firestore';
 import { useTenant } from '../../utils/TenantContext';
+import { LangContext } from '../../components/Layout';
 
 const PB = {
   primary: '#7c3aed',
@@ -36,6 +37,7 @@ const S = {
 };
 
 const PbPayments = () => {
+  const { t } = useContext(LangContext);
   const { isEditDeleteAllowed } = useTenant();
   const [payments, setPayments] = useState([]);
   const [buyers, setBuyers] = useState([]);

@@ -180,6 +180,8 @@ const PbSalesEntry = () => {
     const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
     const futurePayAmt = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
     const oldBalance = buyerId ? (liveBalance - (futureSalesAmt + todayTotal) + (futurePayAmt + cashRec + cashLess)) : 0;
+    const ledgerBalance = oldBalance - cashRec - cashLess;
+    const finalBalance = ledgerBalance + todayTotal;
     const dayNotes = dayPayments.map(p => p.note || p.notes).filter(Boolean).join(', ');
     return { oldBalance, cashRec, cashLess, todayTotal, finalBalance, ledgerBalance, notes: dayNotes };
   }, [buyers, buyerId, allSales, allPayments, date]);
