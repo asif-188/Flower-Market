@@ -225,7 +225,7 @@ export async function generateBuyerReceiptCanvas({
             const fName = lang === 'ta' ? (item.flowerTypeTa || item.flowerType) : item.flowerType;
             drawText(String(i + 1), cols[0] + colW[0]/2, rowY, { size: 20, align: 'center' });
             drawText(fName || '', cols[1] + 10, rowY, { size: 22, weight: '600' });
-            drawText(parseFloat(item.quantity).toFixed(3), cols[2] + colW[2]/2, rowY, { size: 20, align: 'center' });
+            drawText(parseFloat(item.quantity).toFixed(2), cols[2] + colW[2]/2, rowY, { size: 20, align: 'center' });
             drawText(fmtNum(item.price), cols[3] + colW[3]/2, rowY, { size: 20, align: 'center' });
             drawText(fmtNum(item.total), W - PAD - 10, rowY, { size: 22, weight: '800', align: 'right' });
         }
@@ -376,7 +376,7 @@ export async function generateLedgerCanvas({
 
         const displayStartDate = startDate ? startDate.split('-').reverse().join('/') : '';
         const allRows = [
-            { date: displayStartDate, particulars: openingBalLabel, weight: '0.000', rate: '0', total: openingBalance, cashRec: 0, cashLess: 0, isOpening: true },
+            { date: displayStartDate, particulars: openingBalLabel, weight: '0.00', rate: '0', total: openingBalance, cashRec: 0, cashLess: 0, isOpening: true },
             ...ledgerRows
         ];
 
@@ -782,7 +782,7 @@ export async function generateLedgerCanvas({
     };
 
     const displayStartDate = startDate ? startDate.split('-').reverse().join('/') : '';
-    drawRow(y, { date: displayStartDate, particulars: openingBalLabel, weight: '0.000', rate: '0', total: fmtNum(openingBalance), cashRec: '0', cashLess: '0' }, true);
+    drawRow(y, { date: displayStartDate, particulars: openingBalLabel, weight: '0.00', rate: '0', total: fmtNum(openingBalance), cashRec: '0', cashLess: '0' }, true);
     y += LINE_H;
 
     // Data Rows

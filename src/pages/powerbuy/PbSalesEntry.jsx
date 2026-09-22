@@ -535,7 +535,7 @@ const PbSalesEntry = () => {
               <tr key={i}>
                 <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{i + 1}</td>
                 <td style={{ border: '1px solid #000', padding: '8px', fontWeight: 'bold' }}>{lang === 'ta' ? (s.items[0].flowerTypeTa || s.items[0].flowerType) : s.items[0].flowerType}</td>
-                <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{parseFloat(s.items[0].quantity).toFixed(3)}</td>
+                <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{parseFloat(s.items[0].quantity).toFixed(2)}</td>
                 <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{s.items[0].price}</td>
                 <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>{Number(s.grandTotal).toLocaleString('en-IN')}</td>
               </tr>

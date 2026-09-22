@@ -42,6 +42,7 @@ const PbReports = () => {
   const [sales, setSales] = useState([]);
   const [buyers, setBuyers] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [pbFlowers, setPbFlowers] = useState([]);
 
   const [fromDate, setFromDate] = useState(today);
   const [toDate, setToDate] = useState(today);
@@ -63,7 +64,8 @@ const PbReports = () => {
     const u1 = subscribeToCollection('pb_sales', setSales);
     const u2 = subscribeToCollection('pb_buyers', setBuyers);
     const u3 = subscribeToCollection('pb_payments', setPayments);
-    return () => { u1(); u2(); u3(); };
+    const u4 = subscribeToCollection('pb_flowers', setPbFlowers);
+    return () => { u1(); u2(); u3(); u4(); };
   }, []);
 
   const applyPreset = (preset) => {
@@ -173,7 +175,9 @@ const PbReports = () => {
         return d && d >= appliedFrom && d <= appliedTo;
       });
       const flatItems = buyerSales.flatMap(s => (s.items || []).map(item => {
-        return { ...item, flowerTypeTa: item.flowerType, flowerType: item.flowerType };
+        const masterFlower = pbFlowers.find(f => f.name?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase() || f.taName?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase());
+        const localizedName = lang === 'ta' ? (item.flowerTypeTa || masterFlower?.taName || item.flowerType) : item.flowerType;
+        return { ...item, flowerTypeTa: localizedName, flowerType: localizedName };
       }));
 
       const buyerPayments = payments.filter(p => {
@@ -191,7 +195,7 @@ const PbReports = () => {
         : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`;
 
       const { blob, url } = await generateBuyerReceiptCanvas({
-        buyer: { ...row, name: row.name },
+        buyer: { ...row, name: lang === 'ta' ? (row.taName || row.name) : row.name },
         salesItems: flatItems,
         salesTotal: row.sales,
         paymentsTotal,
@@ -275,13 +279,15 @@ const PbReports = () => {
       periodSales.forEach(s => {
         const dateIso = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : '');
         (s.items || []).forEach(item => {
-          items.push({ dateIso, date: displayDateStr(dateIso), particulars: item.flowerType, weight: parseFloat(item.quantity).toFixed(3), rate: item.price, total: item.total, cashRec: 0, cashLess: 0 });
+          const masterFlower = pbFlowers.find(f => f.name?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase() || f.taName?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase());
+          const localizedName = lang === 'ta' ? (item.flowerTypeTa || masterFlower?.taName || item.flowerType) : item.flowerType;
+          items.push({ dateIso, date: displayDateStr(dateIso), particulars: localizedName, weight: parseFloat(item.quantity).toFixed(2), rate: item.price, total: item.total, cashRec: 0, cashLess: 0 });
         });
       });
       periodPayments.forEach(p => {
         const dateIso = getPaymentDate(p) || '';
-        if (p.amount > 0) items.push({ dateIso, date: displayDateStr(dateIso), particulars: t('cashRec'), weight: '0.000', rate: 0, total: 0, cashRec: p.amount, cashLess: 0 });
-        if (p.cashLess > 0) items.push({ dateIso, date: displayDateStr(dateIso), particulars: t('cashLess'), weight: '0.000', rate: 0, total: 0, cashRec: 0, cashLess: p.cashLess });
+        if (p.amount > 0) items.push({ dateIso, date: displayDateStr(dateIso), particulars: t('cashRec'), weight: '0.00', rate: 0, total: 0, cashRec: p.amount, cashLess: 0 });
+        if (p.cashLess > 0) items.push({ dateIso, date: displayDateStr(dateIso), particulars: t('cashLess'), weight: '0.00', rate: 0, total: 0, cashRec: 0, cashLess: p.cashLess });
       });
       items.sort((a, b) => a.dateIso.localeCompare(b.dateIso));
       
@@ -294,7 +300,7 @@ const PbReports = () => {
       };
 
       const pages = await generateLedgerCanvas({
-        buyer: { ...buyer, name: buyer.name },
+        buyer: { ...buyer, name: lang === 'ta' ? (buyer.taName || buyer.name) : buyer.name },
         ledgerRows: finalLedgerRows,
         summary,
         openingBalance,
@@ -404,13 +410,15 @@ const PbReports = () => {
       periodSales.forEach(s => {
         const dateIso = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : '');
         (s.items || []).forEach(item => {
-          items.push({ dateIso, date: displayDateStr(dateIso), particulars: item.flowerType, weight: parseFloat(item.quantity).toFixed(3), rate: item.price, total: item.total, cashRec: 0, cashLess: 0 });
+          const masterFlower = pbFlowers.find(f => f.name?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase() || f.taName?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase());
+          const localizedName = lang === 'ta' ? (item.flowerTypeTa || masterFlower?.taName || item.flowerType) : item.flowerType;
+          items.push({ dateIso, date: displayDateStr(dateIso), particulars: localizedName, weight: parseFloat(item.quantity).toFixed(2), rate: item.price, total: item.total, cashRec: 0, cashLess: 0 });
         });
       });
       periodPayments.forEach(p => {
         const dateIso = getPaymentDate(p) || '';
-        if (p.amount > 0) items.push({ dateIso, date: displayDateStr(dateIso), particulars: t('cashRec'), weight: '0.000', rate: 0, total: 0, cashRec: p.amount, cashLess: 0 });
-        if (p.cashLess > 0) items.push({ dateIso, date: displayDateStr(dateIso), particulars: t('cashLess'), weight: '0.000', rate: 0, total: 0, cashRec: 0, cashLess: p.cashLess });
+        if (p.amount > 0) items.push({ dateIso, date: displayDateStr(dateIso), particulars: t('cashRec'), weight: '0.00', rate: 0, total: 0, cashRec: p.amount, cashLess: 0 });
+        if (p.cashLess > 0) items.push({ dateIso, date: displayDateStr(dateIso), particulars: t('cashLess'), weight: '0.00', rate: 0, total: 0, cashRec: 0, cashLess: p.cashLess });
       });
       items.sort((a, b) => a.dateIso.localeCompare(b.dateIso));
       
@@ -423,7 +431,7 @@ const PbReports = () => {
       };
 
       const { blob, url } = await generateLedgerCanvas({
-        buyer: { ...buyer, name: buyer.name },
+        buyer: { ...buyer, name: lang === 'ta' ? (buyer.taName || buyer.name) : buyer.name },
         ledgerRows: finalLedgerRows,
         summary,
         openingBalance,
@@ -485,7 +493,11 @@ const PbReports = () => {
     const ledgerItems = [];
     periodSales.forEach(s => {
       const date = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : '');
-      (s.items || []).forEach(item => ledgerItems.push({ date, type: 'SALE', desc: item.flowerType, qty: item.quantity, price: item.price, total: item.total, credit: 0 }));
+      (s.items || []).forEach(item => {
+        const masterFlower = pbFlowers.find(f => f.name?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase() || f.taName?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase());
+        const localizedName = lang === 'ta' ? (item.flowerTypeTa || masterFlower?.taName || item.flowerType) : item.flowerType;
+        ledgerItems.push({ date, type: 'SALE', desc: localizedName, qty: item.quantity, price: item.price, total: item.total, credit: 0 });
+      });
     });
     periodPayments.forEach(p => {
       const date = getPaymentDate(p) || '';
@@ -521,14 +533,14 @@ const PbReports = () => {
           <div class="pb-badge">⚜️ VV</div>
           <div class="report-title">${t('statementTitle')}</div>
           <div style="text-align: left; font-size: 20px; font-weight: 800; display: flex; justify-content: space-between;">
-            <div>${t('customerNo')} : ${detailBuyer.displayId}<br/>${t('name')} : ${detailBuyer.name}</div>
+            <div>${t('customerNo')} : ${detailBuyer.displayId}<br/>${t('name')} : ${lang === 'ta' ? (detailBuyer.taName || detailBuyer.name) : detailBuyer.name}</div>
             <div style="text-align: right;">${t('date')} : ${rangeText}</div>
           </div>
         </div>
         <table><thead><tr><th style="width: 130px;">${t('date')}</th><th>${t('particulars')}</th><th style="text-align: center">${t('weight')}</th><th style="text-align: center">${t('rate')}</th><th style="text-align: right">${t('total')}</th><th style="text-align: right">${t('cashRec')}</th><th style="text-align: right">${t('cashLess')}</th></tr></thead>
         <tbody>
-          <tr><td align="center"></td><td style="font-weight: 700; color: #78350f;">${t('openingBalance')}</td><td align="center">0.000</td><td align="center">0</td><td align="right" style="font-weight: 700; color: #78350f;">${openingBalance.toFixed(0)}</td><td align="right">0</td><td align="right">0</td></tr>
-          ${(() => { let rBal = openingBalance; return ledgerItems.map((item, i, arr) => { rBal = rBal + (item.total || 0) - (item.credit || 0); const showDate = i === 0 || item.date !== arr[i-1].date; return `<tr><td align="center" style="font-weight: 700;">${showDate ? displayDate(item.date) : ''}</td><td>${item.desc}</td><td align="center">${item.type === 'SALE' ? parseFloat(item.qty).toFixed(3) : '0.000'}</td><td align="center">${item.type === 'SALE' ? item.price : '0'}</td><td align="right" style="font-weight: 700; color: ${item.total > 0 ? '#b91c1c' : '#000'}">${item.total > 0 ? item.total.toFixed(0) : '0'}</td><td align="right" style="font-weight: 700; color: #7c3aed">${item.type === 'PAY' ? item.credit.toFixed(0) : '0'}</td><td align="right" style="font-weight: 700; color: #b91c1c">${item.type === 'LESS' ? item.credit.toFixed(0) : '0'}</td></tr>`; }).join(''); })()}
+          <tr><td align="center"></td><td style="font-weight: 700; color: #78350f;">${t('openingBalance')}</td><td align="center">0.00</td><td align="center">0</td><td align="right" style="font-weight: 700; color: #78350f;">${openingBalance.toFixed(0)}</td><td align="right">0</td><td align="right">0</td></tr>
+          ${(() => { let rBal = openingBalance; return ledgerItems.map((item, i, arr) => { rBal = rBal + (item.total || 0) - (item.credit || 0); const showDate = i === 0 || item.date !== arr[i-1].date; return `<tr><td align="center" style="font-weight: 700;">${showDate ? displayDate(item.date) : ''}</td><td>${item.desc}</td><td align="center">${item.type === 'SALE' ? parseFloat(item.qty).toFixed(2) : '0.00'}</td><td align="center">${item.type === 'SALE' ? item.price : '0'}</td><td align="right" style="font-weight: 700; color: ${item.total > 0 ? '#b91c1c' : '#000'}">${item.total > 0 ? item.total.toFixed(0) : '0'}</td><td align="right" style="font-weight: 700; color: #7c3aed">${item.type === 'PAY' ? item.credit.toFixed(0) : '0'}</td><td align="right" style="font-weight: 700; color: #b91c1c">${item.type === 'LESS' ? item.credit.toFixed(0) : '0'}</td></tr>`; }).join(''); })()}
         </tbody></table>
         <div class="summary">
           <div class="summary-row" style="color: #b91c1c"><span>${t('totalSales')} :</span> <span>${(openingBalance + totalSalesAmt).toFixed(2)}</span></div>
@@ -854,13 +866,15 @@ const PbReports = () => {
                         periodSales.forEach(s => {
                           const date = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : '');
                           (s.items || []).forEach(item => {
-                            sysItems.push({ dateIso: date, date: displayDate(date), particulars: item.flowerType, weight: parseFloat(item.quantity).toFixed(3), rate: item.price, total: item.total, cashRec: 0, cashLess: 0 });
+                            const masterFlower = pbFlowers.find(f => f.name?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase() || f.taName?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase());
+                            const localizedName = lang === 'ta' ? (item.flowerTypeTa || masterFlower?.taName || item.flowerType) : item.flowerType;
+                            sysItems.push({ dateIso: date, date: displayDate(date), particulars: localizedName, weight: parseFloat(item.quantity).toFixed(2), rate: item.price, total: item.total, cashRec: 0, cashLess: 0 });
                           });
                         });
                         periodPayments.forEach(p => {
                           const dateIso = getPaymentDate(p) || '';
-                          if (p.amount > 0) sysItems.push({ dateIso, date: displayDate(dateIso), particulars: t('cashRec'), weight: '0.000', rate: 0, total: 0, cashRec: p.amount, cashLess: 0 });
-                          if (p.cashLess > 0) sysItems.push({ dateIso, date: displayDate(dateIso), particulars: t('cashLess'), weight: '0.000', rate: 0, total: 0, cashRec: 0, cashLess: p.cashLess });
+                          if (p.amount > 0) sysItems.push({ dateIso, date: displayDate(dateIso), particulars: t('cashRec'), weight: '0.00', rate: 0, total: 0, cashRec: p.amount, cashLess: 0 });
+                          if (p.cashLess > 0) sysItems.push({ dateIso, date: displayDate(dateIso), particulars: t('cashLess'), weight: '0.00', rate: 0, total: 0, cashRec: 0, cashLess: p.cashLess });
                         });
                         sysItems.sort((a, b) => a.dateIso.localeCompare(b.dateIso));
 
@@ -870,7 +884,7 @@ const PbReports = () => {
                             <tr>
                               <td style={{ padding: '10px', color: '#64748b' }}>{displayDate(appliedFrom)}</td>
                               <td style={{ padding: '10px', fontWeight: 700, color: '#78350f' }}>{t('openingBalance')}</td>
-                              <td align="right" style={{ padding: '10px' }}>0.000</td>
+                              <td align="right" style={{ padding: '10px' }}>0.00</td>
                               <td align="right" style={{ padding: '10px' }}>0</td>
                               <td align="right" style={{ padding: '10px', fontWeight: 700, color: '#78350f' }}>{Math.round(runningBal)}</td>
                               <td align="right" style={{ padding: '10px' }}>0</td>
