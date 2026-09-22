@@ -301,7 +301,7 @@ const Reports = () => {
                             <tr>
                                 <td align="center"></td>
                                 <td style="font-weight: 700; color: #78350f;">${t('openingBalance')}</td>
-                                <td align="center">0.000</td>
+                                <td align="center">0.00</td>
                                 <td align="center">0</td>
                                 <td align="right" style="font-weight: 700; color: #78350f;">${openingBalance.toFixed(0)}</td>
                                 <td align="right">0</td>
@@ -316,7 +316,7 @@ const Reports = () => {
                                         <tr>
                                             <td align="center" style="font-weight: 700;">${showDate ? displayDate(item.date) : ''}</td>
                                             <td>${item.desc}</td>
-                                            <td align="center">${item.type === 'SALE' ? parseFloat(item.qty).toFixed(3) : '0.000'}</td>
+                                            <td align="center">${item.type === 'SALE' ? parseFloat(item.qty).toFixed(2) : '0.00'}</td>
                                             <td align="center">${item.type === 'SALE' ? item.price : '0'}</td>
                                             <td align="right" style="font-weight: 700; color: ${item.total > 0 ? '#b91c1c' : '#000'}">${item.total > 0 ? item.total.toFixed(0) : '0'}</td>
                                             <td align="right" style="font-weight: 700; color: #16a34a">${item.type === 'PAY' ? item.credit.toFixed(0) : '0'}</td>
@@ -390,13 +390,13 @@ const Reports = () => {
                         const foundFlower = products.find(f => f.name?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase());
                         descLocalized = item.flowerTypeTa || foundFlower?.taName || item.flowerType;
                     }
-                    items.push({ dateIso, date: displayDate(dateIso), particulars: descLocalized, weight: parseFloat(item.quantity).toFixed(3), rate: item.price, total: item.total, cashRec: 0, cashLess: 0 });
+                    items.push({ dateIso, date: displayDate(dateIso), particulars: descLocalized, weight: parseFloat(item.quantity).toFixed(2), rate: item.price, total: item.total, cashRec: 0, cashLess: 0 });
                 });
             });
             periodPayments.forEach(p => {
                 const dateIso = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : '';
-                if (p.amount > 0) items.push({ dateIso, date: displayDate(dateIso), particulars: t('cashRec'), weight: '0.000', rate: 0, total: 0, cashRec: p.amount, cashLess: 0 });
-                if (p.cashLess > 0) items.push({ dateIso, date: displayDate(dateIso), particulars: t('cashLess'), weight: '0.000', rate: 0, total: 0, cashRec: 0, cashLess: p.cashLess });
+                if (p.amount > 0) items.push({ dateIso, date: displayDate(dateIso), particulars: t('cashRec'), weight: '0.00', rate: 0, total: 0, cashRec: p.amount, cashLess: 0 });
+                if (p.cashLess > 0) items.push({ dateIso, date: displayDate(dateIso), particulars: t('cashLess'), weight: '0.00', rate: 0, total: 0, cashRec: 0, cashLess: p.cashLess });
             });
             items.sort((a, b) => a.dateIso.localeCompare(b.dateIso));
             
@@ -515,13 +515,13 @@ const Reports = () => {
                         const foundFlower = products.find(f => f.name?.trim().toLowerCase() === item.flowerType?.trim().toLowerCase());
                         descLocalized = item.flowerTypeTa || foundFlower?.taName || item.flowerType;
                     }
-                    items.push({ dateIso, date: displayDate(dateIso), particulars: descLocalized, weight: parseFloat(item.quantity).toFixed(3), rate: item.price, total: item.total, cashRec: 0, cashLess: 0 });
+                    items.push({ dateIso, date: displayDate(dateIso), particulars: descLocalized, weight: parseFloat(item.quantity).toFixed(2), rate: item.price, total: item.total, cashRec: 0, cashLess: 0 });
                 });
             });
             periodPayments.forEach(p => {
                 const dateIso = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : '';
-                if (p.amount > 0) items.push({ dateIso, date: displayDate(dateIso), particulars: t('cashRec'), weight: '0.000', rate: 0, total: 0, cashRec: p.amount, cashLess: 0 });
-                if (p.cashLess > 0) items.push({ dateIso, date: displayDate(dateIso), particulars: t('cashLess'), weight: '0.000', rate: 0, total: 0, cashRec: 0, cashLess: p.cashLess });
+                if (p.amount > 0) items.push({ dateIso, date: displayDate(dateIso), particulars: t('cashRec'), weight: '0.00', rate: 0, total: 0, cashRec: p.amount, cashLess: 0 });
+                if (p.cashLess > 0) items.push({ dateIso, date: displayDate(dateIso), particulars: t('cashLess'), weight: '0.00', rate: 0, total: 0, cashRec: 0, cashLess: p.cashLess });
             });
             items.sort((a, b) => a.dateIso.localeCompare(b.dateIso));
             
@@ -1106,7 +1106,7 @@ const Reports = () => {
                                                                 <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
                                                                     <td style={{ padding: '8px' }}>{displayDate(it.date)}</td>
                                                                     <td style={{ padding: '8px', fontWeight: 600 }}>{it.desc}</td>
-                                                                    <td style={{ padding: '8px', textAlign: 'right' }}>{it.qty > 0 ? parseFloat(it.qty).toFixed(3) : '—'}</td>
+                                                                    <td style={{ padding: '8px', textAlign: 'right' }}>{it.qty > 0 ? parseFloat(it.qty).toFixed(2) : '—'}</td>
                                                                     <td style={{ padding: '8px', textAlign: 'right' }}>{it.price > 0 ? it.price : '—'}</td>
                                                                     <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: it.total > 0 ? '#dc2626' : 'inherit' }}>{it.total > 0 ? fmt(it.total) : '—'}</td>
                                                                     <td style={{ padding: '8px', textAlign: 'right', color: '#16a34a', fontWeight: 700 }}>{it.credit > 0 ? fmt(it.credit) : '—'}</td>
