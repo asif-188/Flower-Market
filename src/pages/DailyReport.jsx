@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
-import { FileText, Printer, Search } from 'lucide-react';
+import { FileText, Printer, Search, Download, Calculator } from 'lucide-react';
 import { subscribeToCollection, db, savePayment } from '../utils/storage';
 import { doc, updateDoc, increment } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import { Check, Edit3, Save } from 'lucide-react';
 import { useTenant } from '../utils/TenantContext';
 import { parseMottoLines } from '../utils/receiptCanvas';
+import * as XLSX from 'xlsx';
 
 const fmt = (n) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n || 0);
@@ -91,6 +92,160 @@ const DailyReport = () => {
 
         return { sales: s, paid: p, less: l, end: b, open: o, purchases: pur, vendorPaid };
     }, [reportData, outsidePurchases, payments, fromDate, toDate]);
+
+    const closingSummary = useMemo(() => {
+        const getPDate = (p) => {
+            if (p.date && typeof p.date === 'string' && p.date.match(/^\d{4}-\d{2}-\d{2}/)) {
+                return p.date.substring(0, 10);
+            }
+            if (p.timestamp) {
+                if (typeof p.timestamp === 'string') return p.timestamp.substring(0, 10);
+                if (p.timestamp.toDate) return toDateStr(p.timestamp.toDate());
+                return toDateStr(new Date(p.timestamp));
+            }
+            if (p.createdAt?.toDate) return toDateStr(p.createdAt.toDate());
+            return '';
+        };
+
+        const getSDate = (s) => {
+            if (s.date && typeof s.date === 'string' && s.date.match(/^\d{4}-\d{2}-\d{2}/)) {
+                return s.date.substring(0, 10);
+            }
+            if (s.timestamp?.toDate) return toDateStr(s.timestamp.toDate());
+            if (typeof s.timestamp === 'string') return s.timestamp.substring(0, 10);
+            return '';
+        };
+
+        const getPurDate = (p) => {
+            if (p.date && typeof p.date === 'string' && p.date.match(/^\d{4}-\d{2}-\d{2}/)) {
+                return p.date.substring(0, 10);
+            }
+            if (p.timestamp?.toDate) return toDateStr(p.timestamp.toDate());
+            if (typeof p.timestamp === 'string') return p.timestamp.substring(0, 10);
+            return '';
+        };
+
+        const isSearching = search.trim().length > 0;
+        const targetBuyerIds = new Set(filtered.map(r => r.id));
+        
+        let searchedCustomerName = null;
+        if (isSearching && filtered.length > 0) {
+            searchedCustomerName = lang === 'ta' ? (filtered[0].nameTa || filtered[0].name) : filtered[0].name;
+            if (filtered.length > 1) {
+                searchedCustomerName += ` (${filtered.length} நபர்கள்)`;
+            }
+        }
+
+        const priorBuyerPayments = payments.filter(p => {
+            const dt = getPDate(p);
+            return p.type === 'buyer' && targetBuyerIds.has(p.entityId) && dt && dt < fromDate;
+        });
+        const priorVendorPayments = isSearching ? [] : payments.filter(p => {
+            const dt = getPDate(p);
+            return (p.type === 'vendor' || p.type === 'farmer') && dt && dt < fromDate;
+        });
+
+        const priorCashReceived = priorBuyerPayments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+        const priorCashLess     = priorBuyerPayments.reduce((acc, p) => acc + (Number(p.cashLess) || 0), 0);
+        const priorVendorPaid   = priorVendorPayments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+
+        const openingBalance = priorCashReceived - priorCashLess - priorVendorPaid;
+
+        const rangeBuyerPayments = payments.filter(p => {
+            const dt = getPDate(p);
+            return p.type === 'buyer' && targetBuyerIds.has(p.entityId) && dt && dt >= fromDate && dt <= toDate;
+        });
+        const rangeVendorPayments = isSearching ? [] : payments.filter(p => {
+            const dt = getPDate(p);
+            return (p.type === 'vendor' || p.type === 'farmer') && dt && dt >= fromDate && dt <= toDate;
+        });
+        const rangeSales = sales.filter(s => {
+            const dt = getSDate(s);
+            return targetBuyerIds.has(s.buyerId) && dt && dt >= fromDate && dt <= toDate;
+        });
+        const rangePurchases = isSearching ? [] : outsidePurchases.filter(pur => {
+            const dt = getPurDate(pur);
+            return dt && dt >= fromDate && dt <= toDate;
+        });
+
+        const cashReceived   = rangeBuyerPayments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+        const cashLess       = rangeBuyerPayments.reduce((acc, p) => acc + (Number(p.cashLess) || 0), 0);
+        const vendorPayments = rangeVendorPayments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+        const todaysSales    = rangeSales.reduce((acc, s) => acc + (Number(s.grandTotal) || 0), 0);
+        const purchaseTotal  = rangePurchases.reduce((acc, pur) => acc + (Number(pur.grandTotal) || 0), 0);
+
+        const todayStr = toDateStr(new Date());
+        const totalLiveBuyerBalance = buyers
+            .filter(b => targetBuyerIds.has(b.id))
+            .reduce((acc, b) => acc + (Number(b.balance) || 0), 0);
+        
+        let customerBalance = totalLiveBuyerBalance;
+        if (toDate < todayStr) {
+            const futureSales = sales.filter(s => {
+                const dt = getSDate(s);
+                return targetBuyerIds.has(s.buyerId) && dt && dt > toDate;
+            }).reduce((acc, s) => acc + (Number(s.grandTotal) || 0), 0);
+
+            const futurePayments = payments.filter(p => {
+                const dt = getPDate(p);
+                return p.type === 'buyer' && targetBuyerIds.has(p.entityId) && dt && dt > toDate;
+            }).reduce((acc, p) => acc + (Number(p.amount || 0) + Number(p.cashLess || 0)), 0);
+
+            customerBalance = totalLiveBuyerBalance - futureSales + futurePayments;
+        }
+
+        const finalClosingBalance = openingBalance + cashReceived - cashLess - vendorPayments;
+
+        return {
+            isSearching,
+            searchedCustomerName,
+            openingBalance,
+            cashReceived,
+            cashLess,
+            purchaseTotal,
+            todaysSales,
+            customerBalance,
+            vendorPayments,
+            finalClosingBalance
+        };
+    }, [sales, buyers, payments, outsidePurchases, fromDate, toDate, filtered, search, lang]);
+
+    const handleDownloadExcel = () => {
+        const rows = reportData.filter(r => r.sales > 0 || r.received > 0 || r.balance > 0).map(r => ({
+            'Display ID': r.displayId,
+            'Customer Name': lang === 'ta' ? (r.nameTa || r.name) : r.name,
+            'Contact': r.contact,
+            'Balance (₹)': r.balance,
+            'Cash Received (₹)': r.received,
+            'Cash Less (₹)': r.less,
+            'Sales (₹)': r.sales
+        }));
+
+        const wb = XLSX.utils.book_new();
+
+        const wsData = [
+            [`தினசரி விற்பனை அறிக்கை (${fromDate} - ${toDate})`],
+            [closingSummary.isSearching ? `தேடப்பட்ட வாடிக்கையாளர்: ${closingSummary.searchedCustomerName}` : 'அனைத்து வாடிக்கையாளர்கள்'],
+            [],
+            ['வ.எண்', 'வாடிக்கையாளர் பெயர்', 'தொடர்பு எண்', 'பாக்கி (₹)', 'வரவு (₹)', 'கழி (₹)', 'விற்பனை (₹)'],
+            ...rows.map(r => [r['Display ID'], r['Customer Name'], r['Contact'], r['Balance (₹)'], r['Cash Received (₹)'], r['Cash Less (₹)'], r['Sales (₹)']]),
+            [],
+            ['தானியங்கி தினசரி இறுதி கணக்கு அறிக்கை'],
+            ['விபரம்', 'தொகை (₹)'],
+            ['ஆரம்ப நிலுவை (முந்தைய நாள்)', closingSummary.openingBalance],
+            ['வரவு (+)', closingSummary.cashReceived],
+            ['கழி / செலவு (-)', closingSummary.cashLess],
+            ['கொள்முதல் மொத்தம்', closingSummary.purchaseTotal],
+            ['இன்றைய விற்பனை', closingSummary.todaysSales],
+            ['வாடிக்கையாளர் பாக்கி', closingSummary.customerBalance],
+            ['விற்பனையாளர் செலுத்தியது (-)', closingSummary.vendorPayments],
+            ['இறுதி பாக்கி', closingSummary.finalClosingBalance]
+        ];
+
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        XLSX.utils.book_append_sheet(wb, ws, 'தினசரி அறிக்கை');
+        XLSX.writeFile(wb, `Daily_Report_${fromDate}_to_${toDate}.xlsx`);
+    };
 
     const handleSaveCollections = async () => {
         const entries = Object.entries(tempAmounts).filter(([_, data]) => 
@@ -197,7 +352,23 @@ const DailyReport = () => {
                     <div class="summary-row grand" style="background: #f0f0f0; padding: 10px; color: #000">
                         <span>${t('grandTotal')} :</span> <span>${totals.end.toFixed(2)}</span>
                     </div>
+                </div>
 
+                <div class="summary-box" style="margin-top: 30px; border: 3px solid #1e293b; padding: 20px; border-radius: 12px; background: #fff;">
+                    <div style="font-size: 20px; font-weight: 900; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; font-family: sans-serif;">
+                        தானியங்கி தினசரி இறுதி கணக்கு அறிக்கை ${closingSummary.isSearching ? `(${closingSummary.searchedCustomerName})` : ''}
+                    </div>
+                    <div class="summary-row"><span>ஆரம்ப நிலுவை (முந்தைய நாள்) :</span> <span>${fmt(closingSummary.openingBalance)}</span></div>
+                    <div class="summary-row" style="color: #16a34a"><span>வரவு (+) :</span> <span>+ ${fmt(closingSummary.cashReceived)}</span></div>
+                    <div class="summary-row" style="color: #ea580c"><span>கழி / செலவு (-) :</span> <span>- ${fmt(closingSummary.cashLess)}</span></div>
+                    ${!closingSummary.isSearching ? `<div class="summary-row" style="color: #7e22ce"><span>கொள்முதல் மொத்தம் :</span> <span>${fmt(closingSummary.purchaseTotal)}</span></div>` : ''}
+                    <div class="summary-row" style="color: #1d4ed8"><span>இன்றைய விற்பனை :</span> <span>${fmt(closingSummary.todaysSales)}</span></div>
+                    <div class="summary-row" style="color: #1e293b"><span>வாடிக்கையாளர் பாக்கி :</span> <span>${fmt(closingSummary.customerBalance)}</span></div>
+                    ${!closingSummary.isSearching ? `<div class="summary-row" style="color: #dc2626"><span>விற்பனையாளர் செலுத்தியது (-) :</span> <span>- ${fmt(closingSummary.vendorPayments)}</span></div>` : ''}
+
+                    <div class="summary-row grand" style="background: #1e293b; color: #fff; padding: 12px 16px; border-radius: 8px; margin-top: 15px; font-size: 24px; font-weight: 900;">
+                        <span>இறுதி பாக்கி :</span> <span>${fmt(closingSummary.finalClosingBalance)}</span>
+                    </div>
                 </div>
             </body>
             </html>
@@ -289,6 +460,9 @@ const DailyReport = () => {
                             </div>
                             <button onClick={() => setIsEntryMode(true)} style={{ padding: '10px 20px', background: '#4f46e5', color: '#fff', borderRadius: '10px', border: 'none', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <Edit3 size={18} /> Batch Entry
+                            </button>
+                            <button onClick={handleDownloadExcel} style={{ padding: '10px 20px', background: '#0284c7', color: '#fff', borderRadius: '10px', border: 'none', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Download size={18} /> Export Excel
                             </button>
                             <button onClick={handlePrint} style={{ padding: '10px 20px', background: '#10b981', color: '#fff', borderRadius: '10px', border: 'none', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <Printer size={18} /> {t('view')} & Print
@@ -390,6 +564,163 @@ const DailyReport = () => {
                         ))}
                     </tbody>
                 </table>
+            </div>
+
+            {/* AUTOMATIC DAILY CLOSING SUMMARY */}
+            <div style={{
+                marginTop: '32px',
+                background: '#ffffff',
+                borderRadius: '20px',
+                border: '1.5px solid #e2e8f0',
+                boxShadow: '0 10px 30px -10px rgba(0,0,0,0.05)',
+                padding: '24px',
+                overflow: 'hidden'
+            }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '20px', borderBottom: '1px solid #f1f5f9', paddingBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ background: '#eff6ff', padding: '10px', borderRadius: '12px', color: '#2563eb' }}>
+                            <Calculator size={24} />
+                        </div>
+                        <div>
+                            <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
+                                தானியங்கி தினசரி இறுதி கணக்கு அறிக்கை
+                                {closingSummary.isSearching && closingSummary.searchedCustomerName && (
+                                    <span style={{ background: '#e0e7ff', color: '#3730a3', fontSize: '13px', padding: '2px 10px', borderRadius: '12px', fontWeight: 700 }}>
+                                        👤 {closingSummary.searchedCustomerName}
+                                    </span>
+                                )}
+                            </h3>
+                            <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0', fontWeight: 500 }}>
+                                {fromDate === toDate ? `தேதி: ${fromDate.split('-').reverse().join('/')}` : `தேதி வரம்பு: ${fromDate.split('-').reverse().join('/')} - ${toDate.split('-').reverse().join('/')}`}
+                            </p>
+                        </div>
+                    </div>
+                    <span style={{
+                        background: '#f0fdf4',
+                        color: '#16a34a',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        padding: '6px 14px',
+                        borderRadius: '20px',
+                        border: '1px solid #bbf7d0',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                    }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
+                        நேரடி கணக்கீடு
+                    </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                    {/* Card 1: Opening Balance */}
+                    <div style={{ background: '#f8fafc', padding: '18px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', minWidth: 0 }}>
+                        <div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#334155' }}>ஆரம்ப நிலுவை</div>
+                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px' }}>முந்தைய நாள் இறுதி இருப்பு</div>
+                        </div>
+                        <div style={{ fontSize: '20px', fontWeight: 900, color: '#1e293b', textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>
+                            {fmt(closingSummary.openingBalance)}
+                        </div>
+                    </div>
+
+                    {/* Card 2: Cash Received */}
+                    <div style={{ background: '#f0fdf4', padding: '18px 20px', borderRadius: '14px', border: '1px solid #dcfce7', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', minWidth: 0 }}>
+                        <div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#166534' }}>வரவு (+)</div>
+                            <div style={{ fontSize: '11px', color: '#15803d', marginTop: '3px' }}>வாடிக்கையாளர் வசூல்</div>
+                        </div>
+                        <div style={{ fontSize: '20px', fontWeight: 900, color: '#15803d', textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>
+                            + {fmt(closingSummary.cashReceived)}
+                        </div>
+                    </div>
+
+                    {/* Card 3: Cash Less / Expenses */}
+                    <div style={{ background: '#fff7ed', padding: '18px 20px', borderRadius: '14px', border: '1px solid #ffedd5', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', minWidth: 0 }}>
+                        <div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#9a3412' }}>கழி / செலவு (-)</div>
+                            <div style={{ fontSize: '11px', color: '#c2410c', marginTop: '3px' }}>தள்ளுபடி / கழிவுகள்</div>
+                        </div>
+                        <div style={{ fontSize: '20px', fontWeight: 900, color: '#c2410c', textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>
+                            - {fmt(closingSummary.cashLess)}
+                        </div>
+                    </div>
+
+                    {/* Card 4: Purchase Total */}
+                    {!closingSummary.isSearching && (
+                        <div style={{ background: '#faf5ff', padding: '18px 20px', borderRadius: '14px', border: '1px solid #f3e8ff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', minWidth: 0 }}>
+                            <div>
+                                <div style={{ fontSize: '14px', fontWeight: 800, color: '#6b21a8' }}>கொள்முதல் மொத்தம்</div>
+                                <div style={{ fontSize: '11px', color: '#7e22ce', marginTop: '3px' }}>வெளிக்கடை கொள்முதல்</div>
+                            </div>
+                            <div style={{ fontSize: '20px', fontWeight: 900, color: '#7e22ce', textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>
+                                {fmt(closingSummary.purchaseTotal)}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Card 5: Today's Sales */}
+                    <div style={{ background: '#eff6ff', padding: '18px 20px', borderRadius: '14px', border: '1px solid #dbeafe', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', minWidth: 0 }}>
+                        <div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#1e40af' }}>இன்றைய விற்பனை</div>
+                            <div style={{ fontSize: '11px', color: '#1d4ed8', marginTop: '3px' }}>வாடிக்கையாளர் விற்பனை</div>
+                        </div>
+                        <div style={{ fontSize: '20px', fontWeight: 900, color: '#1d4ed8', textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>
+                            {fmt(closingSummary.todaysSales)}
+                        </div>
+                    </div>
+
+                    {/* Card 6: Customer Balance */}
+                    <div style={{ background: '#f8fafc', padding: '18px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', minWidth: 0 }}>
+                        <div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#334155' }}>வாடிக்கையாளர் பாக்கி</div>
+                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px' }}>மொத்த நிலுவை தொகை</div>
+                        </div>
+                        <div style={{ fontSize: '20px', fontWeight: 900, color: '#1e293b', textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>
+                            {fmt(closingSummary.customerBalance)}
+                        </div>
+                    </div>
+
+                    {/* Card 7: Vendor Payments */}
+                    {!closingSummary.isSearching && (
+                        <div style={{ background: '#fef2f2', padding: '18px 20px', borderRadius: '14px', border: '1px solid #fee2e2', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', minWidth: 0 }}>
+                            <div>
+                                <div style={{ fontSize: '14px', fontWeight: 800, color: '#991b1b' }}>விற்பனையாளர் செலுத்தியது (-)</div>
+                                <div style={{ fontSize: '11px', color: '#b91c1c', marginTop: '3px' }}>விற்பனையாளருக்கு கொடுத்தது</div>
+                            </div>
+                            <div style={{ fontSize: '20px', fontWeight: 900, color: '#b91c1c', textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>
+                                - {fmt(closingSummary.vendorPayments)}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Final Closing Balance Banner */}
+                <div style={{
+                    marginTop: '20px',
+                    background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                    padding: '24px 28px',
+                    borderRadius: '16px',
+                    color: '#ffffff',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    justify: 'space-between',
+                    gap: '16px',
+                    boxShadow: '0 8px 25px -5px rgba(15, 23, 42, 0.3)'
+                }}>
+                    <div style={{ minWidth: '240px', flex: '1 1 300px' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 800, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            இறுதி பாக்கி (FINAL CLOSING BALANCE)
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '4px' }}>
+                            அடுத்த நாளுக்கான ஆரம்ப நிலுவையாக தானாக எடுத்துக்கொள்ளப்படும்
+                        </div>
+                    </div>
+                    <div style={{ fontSize: '28px', fontWeight: 900, color: '#38bdf8', letterSpacing: '-0.02em', minWidth: 0, wordBreak: 'break-word', textAlign: 'right' }}>
+                        {fmt(closingSummary.finalClosingBalance)}
+                    </div>
+                </div>
             </div>
         </div>
     );
