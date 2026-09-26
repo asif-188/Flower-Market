@@ -257,7 +257,7 @@ const strings = {
     weight: 'எடை',
     statementTitle: 'கணக்கு அறிக்கை',
     totalSales: 'மொத்த விற்பனை',
-    finalBalance: 'இறுதி மீதி',
+    finalBalance: 'இறுதி பாக்கி',
     thankYou: 'நன்றி!',
     transactionHistory: 'பரிவர்த்தனை வரலாறு',
     viewLedger: 'பேரேட்டைப் பார்க்க',
