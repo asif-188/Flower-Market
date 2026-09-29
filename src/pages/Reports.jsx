@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { Search, MessageCircle, BarChart2, X, User, ChevronRight, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { subscribeToCollection, db } from '../utils/storage';
+import { subscribeToCollection, db, getBuyerLedgerStats, updateData, logHistoryAction } from '../utils/storage';
 import { doc, getDoc } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import { generateBuyerReceiptCanvas, generateLedgerCanvas, parseMottoLines } from '../utils/receiptCanvas';
@@ -25,6 +25,55 @@ const displayDate = (iso) => {
     const parts = iso.split('-');
     if (parts.length !== 3) return iso;
     return `${parts[2]}-${parts[1]}-${parts[0]}`;
+};
+
+const getBuyerBalanceDate = (buyer) => {
+    if (buyer?.balanceDate) return buyer.balanceDate;
+    if (buyer?.createdAt) {
+        try {
+            const d = buyer.createdAt.toDate ? buyer.createdAt.toDate() : new Date(buyer.createdAt);
+            if (!isNaN(d.getTime())) return toDateStr(d);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+    return null;
+};
+
+const getBuyerOpeningInfo = (buyer, sales, payments, appliedFrom, appliedTo) => {
+    const bDate = getBuyerBalanceDate(buyer);
+
+    // If selected report range ends BEFORE the opening balance update date, opening balance was not yet set
+    if (bDate && appliedTo < bDate) {
+        return {
+            openingBalance: 0,
+            openingDate: bDate
+        };
+    }
+
+    const effectiveStart = (bDate && appliedFrom < bDate) ? bDate : appliedFrom;
+
+    const futureSales = sales.filter(s => {
+        if (s.buyerId !== buyer.id) return false;
+        const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+        return dt && dt >= effectiveStart;
+    });
+    const futurePayments = payments.filter(p => {
+        if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
+        const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+        return dt && dt >= effectiveStart;
+    });
+
+    const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+    const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
+
+    const openingBal = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
+    const openingDate = bDate || appliedFrom;
+
+    return {
+        openingBalance: openingBal,
+        openingDate: openingDate
+    };
 };
 
 const Reports = () => {
@@ -56,14 +105,14 @@ const Reports = () => {
     const bizInfo = tenantData || { motto: 'SRI RAMA JAYAM', name: 'S.V.M', type: 'SRI VALLI FLOWER MERCHANT', address: 'B-7, FLOWER MARKET, TINDIVANAM.', phone1: '9443247771', phone2: '9952535057' };
 
     useEffect(() => {
-        const u1 = subscribeToCollection('sales',    setSales, true, appliedFrom);
+        const u1 = subscribeToCollection('sales',    setSales, true);
         const u2 = subscribeToCollection('buyers',   setBuyers);
-        const u3 = subscribeToCollection('payments', setPayments, true, appliedFrom);
+        const u3 = subscribeToCollection('payments', setPayments, true);
         const u4 = subscribeToCollection('products', setProducts);
-        const u5 = subscribeToCollection('outside_purchases', setOutsidePurchases, true, appliedFrom);
+        const u5 = subscribeToCollection('outside_purchases', setOutsidePurchases, true);
         const u6 = subscribeToCollection('vendors', setVendors, true);
         return () => { u1(); u2(); u3(); u4(); u5(); u6(); };
-    }, [appliedFrom]);
+    }, []);
 
     const applyPreset = (preset) => {
         if (preset === 'custom') {
@@ -84,49 +133,23 @@ const Reports = () => {
     const handleApply = () => { setAppliedFrom(fromDate); setAppliedTo(toDate); };
 
     const report = useMemo(() => {
-        // 1. Calculate Opening Balance (Backward from current balance) for each buyer
         const rows = buyers.map(buyer => {
-            // Future Transactions (from appliedFrom onwards)
-            const futureSales = sales.filter(s => {
-                if (s.buyerId !== buyer.id) return false;
-                const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-                return dt && dt >= appliedFrom;
-            });
-            const futurePayments = payments.filter(p => {
-                if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
-                const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
-                return dt && dt >= appliedFrom;
-            });
-            const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
-            const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
-            const openingBal     = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
-
-            // Period Transactions (within [appliedFrom, appliedTo])
-            const periodSales = sales.filter(s => {
-                if (s.buyerId !== buyer.id) return false;
-                const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-                return dt && dt >= appliedFrom && dt <= appliedTo;
-            });
-            const periodPayments = payments.filter(p => {
-                if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
-                const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
-                return dt && dt >= appliedFrom && dt <= appliedTo;
-            });
-
-            const salesAmt = periodSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
-            const paidAmt  = periodPayments.reduce((s, x) => s + (Number(x.amount) || 0), 0);
-            const lessAmt  = periodPayments.reduce((s, x) => s + (Number(x.cashLess) || 0), 0);
-
+            const stats = getBuyerLedgerStats(buyer, sales, payments, appliedFrom, appliedTo);
             return {
                 id: buyer.id,
                 name: buyer.name || 'Unknown',
                 taName: buyer.taName || buyer.nameTa || buyer.name || 'Unknown',
                 displayId: buyer.displayId || '---',
-                opening: openingBal,
-                sales: salesAmt,
-                paid: paidAmt,
-                less: lessAmt,
-                balance: openingBal + salesAmt - paidAmt - lessAmt
+                opening: stats.opening,
+                openingDate: stats.openingDate,
+                sales: stats.sales,
+                paid: stats.paid,
+                less: stats.less,
+                balance: stats.balance,
+                hasMismatch: stats.hasMismatch,
+                mismatchDiff: stats.mismatchDiff,
+                storedBalance: stats.storedBalance,
+                liveCalculatedBalance: stats.liveCalculatedBalance
             };
         });
 
@@ -180,26 +203,15 @@ const Reports = () => {
         return res.sort((a, b) => b.date.localeCompare(a.date));
     }, [detailBuyer, sales, payments, appliedFrom, appliedTo]);
 
+
+
     // ── Per-row WhatsApp receipt share ──
     // ── Detailed Ledger Print ──
     const handlePrintDetailedReport = () => {
         if (!detailBuyer) return;
 
-        // 1. Calculate Opening Balance (Backward from current balance)
-        const futureSales = sales.filter(s => {
-            if (s.buyerId !== detailBuyer.id) return false;
-            const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-            return dt && dt >= appliedFrom;
-        });
-        const futurePayments = payments.filter(p => {
-            if (p.entityId !== detailBuyer.id || p.type !== 'buyer') return false;
-            const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
-            return dt && dt >= appliedFrom;
-        });
-        const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
-        const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
         const buyer = buyers.find(b => b.id === detailBuyer.id) || detailBuyer;
-        const openingBalance = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
+        const { openingBalance, openingDate } = getBuyerOpeningInfo(buyer, sales, payments, appliedFrom, appliedTo);
 
         // 2. Prepare Detailed Entries for period
         const periodSales = sales.filter(s => {
@@ -299,7 +311,7 @@ const Reports = () => {
                         </thead>
                         <tbody>
                             <tr>
-                                <td align="center"></td>
+                                <td align="center">${displayDate(openingDate)}</td>
                                 <td style="font-weight: 700; color: #78350f;">${t('openingBalance')}</td>
                                 <td align="center">0.00</td>
                                 <td align="center">0</td>
@@ -350,20 +362,7 @@ const Reports = () => {
         setDownloadingRowId(buyerRow.id);
         const buyer = buyers.find(b => b.id === buyerRow.id) || buyerRow;
         try {
-            // 1. Calculate Opening Balance (Backward from current balance)
-            const futureSales = sales.filter(s => {
-                if (s.buyerId !== buyer.id) return false;
-                const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-                return dt && dt >= appliedFrom;
-            });
-            const futurePayments = payments.filter(p => {
-                if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
-                const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
-                return dt && dt >= appliedFrom;
-            });
-            const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
-            const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
-            const openingBalance = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
+            const { openingBalance, openingDate } = getBuyerOpeningInfo(buyer, sales, payments, appliedFrom, appliedTo);
 
             // 2. Period Rows
             const periodSales = sales.filter(s => {
@@ -415,7 +414,7 @@ const Reports = () => {
                 summary,
                 openingBalance,
                 bizInfo,
-                startDate: appliedFrom,
+                startDate: openingDate,
                 labels: {
                     date: t('date'),
                     particulars: t('particulars'),
@@ -475,20 +474,7 @@ const Reports = () => {
         setSharingRowId(buyerRow.id);
         const buyer = buyers.find(b => b.id === buyerRow.id) || buyerRow;
         try {
-            // 1. Calculate Opening Balance (Backward from current balance)
-            const futureSales = sales.filter(s => {
-                if (s.buyerId !== buyer.id) return false;
-                const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-                return dt && dt >= appliedFrom;
-            });
-            const futurePayments = payments.filter(p => {
-                if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
-                const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
-                return dt && dt >= appliedFrom;
-            });
-            const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
-            const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
-            const openingBalance = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
+            const { openingBalance, openingDate } = getBuyerOpeningInfo(buyer, sales, payments, appliedFrom, appliedTo);
 
             // 2. Period Rows
             const periodSales = sales.filter(s => {
@@ -540,7 +526,7 @@ const Reports = () => {
                 summary,
                 openingBalance,
                 bizInfo,
-                startDate: appliedFrom,
+                startDate: openingDate,
                 labels: {
                     date: t('date'),
                     particulars: t('particulars'),
@@ -990,20 +976,29 @@ const Reports = () => {
                         </div>
 
                         {/* Mini summary */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '8px', padding: '16px 24px 0' }}>
-                            {[
-                                { l: t('openingBalance'), v: detailBuyer.opening, c: '#64748b', bg: '#f8fafc' },
-                                { l: t('sales'), v: detailBuyer.sales, c: '#dc2626', bg: '#fef2f2' },
-                                { l: t('paid'), v: detailBuyer.paid, c: '#15803d', bg: '#f0fdf4' },
-                                { l: t('cashLess'), v: detailBuyer.less, c: '#dc2626', bg: '#fef2f2' },
-                                { l: t('balance'), v: detailBuyer.balance, c: '#64748b', bg: '#f8fafc' }
-                            ].map(x => (
-                                <div key={x.l} style={{ background: x.bg, borderRadius: '10px', padding: '10px 12px', border: `1px solid ${x.c}22` }}>
-                                    <div style={{ fontSize: '9px', fontWeight: 700, color: x.c, textTransform: 'uppercase', marginBottom: '3px', whiteSpace: 'nowrap' }}>{x.l}</div>
-                                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b' }}>{fmt(x.v)}</div>
-                                </div>
-                            ))}
-                        </div>
+                        {(() => {
+                            const buyerObj = buyers.find(b => b.id === detailBuyer.id) || detailBuyer;
+                            const stats = getBuyerLedgerStats(buyerObj, sales, payments, appliedFrom, appliedTo);
+                            return (
+                                <>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '8px', padding: '16px 24px 0' }}>
+                                        {[
+                                            { l: t('openingBalance'), v: stats.opening, c: '#64748b', bg: '#f8fafc' },
+                                            { l: t('sales'), v: stats.sales, c: '#dc2626', bg: '#fef2f2' },
+                                            { l: t('paid'), v: stats.paid, c: '#15803d', bg: '#f0fdf4' },
+                                            { l: t('cashLess'), v: stats.less, c: '#dc2626', bg: '#fef2f2' },
+                                            { l: t('balance'), v: stats.balance, c: '#64748b', bg: '#f8fafc' }
+                                        ].map(x => (
+                                            <div key={x.l} style={{ background: x.bg, borderRadius: '10px', padding: '10px 12px', border: `1px solid ${x.c}22` }}>
+                                                <div style={{ fontSize: '9px', fontWeight: 700, color: x.c, textTransform: 'uppercase', marginBottom: '3px', whiteSpace: 'nowrap' }}>{x.l}</div>
+                                                <div style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b' }}>{fmt(x.v)}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                </>
+                            );
+                        })()}
 
                         <div style={{ padding: '16px 24px', maxHeight: '50vh', overflowY: 'auto' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
@@ -1055,19 +1050,8 @@ const Reports = () => {
                                                 // Pre-calculate ledger logic for system view
                                                 const d = detailBuyer;
                                                 const buyerObj = buyers.find(b => b.id === d.id) || d;
-                                                const futureSales = sales.filter(s => {
-                                                    if (s.buyerId !== d.id) return false;
-                                                    const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-                                                    return dt && dt >= appliedFrom;
-                                                });
-                                                const futurePayments = payments.filter(p => {
-                                                    if (p.entityId !== d.id || p.type !== 'buyer') return false;
-                                                    const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
-                                                    return dt && dt >= appliedFrom;
-                                                });
-                                                const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
-                                                const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
-                                                let runningBal = (buyerObj.balance || 0) - futureSalesAmt + futurePayAmt;
+                                                const { opening: openingBalance, openingDate } = getBuyerLedgerStats(buyerObj, sales, payments, appliedFrom, appliedTo);
+                                                let runningBal = openingBalance;
 
                                                 // Interleave sales items and payments
                                                 const periodSales = sales.filter(s => s.buyerId === d.id && (s.date || toDateStr(s.timestamp?.toDate ? s.timestamp.toDate() : new Date())) >= appliedFrom && (s.date || toDateStr(s.timestamp?.toDate ? s.timestamp.toDate() : new Date())) <= appliedTo);
@@ -1095,7 +1079,7 @@ const Reports = () => {
                                                 return (
                                                     <>
                                                         <tr style={{ background: '#fef3c7', fontWeight: 700 }}>
-                                                            <td style={{ padding: '8px' }}>{displayDate(appliedFrom)}</td>
+                                                            <td style={{ padding: '8px' }}>{displayDate(openingDate)}</td>
                                                             <td style={{ padding: '8px' }}>{t('openingBalance')}</td>
                                                             <td colSpan={5}></td>
                                                             <td style={{ padding: '8px', textAlign: 'right' }}>{fmt(runningBal)}</td>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Search, X, User, FileText, Upload } from 'lucide-react';
-import { saveBuyer, subscribeToCollection, deleteBuyer } from '../utils/storage';
+import { saveBuyer, subscribeToCollection, deleteBuyer, getBuyerLedgerStats } from '../utils/storage';
 import { doc } from 'firebase/firestore';
 import { db } from '../utils/storage';
 import { LangContext } from '../components/Layout';
@@ -427,8 +427,8 @@ const Buyer = () => {
                             </tr>
                         ) : (
                             filteredBuyers.map((buyer, idx) => {
-                                const isHighlighted = tableSelectedIndex === idx;
-                                const isRecentlySaved = buyer.id === highlightedId;
+                                const stats = getBuyerLedgerStats(buyer, sales, payments);
+                                const displayBal = stats.liveCalculatedBalance;
                                 return (
                                     <tr key={buyer.id}
                                         ref={el => rowRefs.current[idx] = el}
@@ -467,8 +467,8 @@ const Buyer = () => {
                                             {lang === 'ta' ? (buyer.nameTa || buyer.name) : buyer.name}
                                         </td>
                                         <td style={{...S.td, color: isHighlighted ? 'rgba(255,255,255,0.9)' : '#6b7280'}}>{buyer.contact || '—'}</td>
-                                        <td style={{...S.td, textAlign:'right', fontWeight:700, color: isHighlighted ? '#fff' : (buyer.balance > 0 ? '#f43f5e' : '#16a34a')}}>
-                                            {fmt(buyer.balance)}
+                                        <td style={{...S.td, textAlign:'right', fontWeight:700, color: isHighlighted ? '#fff' : (displayBal > 0 ? '#f43f5e' : '#16a34a')}}>
+                                            {fmt(displayBal)}
                                         </td>
                                         <td style={{...S.td, textAlign:'center'}}>
                                             <button style={{
