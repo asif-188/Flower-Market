@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { Search, MessageCircle, BarChart2, X, ChevronRight, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { subscribeToCollection, db } from '../../utils/storage';
+import { subscribeToCollection, db, getBuyerLedgerStats } from '../../utils/storage';
 import { useTenant } from '../../utils/TenantContext';
 import { openWhatsAppDirect, formatDateDDMMYYYY } from '../../utils/whatsappHelper';
 import { LangContext } from '../../components/Layout';
@@ -248,19 +248,9 @@ const PbReports = () => {
     setDownloadingRowId(buyerRow.id);
     const buyer = buyers.find(b => b.id === buyerRow.id) || buyerRow;
     try {
-      const futureSales = sales.filter(s => {
-        if (s.buyerId !== buyer.id) return false;
-        const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-        return dt && dt >= appliedFrom;
-      });
-      const futurePayments = payments.filter(p => {
-        if (p.entityId !== buyer.id) return false;
-        const dt = getPaymentDate(p);
-        return dt && dt >= appliedFrom;
-      });
-      const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
-      const futurePayAmt = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
-      const openingBalance = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
+      const stats = getBuyerLedgerStats(buyer, sales, payments, appliedFrom, appliedTo);
+      const openingBalance = stats.opening;
+      const openingDate = stats.openingDate;
 
       const periodSales = sales.filter(s => {
         if (s.buyerId !== buyer.id) return false;
@@ -379,19 +369,9 @@ const PbReports = () => {
     setSharingRowId(buyerRow.id);
     const buyer = buyers.find(b => b.id === buyerRow.id) || buyerRow;
     try {
-      const futureSales = sales.filter(s => {
-        if (s.buyerId !== buyer.id) return false;
-        const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-        return dt && dt >= appliedFrom;
-      });
-      const futurePayments = payments.filter(p => {
-        if (p.entityId !== buyer.id) return false;
-        const dt = getPaymentDate(p);
-        return dt && dt >= appliedFrom;
-      });
-      const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
-      const futurePayAmt = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
-      const openingBalance = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
+      const stats = getBuyerLedgerStats(buyer, sales, payments, appliedFrom, appliedTo);
+      const openingBalance = stats.opening;
+      const openingDate = stats.openingDate;
 
       const periodSales = sales.filter(s => {
         if (s.buyerId !== buyer.id) return false;
@@ -482,11 +462,9 @@ const PbReports = () => {
   const handlePrintDetailedReport = () => {
     if (!detailBuyer) return;
     const buyer = buyers.find(b => b.id === detailBuyer.id) || detailBuyer;
-    const futureSales = sales.filter(s => { if (s.buyerId !== buyer.id) return false; const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null); return dt && dt >= appliedFrom; });
-    const futurePayments = payments.filter(p => { if (p.entityId !== buyer.id) return false; const dt = getPaymentDate(p); return dt && dt >= appliedFrom; });
-    const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
-    const futurePayAmt = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
-    const openingBalance = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
+    const stats = getBuyerLedgerStats(buyer, sales, payments, appliedFrom, appliedTo);
+    const openingBalance = stats.opening;
+    const openingDate = stats.openingDate;
     const periodSales = sales.filter(s => { if (s.buyerId !== buyer.id) return false; const d = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null); return d && d >= appliedFrom && d <= appliedTo; });
     const periodPayments = payments.filter(p => { if (p.entityId !== buyer.id) return false; const d = getPaymentDate(p); return d && d >= appliedFrom && d <= appliedTo; });
     
