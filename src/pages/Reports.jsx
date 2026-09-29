@@ -41,38 +41,10 @@ const getBuyerBalanceDate = (buyer) => {
 };
 
 const getBuyerOpeningInfo = (buyer, sales, payments, appliedFrom, appliedTo) => {
-    const bDate = getBuyerBalanceDate(buyer);
-
-    // If selected report range ends BEFORE the opening balance update date, opening balance was not yet set
-    if (bDate && appliedTo < bDate) {
-        return {
-            openingBalance: 0,
-            openingDate: bDate
-        };
-    }
-
-    const effectiveStart = (bDate && appliedFrom < bDate) ? bDate : appliedFrom;
-
-    const futureSales = sales.filter(s => {
-        if (s.buyerId !== buyer.id) return false;
-        const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-        return dt && dt >= effectiveStart;
-    });
-    const futurePayments = payments.filter(p => {
-        if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
-        const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
-        return dt && dt >= effectiveStart;
-    });
-
-    const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
-    const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
-
-    const openingBal = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
-    const openingDate = bDate || appliedFrom;
-
+    const stats = getBuyerLedgerStats(buyer, sales, payments, appliedFrom, appliedTo);
     return {
-        openingBalance: openingBal,
-        openingDate: openingDate
+        openingBalance: stats.opening,
+        openingDate: stats.openingDate
     };
 };
 
