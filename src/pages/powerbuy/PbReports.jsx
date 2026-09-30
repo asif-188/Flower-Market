@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { Search, MessageCircle, BarChart2, X, ChevronRight, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { subscribeToCollection, db, getBuyerLedgerStats } from '../../utils/storage';
+import { subscribeToCollection, db } from '../../utils/storage';
 import { useTenant } from '../../utils/TenantContext';
 import { openWhatsAppDirect, formatDateDDMMYYYY } from '../../utils/whatsappHelper';
 import { LangContext } from '../../components/Layout';
 import { generateBuyerReceiptCanvas, generateLedgerCanvas } from '../../utils/receiptCanvas';
 import WhatsAppIcon from '../../components/WhatsAppIcon';
 import { jsPDF } from 'jspdf';
+import OpeningBalanceBreakdownModal from '../../components/OpeningBalanceBreakdownModal';
 
 const PB = {
   primary: '#7c3aed',
@@ -51,6 +52,7 @@ const PbReports = () => {
   const [search, setSearch] = useState('');
   const [activePreset, setActivePreset] = useState('today');
   const [detailBuyer, setDetailBuyer] = useState(null);
+  const [breakdownBuyer, setBreakdownBuyer] = useState(null);
   const [showFullLedger, setShowFullLedger] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [sharingRowId, setSharingRowId] = useState(null);
@@ -248,9 +250,19 @@ const PbReports = () => {
     setDownloadingRowId(buyerRow.id);
     const buyer = buyers.find(b => b.id === buyerRow.id) || buyerRow;
     try {
-      const stats = getBuyerLedgerStats(buyer, sales, payments, appliedFrom, appliedTo);
-      const openingBalance = stats.opening;
-      const openingDate = stats.openingDate;
+      const futureSales = sales.filter(s => {
+        if (s.buyerId !== buyer.id) return false;
+        const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+        return dt && dt >= appliedFrom;
+      });
+      const futurePayments = payments.filter(p => {
+        if (p.entityId !== buyer.id) return false;
+        const dt = getPaymentDate(p);
+        return dt && dt >= appliedFrom;
+      });
+      const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+      const futurePayAmt = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
+      const openingBalance = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
 
       const periodSales = sales.filter(s => {
         if (s.buyerId !== buyer.id) return false;
@@ -369,9 +381,19 @@ const PbReports = () => {
     setSharingRowId(buyerRow.id);
     const buyer = buyers.find(b => b.id === buyerRow.id) || buyerRow;
     try {
-      const stats = getBuyerLedgerStats(buyer, sales, payments, appliedFrom, appliedTo);
-      const openingBalance = stats.opening;
-      const openingDate = stats.openingDate;
+      const futureSales = sales.filter(s => {
+        if (s.buyerId !== buyer.id) return false;
+        const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+        return dt && dt >= appliedFrom;
+      });
+      const futurePayments = payments.filter(p => {
+        if (p.entityId !== buyer.id) return false;
+        const dt = getPaymentDate(p);
+        return dt && dt >= appliedFrom;
+      });
+      const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+      const futurePayAmt = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
+      const openingBalance = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
 
       const periodSales = sales.filter(s => {
         if (s.buyerId !== buyer.id) return false;
@@ -440,16 +462,9 @@ const PbReports = () => {
         lang: lang
       });
 
-      const fmtVal = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n || 0);
-      const finalBal = openingBalance + summary.sales - summary.paid - summary.less;
       const summaryText = `🌹 *${bizInfo?.name || 'Poovanam'}* 🌹\n` +
-        `*${t('statementTitle') || 'STATEMENT'} (${buyer.name})*\n` +
-        `*Period:* ${appliedFrom === appliedTo ? displayDate(appliedFrom) : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`}\n\n` +
-        `*${t('openingBalance')}:* ₹${fmtVal(openingBalance)}\n` +
-        `*${t('totalSales')}:* ₹${fmtVal(summary.sales)}\n` +
-        `*${t('cashRec')}:* ₹${fmtVal(summary.paid)}\n` +
-        `*${t('cashLess')}:* ₹${fmtVal(summary.less)}\n` +
-        `*${t('finalBalance')}:* ₹${fmtVal(finalBal)}`;
+        `*Statement For:* ${buyer.name}\n` +
+        `*Period:* ${appliedFrom === appliedTo ? displayDate(appliedFrom) : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`}`;
 
       await openWhatsAppDirect({
         phone: buyer?.contact,
@@ -469,9 +484,11 @@ const PbReports = () => {
   const handlePrintDetailedReport = () => {
     if (!detailBuyer) return;
     const buyer = buyers.find(b => b.id === detailBuyer.id) || detailBuyer;
-    const stats = getBuyerLedgerStats(buyer, sales, payments, appliedFrom, appliedTo);
-    const openingBalance = stats.opening;
-    const openingDate = stats.openingDate;
+    const futureSales = sales.filter(s => { if (s.buyerId !== buyer.id) return false; const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null); return dt && dt >= appliedFrom; });
+    const futurePayments = payments.filter(p => { if (p.entityId !== buyer.id) return false; const dt = getPaymentDate(p); return dt && dt >= appliedFrom; });
+    const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+    const futurePayAmt = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
+    const openingBalance = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
     const periodSales = sales.filter(s => { if (s.buyerId !== buyer.id) return false; const d = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null); return d && d >= appliedFrom && d <= appliedTo; });
     const periodPayments = payments.filter(p => { if (p.entityId !== buyer.id) return false; const d = getPaymentDate(p); return d && d >= appliedFrom && d <= appliedTo; });
     
@@ -569,7 +586,7 @@ const PbReports = () => {
     { label: t('paid'), value: totalPaid, accent: '#10b981', textColor: '#15803d', bg: '#f0fdf4' },
     { label: t('cashLess'), value: totalLess, accent: '#ef4444', textColor: '#b91c1c', bg: '#fef2f2' },
     { label: t('purchase'), value: 0, accent: '#ef4444', textColor: '#b91c1c', bg: '#fef2f2' },
-    { label: 'Vendor Paid', value: 0, accent: '#ef4444', textColor: '#b91c1c', bg: '#fef2f2' },
+    { label: t('vendorPaid'), value: 0, accent: '#ef4444', textColor: '#b91c1c', bg: '#fef2f2' },
     { label: t('dues'), value: totalDues, accent: '#64748b', textColor: '#1e293b', bg: '#f8fafc' },
   ];
 
@@ -709,7 +726,15 @@ const PbReports = () => {
                         </span>
                       </div>
                     </td>
-                    <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#1e293b' }}>{fmt(row.opening)}</td>
+                    <td 
+                      onClick={(e) => { e.stopPropagation(); setBreakdownBuyer(buyers.find(b => b.id === row.id) || row); }}
+                      title="Click to view Opening Balance breakdown"
+                      style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#1e293b', cursor: 'pointer' }}
+                    >
+                      <span style={{ borderBottom: isHighlighted ? '1px dotted #fff' : '1px dotted #64748b' }}>
+                        {fmt(row.opening)}
+                      </span>
+                    </td>
                     <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#dc2626' }}>{fmt(row.sales)}</td>
                     <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#15803d' }}>{fmt(row.paid)}</td>
                     <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#dc2626' }}>{fmt(row.less)}</td>
@@ -770,14 +795,26 @@ const PbReports = () => {
             {/* Mini summary */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '8px', padding: '16px 24px 0' }}>
               {[
-                { l: t('openingBalance'), v: detailBuyer.opening, c: '#64748b', bg: '#f8fafc' },
+                { l: t('openingBalance'), v: detailBuyer.opening, c: '#64748b', bg: '#f8fafc', isOpening: true },
                 { l: t('sales'), v: detailBuyer.sales, c: '#dc2626', bg: '#fef2f2' },
                 { l: t('paid'), v: detailBuyer.paid, c: '#15803d', bg: '#f0fdf4' },
                 { l: t('cashLess'), v: detailBuyer.less, c: '#dc2626', bg: '#fef2f2' },
                 { l: t('balance'), v: detailBuyer.balance, c: PB.primary, bg: PB.light }
               ].map(x => (
-                <div key={x.l} style={{ background: x.bg, borderRadius: '10px', padding: '10px 12px', border: `1px solid ${x.c}22` }}>
-                  <div style={{ fontSize: '9px', fontWeight: 700, color: x.c, textTransform: 'uppercase', marginBottom: '3px', whiteSpace: 'nowrap' }}>{x.l}</div>
+                <div key={x.l} 
+                  onClick={() => x.isOpening && setBreakdownBuyer(buyers.find(b => b.id === detailBuyer.id) || detailBuyer)}
+                  title={x.isOpening ? "Click to view Opening Balance breakdown" : undefined}
+                  style={{ 
+                    background: x.bg, 
+                    borderRadius: '10px', 
+                    padding: '10px 12px', 
+                    border: `1px solid ${x.c}22`,
+                    cursor: x.isOpening ? 'pointer' : 'default'
+                  }}
+                >
+                  <div style={{ fontSize: '9px', fontWeight: 700, color: x.c, textTransform: 'uppercase', marginBottom: '3px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    {x.l} {x.isOpening && <span style={{ fontSize: '8px', color: '#7c3aed' }}>ℹ️</span>}
+                  </div>
                   <div style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b' }}>{fmt(x.v)}</div>
                 </div>
               ))}
@@ -868,10 +905,22 @@ const PbReports = () => {
                           <>
                             <tr>
                               <td style={{ padding: '10px', color: '#64748b' }}>{displayDate(appliedFrom)}</td>
-                              <td style={{ padding: '10px', fontWeight: 700, color: '#78350f' }}>{t('openingBalance')}</td>
+                              <td 
+                                onClick={() => setBreakdownBuyer(buyers.find(b => b.id === detailBuyer.id) || detailBuyer)}
+                                style={{ padding: '10px', fontWeight: 700, color: '#78350f', cursor: 'pointer' }}
+                                title="Click to view Opening Balance breakdown"
+                              >
+                                {t('openingBalance')} <span style={{ fontSize: '10px' }}>ℹ️</span>
+                              </td>
                               <td align="right" style={{ padding: '10px' }}>0.00</td>
                               <td align="right" style={{ padding: '10px' }}>0</td>
-                              <td align="right" style={{ padding: '10px', fontWeight: 700, color: '#78350f' }}>{Math.round(runningBal)}</td>
+                              <td align="right" 
+                                onClick={() => setBreakdownBuyer(buyers.find(b => b.id === detailBuyer.id) || detailBuyer)}
+                                style={{ padding: '10px', fontWeight: 700, color: '#78350f', cursor: 'pointer' }}
+                                title="Click to view Opening Balance breakdown"
+                              >
+                                <span style={{ borderBottom: '1px dotted #78350f' }}>{Math.round(runningBal)}</span>
+                              </td>
                               <td align="right" style={{ padding: '10px' }}>0</td>
                               <td align="right" style={{ padding: '10px' }}>0</td>
                               <td align="right" style={{ padding: '10px', fontWeight: 700, background: '#fffbeb' }}>{Math.round(runningBal)}</td>
@@ -923,6 +972,17 @@ const PbReports = () => {
           </div>
         </div>
       )}
+
+      <OpeningBalanceBreakdownModal
+        isOpen={!!breakdownBuyer}
+        onClose={() => setBreakdownBuyer(null)}
+        buyer={breakdownBuyer}
+        appliedFrom={appliedFrom}
+        sales={sales}
+        payments={payments}
+        fmt={fmt}
+        lang={lang}
+      />
     </div>
   );
 };

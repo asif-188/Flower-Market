@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { FileText, Printer, Search } from 'lucide-react';
-import { subscribeToCollection, db, savePbPayment, getBuyerLedgerStats } from '../../utils/storage';
+import { subscribeToCollection, db, savePbPayment } from '../../utils/storage';
 import { doc, updateDoc, increment } from 'firebase/firestore';
 import { Check, Edit3, Save } from 'lucide-react';
 import { useTenant } from '../../utils/TenantContext';
@@ -56,18 +56,18 @@ const PbDailyReport = () => {
 
   const reportData = useMemo(() => {
     return buyers.map(b => {
-      const stats = getBuyerLedgerStats(b, sales, payments, fromDate, toDate);
-      return {
-        id: b.id,
-        displayId: b.displayId || '---',
-        name: b.name,
-        contact: b.contact || '---',
-        balance: stats.balance,
-        opening: stats.opening,
-        received: stats.paid,
-        less: stats.less,
-        sales: stats.sales
-      };
+      const rangePayments = payments.filter(p => {
+        const pDate = getPaymentDate(p);
+        return p.entityId === b.id && pDate && pDate >= fromDate && pDate <= toDate;
+      });
+      const rangeSales = sales.filter(s => {
+        const sDate = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : '');
+        return s.buyerId === b.id && sDate >= fromDate && sDate <= toDate;
+      });
+      const received = rangePayments.reduce((s, p) => s + (p.amount || 0), 0);
+      const less = rangePayments.reduce((s, p) => s + (p.cashLess || 0), 0);
+      const salesAmt = rangeSales.reduce((s, x) => s + (x.grandTotal || 0), 0);
+      return { id: b.id, displayId: b.displayId || '---', name: b.name, contact: b.contact || '---', balance: b.balance || 0, received, less, sales: salesAmt };
     }).sort((a, b) => (parseInt(a.displayId) || 0) - (parseInt(b.displayId) || 0));
   }, [buyers, sales, payments, fromDate, toDate]);
 
@@ -77,7 +77,7 @@ const PbDailyReport = () => {
     const p = reportData.reduce((acc, r) => acc + r.received, 0);
     const l = reportData.reduce((acc, r) => acc + r.less, 0);
     const b = reportData.reduce((acc, r) => acc + r.balance, 0);
-    const o = reportData.reduce((acc, r) => acc + r.opening, 0);
+    const o = b - s + (p + l);
     return { sales: s, paid: p, less: l, end: b, open: o };
   }, [reportData]);
 
