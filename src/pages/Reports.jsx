@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { Search, MessageCircle, BarChart2, X, User, ChevronRight, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { subscribeToCollection, db, getBuyerLedgerStats, updateData, logHistoryAction } from '../utils/storage';
+import { subscribeToCollection, db } from '../utils/storage';
 import { doc, getDoc } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import { generateBuyerReceiptCanvas, generateLedgerCanvas, parseMottoLines } from '../utils/receiptCanvas';
@@ -9,6 +9,7 @@ import WhatsAppIcon from '../components/WhatsAppIcon';
 import { useTenant } from '../utils/TenantContext';
 import { openWhatsAppDirect, formatDateDDMMYYYY } from '../utils/whatsappHelper';
 import { jsPDF } from 'jspdf';
+import OpeningBalanceBreakdownModal from '../components/OpeningBalanceBreakdownModal';
 
 const fmt = (n) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n || 0);
@@ -25,27 +26,6 @@ const displayDate = (iso) => {
     const parts = iso.split('-');
     if (parts.length !== 3) return iso;
     return `${parts[2]}-${parts[1]}-${parts[0]}`;
-};
-
-const getBuyerBalanceDate = (buyer) => {
-    if (buyer?.balanceDate) return buyer.balanceDate;
-    if (buyer?.createdAt) {
-        try {
-            const d = buyer.createdAt.toDate ? buyer.createdAt.toDate() : new Date(buyer.createdAt);
-            if (!isNaN(d.getTime())) return toDateStr(d);
-        } catch (e) {
-            console.error(e);
-        }
-    }
-    return null;
-};
-
-const getBuyerOpeningInfo = (buyer, sales, payments, appliedFrom, appliedTo) => {
-    const stats = getBuyerLedgerStats(buyer, sales, payments, appliedFrom, appliedTo);
-    return {
-        openingBalance: stats.opening,
-        openingDate: stats.openingDate
-    };
 };
 
 const Reports = () => {
@@ -67,6 +47,7 @@ const Reports = () => {
     const [search, setSearch]             = useState('');
     const [activePreset, setActivePreset] = useState('today');
     const [detailBuyer, setDetailBuyer]     = useState(null);
+    const [breakdownBuyer, setBreakdownBuyer] = useState(null);
     const [showFullLedger, setShowFullLedger] = useState(false);
     const [isDownloading, setIsDownloading]  = useState(false);
     const [sharingRowId, setSharingRowId]    = useState(null);
@@ -77,14 +58,14 @@ const Reports = () => {
     const bizInfo = tenantData || { motto: 'SRI RAMA JAYAM', name: 'S.V.M', type: 'SRI VALLI FLOWER MERCHANT', address: 'B-7, FLOWER MARKET, TINDIVANAM.', phone1: '9443247771', phone2: '9952535057' };
 
     useEffect(() => {
-        const u1 = subscribeToCollection('sales',    setSales, true);
+        const u1 = subscribeToCollection('sales',    setSales, true, appliedFrom);
         const u2 = subscribeToCollection('buyers',   setBuyers);
-        const u3 = subscribeToCollection('payments', setPayments, true);
+        const u3 = subscribeToCollection('payments', setPayments, true, appliedFrom);
         const u4 = subscribeToCollection('products', setProducts);
-        const u5 = subscribeToCollection('outside_purchases', setOutsidePurchases, true);
+        const u5 = subscribeToCollection('outside_purchases', setOutsidePurchases, true, appliedFrom);
         const u6 = subscribeToCollection('vendors', setVendors, true);
         return () => { u1(); u2(); u3(); u4(); u5(); u6(); };
-    }, []);
+    }, [appliedFrom]);
 
     const applyPreset = (preset) => {
         if (preset === 'custom') {
@@ -105,23 +86,49 @@ const Reports = () => {
     const handleApply = () => { setAppliedFrom(fromDate); setAppliedTo(toDate); };
 
     const report = useMemo(() => {
+        // 1. Calculate Opening Balance (Backward from current balance) for each buyer
         const rows = buyers.map(buyer => {
-            const stats = getBuyerLedgerStats(buyer, sales, payments, appliedFrom, appliedTo);
+            // Future Transactions (from appliedFrom onwards)
+            const futureSales = sales.filter(s => {
+                if (s.buyerId !== buyer.id) return false;
+                const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+                return dt && dt >= appliedFrom;
+            });
+            const futurePayments = payments.filter(p => {
+                if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
+                const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+                return dt && dt >= appliedFrom;
+            });
+            const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+            const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
+            const openingBal     = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
+
+            // Period Transactions (within [appliedFrom, appliedTo])
+            const periodSales = sales.filter(s => {
+                if (s.buyerId !== buyer.id) return false;
+                const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+                return dt && dt >= appliedFrom && dt <= appliedTo;
+            });
+            const periodPayments = payments.filter(p => {
+                if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
+                const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+                return dt && dt >= appliedFrom && dt <= appliedTo;
+            });
+
+            const salesAmt = periodSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+            const paidAmt  = periodPayments.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+            const lessAmt  = periodPayments.reduce((s, x) => s + (Number(x.cashLess) || 0), 0);
+
             return {
                 id: buyer.id,
                 name: buyer.name || 'Unknown',
                 taName: buyer.taName || buyer.nameTa || buyer.name || 'Unknown',
                 displayId: buyer.displayId || '---',
-                opening: stats.opening,
-                openingDate: stats.openingDate,
-                sales: stats.sales,
-                paid: stats.paid,
-                less: stats.less,
-                balance: stats.balance,
-                hasMismatch: stats.hasMismatch,
-                mismatchDiff: stats.mismatchDiff,
-                storedBalance: stats.storedBalance,
-                liveCalculatedBalance: stats.liveCalculatedBalance
+                opening: openingBal,
+                sales: salesAmt,
+                paid: paidAmt,
+                less: lessAmt,
+                balance: openingBal + salesAmt - paidAmt - lessAmt
             };
         });
 
@@ -175,15 +182,26 @@ const Reports = () => {
         return res.sort((a, b) => b.date.localeCompare(a.date));
     }, [detailBuyer, sales, payments, appliedFrom, appliedTo]);
 
-
-
     // ── Per-row WhatsApp receipt share ──
     // ── Detailed Ledger Print ──
     const handlePrintDetailedReport = () => {
         if (!detailBuyer) return;
 
+        // 1. Calculate Opening Balance (Backward from current balance)
+        const futureSales = sales.filter(s => {
+            if (s.buyerId !== detailBuyer.id) return false;
+            const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+            return dt && dt >= appliedFrom;
+        });
+        const futurePayments = payments.filter(p => {
+            if (p.entityId !== detailBuyer.id || p.type !== 'buyer') return false;
+            const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+            return dt && dt >= appliedFrom;
+        });
+        const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+        const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
         const buyer = buyers.find(b => b.id === detailBuyer.id) || detailBuyer;
-        const { openingBalance, openingDate } = getBuyerOpeningInfo(buyer, sales, payments, appliedFrom, appliedTo);
+        const openingBalance = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
 
         // 2. Prepare Detailed Entries for period
         const periodSales = sales.filter(s => {
@@ -283,7 +301,7 @@ const Reports = () => {
                         </thead>
                         <tbody>
                             <tr>
-                                <td align="center">${displayDate(openingDate)}</td>
+                                <td align="center"></td>
                                 <td style="font-weight: 700; color: #78350f;">${t('openingBalance')}</td>
                                 <td align="center">0.00</td>
                                 <td align="center">0</td>
@@ -313,8 +331,7 @@ const Reports = () => {
                     </table>
 
                     <div class="summary">
-                        <div class="summary-row" style="color: #78350f"><span>${t('openingBalance')} :</span> <span>${openingBalance.toFixed(2)}</span></div>
-                        <div class="summary-row" style="color: #b91c1c"><span>${t('totalSales')} :</span> <span>${totalSales.toFixed(2)}</span></div>
+                        <div class="summary-row" style="color: #b91c1c"><span>${t('totalSales')} :</span> <span>${(openingBalance + totalSales).toFixed(2)}</span></div>
                         <div class="summary-row" style="color: #16a34a"><span>${t('cashRec')} :</span> <span>${totalReceived.toFixed(2)}</span></div>
                         <div class="summary-row" style="color: #b91c1c"><span>${t('cashLess')} :</span> <span>${totalLess.toFixed(2)}</span></div>
                         <div class="summary-row" style="border-top: 2px solid #000; margin-top: 5px; padding-top: 6px; font-weight: 900; font-size: 28px;">
@@ -335,7 +352,20 @@ const Reports = () => {
         setDownloadingRowId(buyerRow.id);
         const buyer = buyers.find(b => b.id === buyerRow.id) || buyerRow;
         try {
-            const { openingBalance, openingDate } = getBuyerOpeningInfo(buyer, sales, payments, appliedFrom, appliedTo);
+            // 1. Calculate Opening Balance (Backward from current balance)
+            const futureSales = sales.filter(s => {
+                if (s.buyerId !== buyer.id) return false;
+                const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+                return dt && dt >= appliedFrom;
+            });
+            const futurePayments = payments.filter(p => {
+                if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
+                const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+                return dt && dt >= appliedFrom;
+            });
+            const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+            const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
+            const openingBalance = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
 
             // 2. Period Rows
             const periodSales = sales.filter(s => {
@@ -387,7 +417,7 @@ const Reports = () => {
                 summary,
                 openingBalance,
                 bizInfo,
-                startDate: openingDate,
+                startDate: appliedFrom,
                 labels: {
                     date: t('date'),
                     particulars: t('particulars'),
@@ -447,7 +477,20 @@ const Reports = () => {
         setSharingRowId(buyerRow.id);
         const buyer = buyers.find(b => b.id === buyerRow.id) || buyerRow;
         try {
-            const { openingBalance, openingDate } = getBuyerOpeningInfo(buyer, sales, payments, appliedFrom, appliedTo);
+            // 1. Calculate Opening Balance (Backward from current balance)
+            const futureSales = sales.filter(s => {
+                if (s.buyerId !== buyer.id) return false;
+                const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+                return dt && dt >= appliedFrom;
+            });
+            const futurePayments = payments.filter(p => {
+                if (p.entityId !== buyer.id || p.type !== 'buyer') return false;
+                const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+                return dt && dt >= appliedFrom;
+            });
+            const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+            const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
+            const openingBalance = (buyer.balance || 0) - futureSalesAmt + futurePayAmt;
 
             // 2. Period Rows
             const periodSales = sales.filter(s => {
@@ -499,7 +542,7 @@ const Reports = () => {
                 summary,
                 openingBalance,
                 bizInfo,
-                startDate: openingDate,
+                startDate: appliedFrom,
                 labels: {
                     date: t('date'),
                     particulars: t('particulars'),
@@ -523,16 +566,9 @@ const Reports = () => {
                 lang: lang
             });
 
-            const fmtVal = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n || 0);
-            const finalBal = openingBalance + summary.sales - summary.paid - summary.less;
             const summaryText = `🌹 *${bizInfo?.name || 'Poovanam'}* 🌹\n` +
-                `*${t('statementTitle') || 'STATEMENT'} (${buyer.name})*\n` +
-                `*Period:* ${appliedFrom === appliedTo ? displayDate(appliedFrom) : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`}\n\n` +
-                `*${t('openingBalance')}:* ₹${fmtVal(openingBalance)}\n` +
-                `*${t('totalSales')}:* ₹${fmtVal(summary.sales)}\n` +
-                `*${t('cashRec')}:* ₹${fmtVal(summary.paid)}\n` +
-                `*${t('cashLess')}:* ₹${fmtVal(summary.less)}\n` +
-                `*${t('finalBalance')}:* ₹${fmtVal(finalBal)}`;
+                `*Statement For:* ${buyer.name}\n` +
+                `*Period:* ${appliedFrom === appliedTo ? displayDate(appliedFrom) : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`}`;
 
             await openWhatsAppDirect({
                 phone: buyer?.contact,
@@ -687,7 +723,7 @@ const Reports = () => {
         { label: t('paid'), value: totalPaid, accent: '#10b981', textColor: '#15803d', bg: '#f0fdf4' },
         { label: t('cashLess'), value: totalLess, accent: '#ef4444', textColor: '#b91c1c', bg: '#fef2f2' },
         { label: t('purchase'), value: vendorStats.purchases, accent: '#ef4444', textColor: '#b91c1c', bg: '#fef2f2' },
-        { label: 'Vendor Paid', value: vendorStats.paid, accent: '#ef4444', textColor: '#b91c1c', bg: '#fef2f2' },
+        { label: t('vendorPaid'), value: vendorStats.paid, accent: '#ef4444', textColor: '#b91c1c', bg: '#fef2f2' },
         { label: t('dues'), value: totalDues, accent: '#64748b', textColor: '#1e293b', bg: '#f8fafc' },
     ];
 
@@ -868,7 +904,15 @@ const Reports = () => {
                                                 </span>
                                             </div>
                                         </td>
-                                        <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#1e293b' }}>{fmt(row.opening)}</td>
+                                        <td 
+                                            onClick={(e) => { e.stopPropagation(); setBreakdownBuyer(buyers.find(b => b.id === row.id) || row); }}
+                                            title="Click to view Opening Balance breakdown"
+                                            style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#1e293b', cursor: 'pointer' }}
+                                        >
+                                            <span style={{ borderBottom: isHighlighted ? '1px dotted #fff' : '1px dotted #64748b' }}>
+                                                {fmt(row.opening)}
+                                            </span>
+                                        </td>
                                         <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#dc2626' }}>{fmt(row.sales)}</td>
                                         <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#15803d' }}>{fmt(row.paid)}</td>
                                         <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : '#dc2626' }}>{fmt(row.less)}</td>
@@ -956,29 +1000,32 @@ const Reports = () => {
                         </div>
 
                         {/* Mini summary */}
-                        {(() => {
-                            const buyerObj = buyers.find(b => b.id === detailBuyer.id) || detailBuyer;
-                            const stats = getBuyerLedgerStats(buyerObj, sales, payments, appliedFrom, appliedTo);
-                            return (
-                                <>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '8px', padding: '16px 24px 0' }}>
-                                        {[
-                                            { l: t('openingBalance'), v: stats.opening, c: '#64748b', bg: '#f8fafc' },
-                                            { l: t('sales'), v: stats.sales, c: '#dc2626', bg: '#fef2f2' },
-                                            { l: t('paid'), v: stats.paid, c: '#15803d', bg: '#f0fdf4' },
-                                            { l: t('cashLess'), v: stats.less, c: '#dc2626', bg: '#fef2f2' },
-                                            { l: t('balance'), v: stats.balance, c: '#64748b', bg: '#f8fafc' }
-                                        ].map(x => (
-                                            <div key={x.l} style={{ background: x.bg, borderRadius: '10px', padding: '10px 12px', border: `1px solid ${x.c}22` }}>
-                                                <div style={{ fontSize: '9px', fontWeight: 700, color: x.c, textTransform: 'uppercase', marginBottom: '3px', whiteSpace: 'nowrap' }}>{x.l}</div>
-                                                <div style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b' }}>{fmt(x.v)}</div>
-                                            </div>
-                                        ))}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '8px', padding: '16px 24px 0' }}>
+                            {[
+                                { l: t('openingBalance'), v: detailBuyer.opening, c: '#64748b', bg: '#f8fafc', isOpening: true },
+                                { l: t('sales'), v: detailBuyer.sales, c: '#dc2626', bg: '#fef2f2' },
+                                { l: t('paid'), v: detailBuyer.paid, c: '#15803d', bg: '#f0fdf4' },
+                                { l: t('cashLess'), v: detailBuyer.less, c: '#dc2626', bg: '#fef2f2' },
+                                { l: t('balance'), v: detailBuyer.balance, c: '#64748b', bg: '#f8fafc' }
+                            ].map(x => (
+                                <div key={x.l}
+                                    onClick={() => x.isOpening && setBreakdownBuyer(buyers.find(b => b.id === detailBuyer.id) || detailBuyer)}
+                                    title={x.isOpening ? "Click to view Opening Balance breakdown" : undefined}
+                                    style={{ 
+                                        background: x.bg, 
+                                        borderRadius: '10px', 
+                                        padding: '10px 12px', 
+                                        border: `1px solid ${x.c}22`,
+                                        cursor: x.isOpening ? 'pointer' : 'default'
+                                    }}
+                                >
+                                    <div style={{ fontSize: '9px', fontWeight: 700, color: x.c, textTransform: 'uppercase', marginBottom: '3px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                        {x.l} {x.isOpening && <span style={{ fontSize: '8px', color: '#2563eb' }}>ℹ️</span>}
                                     </div>
-
-                                </>
-                            );
-                        })()}
+                                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b' }}>{fmt(x.v)}</div>
+                                </div>
+                            ))}
+                        </div>
 
                         <div style={{ padding: '16px 24px', maxHeight: '50vh', overflowY: 'auto' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
@@ -1030,8 +1077,19 @@ const Reports = () => {
                                                 // Pre-calculate ledger logic for system view
                                                 const d = detailBuyer;
                                                 const buyerObj = buyers.find(b => b.id === d.id) || d;
-                                                const { opening: openingBalance, openingDate } = getBuyerLedgerStats(buyerObj, sales, payments, appliedFrom, appliedTo);
-                                                let runningBal = openingBalance;
+                                                const futureSales = sales.filter(s => {
+                                                    if (s.buyerId !== d.id) return false;
+                                                    const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
+                                                    return dt && dt >= appliedFrom;
+                                                });
+                                                const futurePayments = payments.filter(p => {
+                                                    if (p.entityId !== d.id || p.type !== 'buyer') return false;
+                                                    const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
+                                                    return dt && dt >= appliedFrom;
+                                                });
+                                                const futureSalesAmt = futureSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
+                                                const futurePayAmt   = futurePayments.reduce((s, x) => s + (Number(x.amount) || 0) + (Number(x.cashLess) || 0), 0);
+                                                let runningBal = (buyerObj.balance || 0) - futureSalesAmt + futurePayAmt;
 
                                                 // Interleave sales items and payments
                                                 const periodSales = sales.filter(s => s.buyerId === d.id && (s.date || toDateStr(s.timestamp?.toDate ? s.timestamp.toDate() : new Date())) >= appliedFrom && (s.date || toDateStr(s.timestamp?.toDate ? s.timestamp.toDate() : new Date())) <= appliedTo);
@@ -1059,10 +1117,22 @@ const Reports = () => {
                                                 return (
                                                     <>
                                                         <tr style={{ background: '#fef3c7', fontWeight: 700 }}>
-                                                            <td style={{ padding: '8px' }}>{displayDate(openingDate)}</td>
-                                                            <td style={{ padding: '8px' }}>{t('openingBalance')}</td>
+                                                            <td style={{ padding: '8px' }}>{displayDate(appliedFrom)}</td>
+                                                            <td 
+                                                                onClick={() => setBreakdownBuyer(buyers.find(b => b.id === detailBuyer.id) || detailBuyer)}
+                                                                style={{ padding: '8px', cursor: 'pointer', color: '#92400e' }}
+                                                                title="Click to view Opening Balance breakdown"
+                                                            >
+                                                                {t('openingBalance')} <span style={{ fontSize: '10px' }}>ℹ️</span>
+                                                            </td>
                                                             <td colSpan={5}></td>
-                                                            <td style={{ padding: '8px', textAlign: 'right' }}>{fmt(runningBal)}</td>
+                                                            <td 
+                                                                onClick={() => setBreakdownBuyer(buyers.find(b => b.id === detailBuyer.id) || detailBuyer)}
+                                                                style={{ padding: '8px', textAlign: 'right', cursor: 'pointer', color: '#92400e' }}
+                                                                title="Click to view Opening Balance breakdown"
+                                                            >
+                                                                <span style={{ borderBottom: '1px dotted #92400e' }}>{fmt(runningBal)}</span>
+                                                            </td>
                                                         </tr>
                                                         {sysItems.map((it, idx) => {
                                                             runningBal = runningBal + it.total - it.credit - it.less;
@@ -1117,6 +1187,17 @@ const Reports = () => {
                     </div>
                 </div>
             )}
+
+            <OpeningBalanceBreakdownModal
+                isOpen={!!breakdownBuyer}
+                onClose={() => setBreakdownBuyer(null)}
+                buyer={breakdownBuyer}
+                appliedFrom={appliedFrom}
+                sales={sales}
+                payments={payments}
+                fmt={fmt}
+                lang={lang}
+            />
         </div>
     );
 };

@@ -282,105 +282,6 @@ export const getBuyers = async () => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
-export const getBuyerBalanceDate = (buyer) => {
-  if (buyer?.balanceDate) return buyer.balanceDate;
-  if (buyer?.createdAt) {
-      try {
-          const d = buyer.createdAt.toDate ? buyer.createdAt.toDate() : new Date(buyer.createdAt);
-          if (!isNaN(d.getTime())) {
-              const y = d.getFullYear();
-              const m = String(d.getMonth() + 1).padStart(2, '0');
-              const dd = String(d.getDate()).padStart(2, '0');
-              return `${y}-${m}-${dd}`;
-          }
-      } catch (e) {
-          console.error(e);
-      }
-  }
-  return null;
-};
-
-export const getBuyerLedgerStats = (buyer, sales = [], payments = [], appliedFrom = '1970-01-01', appliedTo = '2099-12-31') => {
-  if (!buyer) return { opening: 0, openingDate: '', sales: 0, paid: 0, less: 0, balance: 0, totalCalculatedBalance: 0, storedBalance: 0, hasMismatch: false, mismatchDiff: 0 };
-  
-  const bId = buyer.id;
-  const initialBal = Number(buyer.initialBalance ?? buyer.openingBalance ?? 0);
-  const bDate = getBuyerBalanceDate(buyer);
-
-  const toDateStr = (d) => {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${dd}`;
-  };
-
-  // 1. Transactions prior to appliedFrom
-  const priorSales = sales.filter(s => {
-      if (s.buyerId !== bId) return false;
-      const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-      return dt && dt < appliedFrom;
-  });
-  const priorPayments = payments.filter(p => {
-      if (p.entityId !== bId || p.type !== 'buyer') return false;
-      const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
-      return dt && dt < appliedFrom;
-  });
-
-  const priorSalesAmt = priorSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
-  const priorPaidAmt  = priorPayments.reduce((s, x) => s + (Number(x.amount) || 0), 0);
-  const priorLessAmt  = priorPayments.reduce((s, x) => s + (Number(x.cashLess) || 0), 0);
-
-  const openingBal = initialBal + priorSalesAmt - priorPaidAmt - priorLessAmt;
-
-  // 2. Transactions within period [appliedFrom, appliedTo]
-  const periodSales = sales.filter(s => {
-      if (s.buyerId !== bId) return false;
-      const dt = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : null);
-      return dt && dt >= appliedFrom && dt <= appliedTo;
-  });
-  const periodPayments = payments.filter(p => {
-      if (p.entityId !== bId || p.type !== 'buyer') return false;
-      const dt = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp))) : null;
-      return dt && dt >= appliedFrom && dt <= appliedTo;
-  });
-
-  const salesAmt = periodSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
-  const paidAmt  = periodPayments.reduce((s, x) => s + (Number(x.amount) || 0), 0);
-  const lessAmt  = periodPayments.reduce((s, x) => s + (Number(x.cashLess) || 0), 0);
-
-  const closingBal = openingBal + salesAmt - paidAmt - lessAmt;
-
-  // 3. All Transactions up to current date
-  const allBuyerSales = sales.filter(s => s.buyerId === bId);
-  const allBuyerPayments = payments.filter(p => p.entityId === bId && p.type === 'buyer');
-
-  const totalSalesAmt = allBuyerSales.reduce((s, x) => s + (Number(x.grandTotal) || 0), 0);
-  const totalPaidAmt  = allBuyerPayments.reduce((s, x) => s + (Number(x.amount) || 0), 0);
-  const totalLessAmt  = allBuyerPayments.reduce((s, x) => s + (Number(x.cashLess) || 0), 0);
-
-  const totalCalculatedBalance = initialBal + totalSalesAmt - totalPaidAmt - totalLessAmt;
-
-  // 4. Check mismatch with stored database field `balance`
-  const storedBal = Number(buyer.balance || 0);
-  const hasMismatch = Math.abs(storedBal - totalCalculatedBalance) > 0.01;
-  const mismatchDiff = storedBal - totalCalculatedBalance;
-
-  const openingDateLabel = (bDate && bDate < appliedFrom) ? bDate : appliedFrom;
-
-  return {
-      opening: openingBal,
-      openingDate: openingDateLabel,
-      sales: salesAmt,
-      paid: paidAmt,
-      less: lessAmt,
-      balance: closingBal,
-      totalCalculatedBalance,
-      storedBalance: storedBal,
-      hasMismatch,
-      mismatchDiff
-  };
-};
-
 export const saveBuyer = async (buyer) => {
   const { id, ...data } = buyer;
   if (id) {
@@ -392,7 +293,6 @@ export const saveBuyer = async (buyer) => {
   } else {
     await addData(COLLECTIONS.BUYERS, {
         ...data,
-        initialBalance: parseFloat(data.initialBalance ?? data.balance) || 0,
         balance: data.balance || 0
     });
     await logHistoryAction('Add', 'Customer', data.name, `Created customer: ${data.name} (Initial Balance: ₹${data.balance || 0})`);

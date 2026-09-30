@@ -390,7 +390,7 @@ export async function generateLedgerCanvas({
             
             const headerH = isFirstPage ? (firstPageTableStartY + 40) : 140;
             const rowsH = remainingCount * LINE_H;
-            const footerH = 300; // summary box + footer space
+            const footerH = 250; // summary box + footer space
             const totalNeeded = headerH + rowsH + footerH;
             
             if (totalNeeded <= LIMIT_H) {
@@ -604,20 +604,21 @@ export async function generateLedgerCanvas({
                 if (pLayout.isLast) {
                     y += 30;
                     const sumW = W - PAD*2;
-                    rect(PAD, y, sumW, 172);
-                    const drawSumRow = (sy, label, val, valueColor = '#000') => {
+                    rect(PAD, y, sumW, 130);
+                    const drawSumRow = (sy, label, val, valueColor = '#000', isTotalSales = false) => {
                         drawText(label, PAD + 15, sy + 22, { size: 22, weight: '800' });
-                        drawText(fmtNum(val), W - PAD - 15, sy + 22, { size: 22, weight: '900', align: 'right', color: valueColor });
+                        const displayVal = isTotalSales 
+                            ? fmtNum(openingBalance + val)
+                            : fmtNum(val);
+                        drawText(displayVal, W - PAD - 15, sy + 22, { size: 22, weight: '900', align: 'right', color: valueColor });
                     };
-                    const openBalSummaryText = labels.openingBalSummaryLabel || (openingBalLabel.includes(':') ? openingBalLabel : openingBalLabel + ' :');
                     const isVendor = buyer.displayId && String(buyer.displayId).startsWith('V');
-                    drawSumRow(y,       openBalSummaryText, openingBalance, '#78350f');
-                    drawSumRow(y + 42,  totalSalesLabel,    summary.sales,  '#b91c1c');
-                    drawSumRow(y + 84,  cashRecLabel,       summary.paid,   isVendor ? '#b91c1c' : '#15803d');
-                    drawSumRow(y + 126, cashLessLabel,      summary.less,   '#b91c1c');
+                    drawSumRow(y,      totalSalesLabel, summary.sales, '#b91c1c', true);
+                    drawSumRow(y + 42, cashRecLabel,    summary.paid, isVendor ? '#b91c1c' : '#15803d');
+                    drawSumRow(y + 84, cashLessLabel,   summary.less, '#b91c1c');
                     
                     const finalBal = openingBalance + summary.sales - summary.paid - summary.less;
-                    y += 172; // Move below the summary box
+                    y += 130; // Move below the summary box
                     y += 20;  // Add margin
                     ctx.beginPath(); ctx.moveTo(PAD + 10, y); ctx.lineTo(W - PAD - 10, y); ctx.stroke();
                     drawText(finalBalLabel, PAD + 15, y + 25, { size: 26, weight: '900' });
@@ -639,7 +640,7 @@ export async function generateLedgerCanvas({
         return Promise.all(pagePromises);
     }
 
-    const H = 900 + (ledgerRows.length * LINE_H);
+    const H = 850 + (ledgerRows.length * LINE_H);
     const canvas  = document.createElement('canvas');
     canvas.width  = W;
     canvas.height = H;
@@ -798,21 +799,22 @@ export async function generateLedgerCanvas({
 
     // Summary Box
     const sumW = W - PAD*2;
-    rect(PAD, y, sumW, 172);
-    const drawSumRow = (sy, label, val, valueColor = '#000') => {
+    rect(PAD, y, sumW, 130);
+    const drawSumRow = (sy, label, val, valueColor = '#000', isTotalSales = false) => {
         drawText(label, PAD + 15, sy + 22, { size: 22, weight: '800' });
-        drawText(fmtNum(val), W - PAD - 15, sy + 22, { size: 22, weight: '900', align: 'right', color: valueColor });
+        const displayVal = isTotalSales 
+            ? fmtNum(openingBalance + val)
+            : fmtNum(val);
+        drawText(displayVal, W - PAD - 15, sy + 22, { size: 22, weight: '900', align: 'right', color: valueColor });
     };
-    const openBalSummaryText = labels.openingBalSummaryLabel || (openingBalLabel.includes(':') ? openingBalLabel : openingBalLabel + ' :');
     const isVendor = buyer.displayId && String(buyer.displayId).startsWith('V');
-    drawSumRow(y,       openBalSummaryText, openingBalance, '#78350f');
-    drawSumRow(y + 42,  totalSalesLabel,    summary.sales,  '#b91c1c');
-    drawSumRow(y + 84,  cashRecLabel,       summary.paid,   isVendor ? '#b91c1c' : '#15803d');
-    drawSumRow(y + 126, cashLessLabel,      summary.less,   '#b91c1c');
+    drawSumRow(y,      totalSalesLabel, summary.sales, '#b91c1c', true);
+    drawSumRow(y + 42, cashRecLabel,    summary.paid, isVendor ? '#b91c1c' : '#15803d');
+    drawSumRow(y + 84, cashLessLabel,   summary.less, '#b91c1c');
     
     // Final Balance Row (with different styling to stand out)
     const finalBal = openingBalance + summary.sales - summary.paid - summary.less;
-    y += 172; // Move below the summary box
+    y += 130; // Move below the summary box
     y += 20;  // Add margin
     ctx.beginPath(); ctx.moveTo(PAD + 10, y); ctx.lineTo(W - PAD - 10, y); ctx.stroke();
     drawText(finalBalLabel, PAD + 15, y + 25, { size: 26, weight: '900' });

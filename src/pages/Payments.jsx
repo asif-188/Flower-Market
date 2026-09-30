@@ -314,10 +314,6 @@ const Payments = () => {
 
     const openingBalance = React.useMemo(() => {
         if (!selectedEntity) return 0;
-        const bDate = selectedEntity.balanceDate || (selectedEntity.createdAt?.toDate ? toDateStr(selectedEntity.createdAt.toDate()) : null);
-        if (bDate && formData.date < bDate) {
-            return 0;
-        }
         const currentBalance = selectedEntity.balance || 0;
         
         // Filter sales after formData.date

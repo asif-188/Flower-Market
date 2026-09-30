@@ -111,6 +111,7 @@ const strings = {
     location: 'Location',
     outsidePurchase: 'Outside Purchase',
     cashPaid: 'Cash Paid',
+    vendorPaid: 'Vendor Paid',
     totalPurchase: 'Total Purchase',
     vendorId: 'Vendor ID',
     addVendor: 'Add Vendor',
@@ -274,6 +275,7 @@ const strings = {
     location: 'இடம்',
     outsidePurchase: 'வெளிப்புற கொள்முதல்',
     cashPaid: 'செலுத்திய தொகை',
+    vendorPaid: 'வியாபாரிக்கு செலுத்தியது',
     totalPurchase: 'மொத்த கொள்முதல்',
     vendorId: 'விற்பனையாளர் ஐடி',
     addVendor: 'விற்பனையாளரைச் சேர்',
@@ -343,7 +345,8 @@ const Layout = () => {
   const location = useLocation();
   const { tenantData, logout } = useTenant();
 
-  const [lang, setLang] = useState(() => localStorage.getItem('fm_lang') || sessionStorage.getItem('fm_lang') || 'en');
+  // ── Language state (persisted) ──
+  const [lang, setLang] = useState(() => sessionStorage.getItem('fm_lang') || 'en');
   const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
   const [activeRemindersCount, setActiveRemindersCount] = useState(0);
 
@@ -370,7 +373,6 @@ const Layout = () => {
   const handleLangChange = (e) => {
     const selected = e.target.value;
     setLang(selected);
-    localStorage.setItem('fm_lang', selected);
     sessionStorage.setItem('fm_lang', selected);
   };
 
