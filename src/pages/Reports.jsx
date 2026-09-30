@@ -313,7 +313,8 @@ const Reports = () => {
                     </table>
 
                     <div class="summary">
-                        <div class="summary-row" style="color: #b91c1c"><span>${t('totalSales')} :</span> <span>${(openingBalance + totalSales).toFixed(2)}</span></div>
+                        <div class="summary-row" style="color: #78350f"><span>${t('openingBalance')} :</span> <span>${openingBalance.toFixed(2)}</span></div>
+                        <div class="summary-row" style="color: #b91c1c"><span>${t('totalSales')} :</span> <span>${totalSales.toFixed(2)}</span></div>
                         <div class="summary-row" style="color: #16a34a"><span>${t('cashRec')} :</span> <span>${totalReceived.toFixed(2)}</span></div>
                         <div class="summary-row" style="color: #b91c1c"><span>${t('cashLess')} :</span> <span>${totalLess.toFixed(2)}</span></div>
                         <div class="summary-row" style="border-top: 2px solid #000; margin-top: 5px; padding-top: 6px; font-weight: 900; font-size: 28px;">
@@ -522,9 +523,16 @@ const Reports = () => {
                 lang: lang
             });
 
+            const fmtVal = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n || 0);
+            const finalBal = openingBalance + summary.sales - summary.paid - summary.less;
             const summaryText = `🌹 *${bizInfo?.name || 'Poovanam'}* 🌹\n` +
-                `*Statement For:* ${buyer.name}\n` +
-                `*Period:* ${appliedFrom === appliedTo ? displayDate(appliedFrom) : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`}`;
+                `*${t('statementTitle') || 'STATEMENT'} (${buyer.name})*\n` +
+                `*Period:* ${appliedFrom === appliedTo ? displayDate(appliedFrom) : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`}\n\n` +
+                `*${t('openingBalance')}:* ₹${fmtVal(openingBalance)}\n` +
+                `*${t('totalSales')}:* ₹${fmtVal(summary.sales)}\n` +
+                `*${t('cashRec')}:* ₹${fmtVal(summary.paid)}\n` +
+                `*${t('cashLess')}:* ₹${fmtVal(summary.less)}\n` +
+                `*${t('finalBalance')}:* ₹${fmtVal(finalBal)}`;
 
             await openWhatsAppDirect({
                 phone: buyer?.contact,
