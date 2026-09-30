@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Edit2, Trash2, Search, X, User, FileText, Upload } from 'lucide-react';
-import { savePbBuyer, deletePbBuyer, subscribeToCollection, db } from '../../utils/storage';
+import { savePbBuyer, deletePbBuyer, subscribeToCollection, db, getBuyerLedgerStats } from '../../utils/storage';
 import { doc, updateDoc, increment, deleteDoc } from 'firebase/firestore';
 import { useTenant } from '../../utils/TenantContext';
 
@@ -384,9 +384,15 @@ const PbBuyer = () => {
                     </td>
                     <td style={{ ...S.td, fontWeight: 700, color: isHighlighted ? '#fff' : '#1e293b' }}>{buyer.name}</td>
                     <td style={{ ...S.td, color: isHighlighted ? 'rgba(255,255,255,0.9)' : '#6b7280' }}>{buyer.contact || '—'}</td>
-                    <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : (buyer.balance > 0 ? '#f43f5e' : '#16a34a') }}>
-                      {fmt(buyer.balance)}
-                    </td>
+                    {(() => {
+                      const stats = getBuyerLedgerStats(buyer, sales, payments);
+                      const displayBal = stats.totalCalculatedBalance;
+                      return (
+                        <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: isHighlighted ? '#fff' : (displayBal > 0 ? '#f43f5e' : '#16a34a') }}>
+                          {fmt(displayBal)}
+                        </td>
+                      );
+                    })()}
                     <td style={{ ...S.td, textAlign: 'center' }}>
                       <button style={{ ...S.viewBtn, background: isHighlighted ? 'rgba(255,255,255,0.1)' : '#fff', color: isHighlighted ? '#fff' : '#6b7280', borderColor: isHighlighted ? 'rgba(255,255,255,0.5)' : '#e5e7eb' }}
                         onClick={() => setViewingBuyer(buyer)}
