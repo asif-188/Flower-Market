@@ -440,9 +440,16 @@ const PbReports = () => {
         lang: lang
       });
 
+      const fmtVal = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n || 0);
+      const finalBal = openingBalance + summary.sales - summary.paid - summary.less;
       const summaryText = `🌹 *${bizInfo?.name || 'Poovanam'}* 🌹\n` +
-        `*Statement For:* ${buyer.name}\n` +
-        `*Period:* ${appliedFrom === appliedTo ? displayDate(appliedFrom) : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`}`;
+        `*${t('statementTitle') || 'STATEMENT'} (${buyer.name})*\n` +
+        `*Period:* ${appliedFrom === appliedTo ? displayDate(appliedFrom) : `${displayDate(appliedFrom)} - ${displayDate(appliedTo)}`}\n\n` +
+        `*${t('openingBalance')}:* ₹${fmtVal(openingBalance)}\n` +
+        `*${t('totalSales')}:* ₹${fmtVal(summary.sales)}\n` +
+        `*${t('cashRec')}:* ₹${fmtVal(summary.paid)}\n` +
+        `*${t('cashLess')}:* ₹${fmtVal(summary.less)}\n` +
+        `*${t('finalBalance')}:* ₹${fmtVal(finalBal)}`;
 
       await openWhatsAppDirect({
         phone: buyer?.contact,
