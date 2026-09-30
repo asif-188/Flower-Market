@@ -343,8 +343,7 @@ const Layout = () => {
   const location = useLocation();
   const { tenantData, logout } = useTenant();
 
-  // ── Language state (persisted) ──
-  const [lang, setLang] = useState(() => sessionStorage.getItem('fm_lang') || 'en');
+  const [lang, setLang] = useState(() => localStorage.getItem('fm_lang') || sessionStorage.getItem('fm_lang') || 'en');
   const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
   const [activeRemindersCount, setActiveRemindersCount] = useState(0);
 
@@ -371,6 +370,7 @@ const Layout = () => {
   const handleLangChange = (e) => {
     const selected = e.target.value;
     setLang(selected);
+    localStorage.setItem('fm_lang', selected);
     sessionStorage.setItem('fm_lang', selected);
   };
 

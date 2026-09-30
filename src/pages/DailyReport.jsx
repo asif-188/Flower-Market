@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { FileText, Printer, Search, Download, Calculator } from 'lucide-react';
-import { subscribeToCollection, db, savePayment } from '../utils/storage';
+import { subscribeToCollection, db, savePayment, getBuyerLedgerStats } from '../utils/storage';
 import { doc, updateDoc, increment } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import { Check, Edit3, Save } from 'lucide-react';
@@ -43,29 +43,18 @@ const DailyReport = () => {
 
     const reportData = useMemo(() => {
         return buyers.map(b => {
-            const rangePayments = payments.filter(p => {
-                const pDate = p.timestamp ? (typeof p.timestamp === 'string' ? p.timestamp.substring(0, 10) : toDateStr(p.timestamp.toDate ? p.timestamp.toDate() : new Date())) : '';
-                return p.entityId === b.id && p.type === 'buyer' && pDate >= fromDate && pDate <= toDate;
-            });
-            const rangeSales = sales.filter(s => {
-                const sDate = s.date || (s.timestamp?.toDate ? toDateStr(s.timestamp.toDate()) : '');
-                return s.buyerId === b.id && sDate >= fromDate && sDate <= toDate;
-            });
-
-            const received = rangePayments.reduce((s, p) => s + (p.amount || 0), 0);
-            const less     = rangePayments.reduce((s, p) => s + (p.cashLess || 0), 0);
-            const salesAmt = rangeSales.reduce((s, x) => s + (x.grandTotal || 0), 0);
-
+            const stats = getBuyerLedgerStats(b, sales, payments, fromDate, toDate);
             return {
                 id: b.id,
                 displayId: b.displayId || '---',
                 name: b.name,
                 nameTa: b.nameTa,
                 contact: b.contact || '---',
-                balance: b.balance || 0,
-                received,
-                less,
-                sales: salesAmt
+                balance: stats.balance,
+                opening: stats.opening,
+                received: stats.paid,
+                less: stats.less,
+                sales: stats.sales
             };
         }).sort((a, b) => (parseInt(a.displayId) || 0) - (parseInt(b.displayId) || 0));
     }, [buyers, sales, payments, fromDate, toDate]);
@@ -80,7 +69,7 @@ const DailyReport = () => {
         const p = reportData.reduce((acc, r) => acc + r.received, 0);
         const l = reportData.reduce((acc, r) => acc + r.less, 0);
         const b = reportData.reduce((acc, r) => acc + r.balance, 0);
-        const o = b - s + (p + l);
+        const o = reportData.reduce((acc, r) => acc + r.opening, 0);
         
         const pur = outsidePurchases
             .filter(pur => pur.date >= fromDate && pur.date <= toDate)
@@ -127,29 +116,20 @@ const DailyReport = () => {
 
         const isSearching = search.trim().length > 0;
         const targetBuyerIds = new Set(filtered.map(r => r.id));
-        
+        const matchingBuyers = buyers.filter(b => targetBuyerIds.has(b.id));
+
         let searchedCustomerName = null;
         if (isSearching && filtered.length > 0) {
             searchedCustomerName = lang === 'ta' ? (filtered[0].nameTa || filtered[0].name) : filtered[0].name;
             if (filtered.length > 1) {
-                searchedCustomerName += ` (${filtered.length} நபர்கள்)`;
+                searchedCustomerName += ` (${filtered.length} ${lang === 'ta' ? 'நபர்கள்' : 'persons'})`;
             }
         }
 
-        const priorBuyerPayments = payments.filter(p => {
-            const dt = getPDate(p);
-            return p.type === 'buyer' && targetBuyerIds.has(p.entityId) && dt && dt < fromDate;
-        });
-        const priorVendorPayments = isSearching ? [] : payments.filter(p => {
-            const dt = getPDate(p);
-            return (p.type === 'vendor' || p.type === 'farmer') && dt && dt < fromDate;
-        });
-
-        const priorCashReceived = priorBuyerPayments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
-        const priorCashLess     = priorBuyerPayments.reduce((acc, p) => acc + (Number(p.cashLess) || 0), 0);
-        const priorVendorPaid   = priorVendorPayments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
-
-        const openingBalance = priorCashReceived - priorCashLess - priorVendorPaid;
+        const openingBalance = matchingBuyers.reduce((acc, b) => {
+            const stats = getBuyerLedgerStats(b, sales, payments, fromDate, toDate);
+            return acc + (stats.opening || 0);
+        }, 0);
 
         const rangeBuyerPayments = payments.filter(p => {
             const dt = getPDate(p);
@@ -174,27 +154,12 @@ const DailyReport = () => {
         const todaysSales    = rangeSales.reduce((acc, s) => acc + (Number(s.grandTotal) || 0), 0);
         const purchaseTotal  = rangePurchases.reduce((acc, pur) => acc + (Number(pur.grandTotal) || 0), 0);
 
-        const todayStr = toDateStr(new Date());
-        const totalLiveBuyerBalance = buyers
-            .filter(b => targetBuyerIds.has(b.id))
-            .reduce((acc, b) => acc + (Number(b.balance) || 0), 0);
-        
-        let customerBalance = totalLiveBuyerBalance;
-        if (toDate < todayStr) {
-            const futureSales = sales.filter(s => {
-                const dt = getSDate(s);
-                return targetBuyerIds.has(s.buyerId) && dt && dt > toDate;
-            }).reduce((acc, s) => acc + (Number(s.grandTotal) || 0), 0);
+        const customerBalance = matchingBuyers.reduce((acc, b) => {
+            const stats = getBuyerLedgerStats(b, sales, payments, fromDate, toDate);
+            return acc + (stats.balance || 0);
+        }, 0);
 
-            const futurePayments = payments.filter(p => {
-                const dt = getPDate(p);
-                return p.type === 'buyer' && targetBuyerIds.has(p.entityId) && dt && dt > toDate;
-            }).reduce((acc, p) => acc + (Number(p.amount || 0) + Number(p.cashLess || 0)), 0);
-
-            customerBalance = totalLiveBuyerBalance - futureSales + futurePayments;
-        }
-
-        const finalClosingBalance = openingBalance + cashReceived - cashLess - vendorPayments;
+        const finalClosingBalance = openingBalance + todaysSales - cashReceived - cashLess;
 
         return {
             isSearching,
@@ -211,39 +176,28 @@ const DailyReport = () => {
     }, [sales, buyers, payments, outsidePurchases, fromDate, toDate, filtered, search, lang]);
 
     const handleDownloadExcel = () => {
-        const rows = reportData.filter(r => r.sales > 0 || r.received > 0 || r.balance > 0).map(r => ({
-            'Display ID': r.displayId,
-            'Customer Name': lang === 'ta' ? (r.nameTa || r.name) : r.name,
-            'Contact': r.contact,
-            'Balance (₹)': r.balance,
-            'Cash Received (₹)': r.received,
-            'Cash Less (₹)': r.less,
-            'Sales (₹)': r.sales
-        }));
-
-        const wb = XLSX.utils.book_new();
-
+        const isTa = lang === 'ta';
         const wsData = [
-            [`தினசரி விற்பனை அறிக்கை (${fromDate} - ${toDate})`],
-            [closingSummary.isSearching ? `தேடப்பட்ட வாடிக்கையாளர்: ${closingSummary.searchedCustomerName}` : 'அனைத்து வாடிக்கையாளர்கள்'],
+            [`${isTa ? 'தினசரி விற்பனை அறிக்கை' : 'Daily Sales Report'} (${fromDate} - ${toDate})`],
+            [closingSummary.isSearching ? `${isTa ? 'தேடப்பட்ட வாடிக்கையாளர்:' : 'Searched Customer:'} ${closingSummary.searchedCustomerName}` : (isTa ? 'அனைத்து வாடிக்கையாளர்கள்' : 'All Customers')],
             [],
-            ['வ.எண்', 'வாடிக்கையாளர் பெயர்', 'தொடர்பு எண்', 'பாக்கி (₹)', 'வரவு (₹)', 'கழி (₹)', 'விற்பனை (₹)'],
+            [isTa ? 'வ.எண்' : 'S.No', isTa ? 'வாடிக்கையாளர் பெயர்' : 'Customer Name', isTa ? 'தொடர்பு எண்' : 'Contact', isTa ? 'பாக்கி (₹)' : 'Balance (₹)', isTa ? 'வரவு (₹)' : 'Cash Rec (₹)', isTa ? 'கழி (₹)' : 'Cash Less (₹)', isTa ? 'விற்பனை (₹)' : 'Sales (₹)'],
             ...rows.map(r => [r['Display ID'], r['Customer Name'], r['Contact'], r['Balance (₹)'], r['Cash Received (₹)'], r['Cash Less (₹)'], r['Sales (₹)']]),
             [],
-            ['தானியங்கி தினசரி இறுதி கணக்கு அறிக்கை'],
-            ['விபரம்', 'தொகை (₹)'],
-            ['ஆரம்ப நிலுவை (முந்தைய நாள்)', closingSummary.openingBalance],
-            ['வரவு (+)', closingSummary.cashReceived],
-            ['கழி / செலவு (-)', closingSummary.cashLess],
-            ['கொள்முதல் மொத்தம்', closingSummary.purchaseTotal],
-            ['இன்றைய விற்பனை', closingSummary.todaysSales],
-            ['வாடிக்கையாளர் பாக்கி', closingSummary.customerBalance],
-            ['விற்பனையாளர் செலுத்தியது (-)', closingSummary.vendorPayments],
-            ['இறுதி பாக்கி', closingSummary.finalClosingBalance]
+            [isTa ? 'தானியங்கி தினசரி இறுதி கணக்கு அறிக்கை' : 'Automated Daily Settlement Report'],
+            [isTa ? 'விபரம்' : 'Particulars', isTa ? 'தொகை (₹)' : 'Amount (₹)'],
+            [isTa ? 'ஆரம்ப நிலுவை (முந்தைய நாள்)' : 'Opening Balance (Previous Day)', closingSummary.openingBalance],
+            [isTa ? 'வரவு (+)' : 'Cash Received (+)', closingSummary.cashReceived],
+            [isTa ? 'கழி / செலவு (-)' : 'Cash Less (-)', closingSummary.cashLess],
+            [isTa ? 'கொள்முதல் மொத்தம்' : 'Purchase Total', closingSummary.purchaseTotal],
+            [isTa ? 'இன்றைய விற்பனை' : "Today's Sales", closingSummary.todaysSales],
+            [isTa ? 'வாடிக்கையாளர் பாக்கி' : 'Customer Balance', closingSummary.customerBalance],
+            [isTa ? 'விற்பனையாளர் செலுத்தியது (-)' : 'Vendor Payments (-)', closingSummary.vendorPayments],
+            [isTa ? 'இறுதி பாக்கி' : 'Final Closing Balance', closingSummary.finalClosingBalance]
         ];
 
         const ws = XLSX.utils.aoa_to_sheet(wsData);
-        XLSX.utils.book_append_sheet(wb, ws, 'தினசரி அறிக்கை');
+        XLSX.utils.book_append_sheet(wb, ws, isTa ? 'தினசரி அறிக்கை' : 'Daily Report');
         XLSX.writeFile(wb, `Daily_Report_${fromDate}_to_${toDate}.xlsx`);
     };
 
@@ -356,18 +310,18 @@ const DailyReport = () => {
 
                 <div class="summary-box" style="margin-top: 30px; border: 3px solid #1e293b; padding: 20px; border-radius: 12px; background: #fff;">
                     <div style="font-size: 20px; font-weight: 900; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; font-family: sans-serif;">
-                        தானியங்கி தினசரி இறுதி கணக்கு அறிக்கை ${closingSummary.isSearching ? `(${closingSummary.searchedCustomerName})` : ''}
+                        ${lang === 'ta' ? 'தானியங்கி தினசரி இறுதி கணக்கு அறிக்கை' : 'Automated Daily Settlement Report'} ${closingSummary.isSearching ? `(${closingSummary.searchedCustomerName})` : ''}
                     </div>
-                    <div class="summary-row"><span>ஆரம்ப நிலுவை (முந்தைய நாள்) :</span> <span>${fmt(closingSummary.openingBalance)}</span></div>
-                    <div class="summary-row" style="color: #16a34a"><span>வரவு (+) :</span> <span>+ ${fmt(closingSummary.cashReceived)}</span></div>
-                    <div class="summary-row" style="color: #ea580c"><span>கழி / செலவு (-) :</span> <span>- ${fmt(closingSummary.cashLess)}</span></div>
-                    ${!closingSummary.isSearching ? `<div class="summary-row" style="color: #7e22ce"><span>கொள்முதல் மொத்தம் :</span> <span>${fmt(closingSummary.purchaseTotal)}</span></div>` : ''}
-                    <div class="summary-row" style="color: #1d4ed8"><span>இன்றைய விற்பனை :</span> <span>${fmt(closingSummary.todaysSales)}</span></div>
-                    <div class="summary-row" style="color: #1e293b"><span>வாடிக்கையாளர் பாக்கி :</span> <span>${fmt(closingSummary.customerBalance)}</span></div>
-                    ${!closingSummary.isSearching ? `<div class="summary-row" style="color: #dc2626"><span>விற்பனையாளர் செலுத்தியது (-) :</span> <span>- ${fmt(closingSummary.vendorPayments)}</span></div>` : ''}
+                    <div class="summary-row"><span>${lang === 'ta' ? 'ஆரம்ப நிலுவை (முந்தைய நாள்) :' : 'Opening Balance (Previous Day) :'}</span> <span>${fmt(closingSummary.openingBalance)}</span></div>
+                    <div class="summary-row" style="color: #16a34a"><span>${lang === 'ta' ? 'வரவு (+) :' : 'Cash Received (+) :'}</span> <span>+ ${fmt(closingSummary.cashReceived)}</span></div>
+                    <div class="summary-row" style="color: #ea580c"><span>${lang === 'ta' ? 'கழி / செலவு (-) :' : 'Cash Less (-) :'}</span> <span>- ${fmt(closingSummary.cashLess)}</span></div>
+                    ${!closingSummary.isSearching ? `<div class="summary-row" style="color: #7e22ce"><span>${lang === 'ta' ? 'கொள்முதல் மொத்தம் :' : 'Purchase Total :'}</span> <span>${fmt(closingSummary.purchaseTotal)}</span></div>` : ''}
+                    <div class="summary-row" style="color: #1d4ed8"><span>${lang === 'ta' ? 'இன்றைய விற்பனை :' : "Today's Sales :"}</span> <span>${fmt(closingSummary.todaysSales)}</span></div>
+                    <div class="summary-row" style="color: #1e293b"><span>${lang === 'ta' ? 'வாடிக்கையாளர் பாக்கி :' : 'Customer Balance :'}</span> <span>${fmt(closingSummary.customerBalance)}</span></div>
+                    ${!closingSummary.isSearching ? `<div class="summary-row" style="color: #dc2626"><span>${lang === 'ta' ? 'விற்பனையாளர் செலுத்தியது (-) :' : 'Vendor Paid (-) :'}</span> <span>- ${fmt(closingSummary.vendorPayments)}</span></div>` : ''}
 
                     <div class="summary-row grand" style="background: #1e293b; color: #fff; padding: 12px 16px; border-radius: 8px; margin-top: 15px; font-size: 24px; font-weight: 900;">
-                        <span>இறுதி பாக்கி :</span> <span>${fmt(closingSummary.finalClosingBalance)}</span>
+                        <span>${lang === 'ta' ? 'இறுதி பாக்கி :' : 'Final Closing Balance :'}</span> <span>${fmt(closingSummary.finalClosingBalance)}</span>
                     </div>
                 </div>
             </body>
@@ -583,7 +537,7 @@ const DailyReport = () => {
                         </div>
                         <div>
                             <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
-                                தானியங்கி தினசரி இறுதி கணக்கு அறிக்கை
+                                {lang === 'ta' ? 'தானியங்கி தினசரி இறுதி கணக்கு அறிக்கை' : 'Automated Daily Settlement Report'}
                                 {closingSummary.isSearching && closingSummary.searchedCustomerName && (
                                     <span style={{ background: '#e0e7ff', color: '#3730a3', fontSize: '13px', padding: '2px 10px', borderRadius: '12px', fontWeight: 700 }}>
                                         👤 {closingSummary.searchedCustomerName}
@@ -591,7 +545,9 @@ const DailyReport = () => {
                                 )}
                             </h3>
                             <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0', fontWeight: 500 }}>
-                                {fromDate === toDate ? `தேதி: ${fromDate.split('-').reverse().join('/')}` : `தேதி வரம்பு: ${fromDate.split('-').reverse().join('/')} - ${toDate.split('-').reverse().join('/')}`}
+                                {fromDate === toDate 
+                                    ? `${lang === 'ta' ? 'தேதி:' : 'Date:'} ${fromDate.split('-').reverse().join('/')}` 
+                                    : `${lang === 'ta' ? 'தேதி வரம்பு:' : 'Date Range:'} ${fromDate.split('-').reverse().join('/')} - ${toDate.split('-').reverse().join('/')}`}
                             </p>
                         </div>
                     </div>
@@ -608,7 +564,7 @@ const DailyReport = () => {
                         gap: '6px'
                     }}>
                         <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
-                        நேரடி கணக்கீடு
+                        {lang === 'ta' ? 'நேரடி கணக்கீடு' : 'Live Calculation'}
                     </span>
                 </div>
 
@@ -616,8 +572,12 @@ const DailyReport = () => {
                     {/* Card 1: Opening Balance */}
                     <div style={{ background: '#f8fafc', padding: '18px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', minWidth: 0 }}>
                         <div>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#334155' }}>ஆரம்ப நிலுவை</div>
-                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px' }}>முந்தைய நாள் இறுதி இருப்பு</div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#334155' }}>
+                                {lang === 'ta' ? 'ஆரம்ப நிலுவை' : 'Opening Balance'}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px' }}>
+                                {lang === 'ta' ? 'முந்தைய நாள் இறுதி இருப்பு' : 'Previous Day Closing Balance'}
+                            </div>
                         </div>
                         <div style={{ fontSize: '20px', fontWeight: 900, color: '#1e293b', textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>
                             {fmt(closingSummary.openingBalance)}
@@ -627,8 +587,12 @@ const DailyReport = () => {
                     {/* Card 2: Cash Received */}
                     <div style={{ background: '#f0fdf4', padding: '18px 20px', borderRadius: '14px', border: '1px solid #dcfce7', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', minWidth: 0 }}>
                         <div>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#166534' }}>வரவு (+)</div>
-                            <div style={{ fontSize: '11px', color: '#15803d', marginTop: '3px' }}>வாடிக்கையாளர் வசூல்</div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#166534' }}>
+                                {lang === 'ta' ? 'வரவு (+)' : 'Cash Received (+)'}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#15803d', marginTop: '3px' }}>
+                                {lang === 'ta' ? 'வாடிக்கையாளர் வசூல்' : 'Customer Collections'}
+                            </div>
                         </div>
                         <div style={{ fontSize: '20px', fontWeight: 900, color: '#15803d', textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>
                             + {fmt(closingSummary.cashReceived)}
@@ -638,8 +602,12 @@ const DailyReport = () => {
                     {/* Card 3: Cash Less / Expenses */}
                     <div style={{ background: '#fff7ed', padding: '18px 20px', borderRadius: '14px', border: '1px solid #ffedd5', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', minWidth: 0 }}>
                         <div>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#9a3412' }}>கழி / செலவு (-)</div>
-                            <div style={{ fontSize: '11px', color: '#c2410c', marginTop: '3px' }}>தள்ளுபடி / கழிவுகள்</div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#9a3412' }}>
+                                {lang === 'ta' ? 'கழி / செலவு (-)' : 'Cash Less (-)'}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#c2410c', marginTop: '3px' }}>
+                                {lang === 'ta' ? 'தள்ளுபடி / கழிவுகள்' : 'Discounts & Deductions'}
+                            </div>
                         </div>
                         <div style={{ fontSize: '20px', fontWeight: 900, color: '#c2410c', textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>
                             - {fmt(closingSummary.cashLess)}
@@ -650,8 +618,12 @@ const DailyReport = () => {
                     {!closingSummary.isSearching && (
                         <div style={{ background: '#faf5ff', padding: '18px 20px', borderRadius: '14px', border: '1px solid #f3e8ff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', minWidth: 0 }}>
                             <div>
-                                <div style={{ fontSize: '14px', fontWeight: 800, color: '#6b21a8' }}>கொள்முதல் மொத்தம்</div>
-                                <div style={{ fontSize: '11px', color: '#7e22ce', marginTop: '3px' }}>வெளிக்கடை கொள்முதல்</div>
+                                <div style={{ fontSize: '14px', fontWeight: 800, color: '#6b21a8' }}>
+                                    {lang === 'ta' ? 'கொள்முதல் மொத்தம்' : 'Purchase Total'}
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#7e22ce', marginTop: '3px' }}>
+                                    {lang === 'ta' ? 'வெளிக்கடை கொள்முதல்' : 'Outside Purchases'}
+                                </div>
                             </div>
                             <div style={{ fontSize: '20px', fontWeight: 900, color: '#7e22ce', textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>
                                 {fmt(closingSummary.purchaseTotal)}
@@ -662,8 +634,12 @@ const DailyReport = () => {
                     {/* Card 5: Today's Sales */}
                     <div style={{ background: '#eff6ff', padding: '18px 20px', borderRadius: '14px', border: '1px solid #dbeafe', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', minWidth: 0 }}>
                         <div>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#1e40af' }}>இன்றைய விற்பனை</div>
-                            <div style={{ fontSize: '11px', color: '#1d4ed8', marginTop: '3px' }}>வாடிக்கையாளர் விற்பனை</div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#1e40af' }}>
+                                {lang === 'ta' ? 'இன்றைய விற்பனை' : "Today's Sales"}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#1d4ed8', marginTop: '3px' }}>
+                                {lang === 'ta' ? 'வாடிக்கையாளர் விற்பனை' : 'Customer Sales'}
+                            </div>
                         </div>
                         <div style={{ fontSize: '20px', fontWeight: 900, color: '#1d4ed8', textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>
                             {fmt(closingSummary.todaysSales)}
@@ -673,8 +649,12 @@ const DailyReport = () => {
                     {/* Card 6: Customer Balance */}
                     <div style={{ background: '#f8fafc', padding: '18px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', minWidth: 0 }}>
                         <div>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#334155' }}>வாடிக்கையாளர் பாக்கி</div>
-                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px' }}>மொத்த நிலுவை தொகை</div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#334155' }}>
+                                {lang === 'ta' ? 'வாடிக்கையாளர் பாக்கி' : 'Customer Balance'}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px' }}>
+                                {lang === 'ta' ? 'மொத்த நிலுவை தொகை' : 'Total Outstanding'}
+                            </div>
                         </div>
                         <div style={{ fontSize: '20px', fontWeight: 900, color: '#1e293b', textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>
                             {fmt(closingSummary.customerBalance)}
@@ -685,8 +665,12 @@ const DailyReport = () => {
                     {!closingSummary.isSearching && (
                         <div style={{ background: '#fef2f2', padding: '18px 20px', borderRadius: '14px', border: '1px solid #fee2e2', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', minWidth: 0 }}>
                             <div>
-                                <div style={{ fontSize: '14px', fontWeight: 800, color: '#991b1b' }}>விற்பனையாளர் செலுத்தியது (-)</div>
-                                <div style={{ fontSize: '11px', color: '#b91c1c', marginTop: '3px' }}>விற்பனையாளருக்கு கொடுத்தது</div>
+                                <div style={{ fontSize: '14px', fontWeight: 800, color: '#991b1b' }}>
+                                    {lang === 'ta' ? 'விற்பனையாளர் செலுத்தியது (-)' : 'Vendor Paid (-)'}
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#b91c1c', marginTop: '3px' }}>
+                                    {lang === 'ta' ? 'விற்பனையாளருக்கு கொடுத்தது' : 'Paid to Vendors'}
+                                </div>
                             </div>
                             <div style={{ fontSize: '20px', fontWeight: 900, color: '#b91c1c', textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>
                                 - {fmt(closingSummary.vendorPayments)}
@@ -694,6 +678,8 @@ const DailyReport = () => {
                         </div>
                     )}
                 </div>
+
+
 
                 {/* Final Closing Balance Banner */}
                 <div style={{
@@ -711,10 +697,10 @@ const DailyReport = () => {
                 }}>
                     <div style={{ minWidth: '240px', flex: '1 1 300px' }}>
                         <div style={{ fontSize: '14px', fontWeight: 800, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                            இறுதி பாக்கி (FINAL CLOSING BALANCE)
+                            {lang === 'ta' ? 'இறுதி பாக்கி (FINAL CLOSING BALANCE)' : 'FINAL CLOSING BALANCE'}
                         </div>
                         <div style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '4px' }}>
-                            அடுத்த நாளுக்கான ஆரம்ப நிலுவையாக தானாக எடுத்துக்கொள்ளப்படும்
+                            {lang === 'ta' ? 'அடுத்த நாளுக்கான ஆரம்ப நிலுவையாக தானாக எடுத்துக்கொள்ளப்படும்' : 'Automatically carried forward as next day\'s opening balance'}
                         </div>
                     </div>
                     <div style={{ fontSize: '28px', fontWeight: 900, color: '#38bdf8', letterSpacing: '-0.02em', minWidth: 0, wordBreak: 'break-word', textAlign: 'right' }}>
