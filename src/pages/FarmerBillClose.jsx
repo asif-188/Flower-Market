@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Calendar, User, FileText, Download, MessageCircle, Lock, Unlock, Eye, Sparkles, X, Save, Trash2, Edit, Check } from 'lucide-react';
 import { subscribeToCollection, saveFBillClosing, saveFLedger, COLLECTIONS, db, addData, getTenant } from '../utils/storage';
 import { useTenant } from '../utils/TenantContext';
-import { collection, query, where, getDocs, doc, updateDoc, increment, addDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, increment, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import WhatsAppIcon from '../components/WhatsAppIcon';
@@ -55,8 +55,9 @@ const S = {
 
 const FarmerBillClose = () => {
     const { tenantData, isEditDeleteAllowed } = useTenant();
-    const { t } = useContext(LangContext);
+    const { t, lang } = useContext(LangContext);
     const [farmers, setFarmers] = useState([]);
+    const [products, setProducts] = useState([]);
     const [dropdownFarmerId, setDropdownFarmerId] = useState('all');
     const [commTypeFilter, setCommTypeFilter] = useState('all');
     const [selectedFarmerIds, setSelectedFarmerIds] = useState([]);
@@ -75,10 +76,14 @@ const FarmerBillClose = () => {
     const [previewFarmerId, setPreviewFarmerId] = useState(null);
     const [previewData, setPreviewData] = useState(null);
 
-    // Load farmers list
+    // Load farmers & products list
     useEffect(() => {
-        const unsubscribe = subscribeToCollection(COLLECTIONS.F_FARMERS, setFarmers);
-        return () => unsubscribe();
+        const unsubscribeFarmers = subscribeToCollection(COLLECTIONS.F_FARMERS, setFarmers);
+        const unsubscribeProducts = subscribeToCollection(COLLECTIONS.PRODUCTS, setProducts);
+        return () => {
+            unsubscribeFarmers();
+            unsubscribeProducts();
+        };
     }, []);
 
     // Reset farmer dropdown when commission type filter changes
@@ -109,6 +114,256 @@ const FarmerBillClose = () => {
         setTimeout(() => {
             setToasts(prev => prev.filter(t => t.id !== id));
         }, 3000);
+    };
+
+    const getLocalizedFarmerName = (calcOrFarmer) => {
+        if (!calcOrFarmer) return '---';
+        if (lang === 'ta') {
+            return calcOrFarmer.farmerNameTa || calcOrFarmer.nameTa || calcOrFarmer.farmerName || calcOrFarmer.name || '---';
+        }
+        return calcOrFarmer.farmerName || calcOrFarmer.name || '---';
+    };
+
+    const getLocalizedFlowerName = (name, item = {}) => {
+        if (!name) return '';
+        if (lang === 'ta') {
+            if (item.flowerNameTa) return item.flowerNameTa;
+            const found = products.find(p => p.name?.trim().toLowerCase() === name.trim().toLowerCase());
+            if (found && (found.taName || found.nameTa)) return found.taName || found.nameTa;
+            return name;
+        }
+        return name;
+    };
+
+    const generateFarmerStatementCanvas = (previewData, tenantData, statementRows, lang) => {
+        const isTa = lang === 'ta';
+        const farmerNameLoc = getLocalizedFarmerName(previewData);
+        
+        const lbl = {
+            code: isTa ? 'குறியீடு' : 'CODE',
+            name: isTa ? 'பெயர்' : 'NAME',
+            advance: isTa ? 'முன்பணம்' : 'ADVANCE',
+            date: isTa ? 'தேதி' : 'DATE',
+            fname: isTa ? 'பூ விபரம்' : 'F.NAME',
+            qty: isTa ? 'எடை' : 'QTY',
+            rate: isTa ? 'விலை' : 'RATE',
+            amount: isTa ? 'தொகை' : 'AMOUNT',
+            credit: isTa ? 'வரவு' : 'CREDIT',
+            openingBal: isTa ? 'ஆரம்ப நிலுவை' : 'Opening Balance',
+            totalRow: isTa ? 'மொத்தம் :' : 'Total :',
+            totalAmt: isTa ? 'மொத்த தொகை :' : 'TOTAL AMOUNT :',
+            creditAmt: isTa ? 'வரவு தொகை :' : 'CREDIT AMOUNT :',
+            commAmt: isTa ? 'கமிஷன் தொகை :' : 'COMMISION AMOUNT :',
+            amtToGive: isTa ? 'தர வேண்டிய தொகை :' : 'AMOUNT TO GIVE :',
+            balDue: isTa ? 'நிலுவை தொகை :' : 'BALANCE DUE :'
+        };
+
+        const W = 750;
+        const PAD = 30;
+        const rowH = 32;
+        const numRows = statementRows.length;
+        const tableH = (numRows + 2) * rowH;
+        const H = 220 + tableH + 160;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = W;
+        canvas.height = H;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, W, H);
+
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(PAD, PAD, W - 2 * PAD, H - 2 * PAD);
+
+        let y = PAD + 30;
+
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 20px Arial, "Noto Sans Tamil", "Latha", sans-serif';
+        ctx.textAlign = 'center';
+        const shopType = tenantData?.type || (isTa ? 'ஸ்ரீ வள்ளி பூ வியாபாரம்' : 'SRI VALLI FLOWER MERCHANT');
+        ctx.fillText(shopType.toUpperCase(), W / 2, y);
+
+        y += 22;
+        ctx.font = 'bold 12px Arial, "Noto Sans Tamil", "Latha", sans-serif';
+        const phoneLine = `CELL: ${tenantData?.phone1 || '9952535057'}     ${tenantData?.name || 'S.V.M'}     CELL: ${tenantData?.phone2 || '9443247771'}`;
+        ctx.fillText(phoneLine, W / 2, y);
+
+        y += 18;
+        ctx.font = '12px Arial, "Noto Sans Tamil", "Latha", sans-serif';
+        const addr = tenantData?.address || (isTa ? 'B-7, பூ மார்க்கெட், திண்டிவனம்.' : 'B-7, FLOWER MARKET, TINDIVANAM.');
+        ctx.fillText(addr, W / 2, y);
+
+        y += 16;
+        ctx.beginPath();
+        ctx.moveTo(PAD + 15, y);
+        ctx.lineTo(W - PAD - 15, y);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        y += 20;
+        ctx.font = 'bold 13px Arial, "Noto Sans Tamil", "Latha", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`${lbl.code} : ${previewData.farmerDisplayId || '---'}`, PAD + 20, y);
+        ctx.textAlign = 'right';
+        ctx.fillText(`${lbl.name} : ${farmerNameLoc}`, W - PAD - 20, y);
+
+        y += 20;
+        ctx.textAlign = 'left';
+        ctx.fillText(`${lbl.advance} : ${(previewData.openingBalance || 0).toLocaleString('en-IN')}`, PAD + 20, y);
+
+        y += 14;
+        ctx.beginPath();
+        ctx.moveTo(PAD + 15, y);
+        ctx.lineTo(W - PAD - 15, y);
+        ctx.stroke();
+
+        y += 12;
+        const tableX = PAD + 15;
+        const tableW = W - 2 * PAD - 30;
+        const cols = [
+            { label: lbl.date, w: 100, align: 'left' },
+            { label: lbl.fname, w: 190, align: 'left' },
+            { label: lbl.qty, w: 90, align: 'right' },
+            { label: lbl.rate, w: 70, align: 'right' },
+            { label: lbl.amount, w: 110, align: 'right' },
+            { label: lbl.credit, w: 100, align: 'right' },
+        ];
+
+        ctx.lineWidth = 1;
+        ctx.strokeRect(tableX, y, tableW, rowH);
+
+        let curX = tableX;
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 12px Arial, "Noto Sans Tamil", "Latha", sans-serif';
+        cols.forEach(col => {
+            ctx.strokeRect(curX, y, col.w, rowH);
+            ctx.textAlign = col.align;
+            const textX = col.align === 'left' ? curX + 8 : curX + col.w - 8;
+            ctx.fillText(col.label, textX, y + 20);
+            curX += col.w;
+        });
+
+        y += rowH;
+
+        ctx.strokeRect(tableX, y, tableW, rowH);
+        const col01W = cols[0].w + cols[1].w;
+        ctx.strokeRect(tableX, y, col01W, rowH);
+        ctx.font = '12px Arial, "Noto Sans Tamil", "Latha", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(lbl.openingBal, tableX + 8, y + 20);
+
+        ctx.textAlign = 'right';
+        curX = tableX + col01W;
+        ctx.strokeRect(curX, y, cols[2].w, rowH);
+        ctx.fillText('0', curX + cols[2].w - 8, y + 20);
+        curX += cols[2].w;
+        ctx.strokeRect(curX, y, cols[3].w, rowH);
+        ctx.fillText('0.00', curX + cols[3].w - 8, y + 20);
+        curX += cols[3].w;
+        ctx.strokeRect(curX, y, cols[4].w, rowH);
+        ctx.fillText((previewData.openingBalance || 0).toFixed(2), curX + cols[4].w - 8, y + 20);
+        curX += cols[4].w;
+        ctx.strokeRect(curX, y, cols[5].w, rowH);
+
+        y += rowH;
+
+        let totalQty = 0;
+        statementRows.forEach(r => {
+            if (r.qty) totalQty += r.qty;
+            ctx.strokeRect(tableX, y, tableW, rowH);
+
+            const rowValues = [
+                r.displayDate,
+                r.fName,
+                r.qty !== null ? r.qty.toFixed(3) : '',
+                r.rate !== null ? String(r.rate) : '',
+                r.amount !== null ? r.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+                r.credit !== null ? r.credit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''
+            ];
+
+            curX = tableX;
+            cols.forEach((col, cIdx) => {
+                ctx.strokeRect(curX, y, col.w, rowH);
+                ctx.textAlign = col.align;
+                ctx.font = (cIdx === 1 ? 'bold ' : '') + '12px Arial, "Noto Sans Tamil", "Latha", sans-serif';
+                const textX = col.align === 'left' ? curX + 8 : curX + col.w - 8;
+                ctx.fillText(rowValues[cIdx], textX, y + 20);
+                curX += col.w;
+            });
+
+            y += rowH;
+        });
+
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(tableX, y, tableW, rowH);
+        ctx.strokeRect(tableX, y, col01W, rowH);
+        ctx.font = 'bold 12px Arial, "Noto Sans Tamil", "Latha", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(lbl.totalRow, tableX + 8, y + 20);
+
+        curX = tableX + col01W;
+        ctx.strokeRect(curX, y, cols[2].w, rowH);
+        ctx.textAlign = 'right';
+        ctx.fillText(totalQty.toFixed(3), curX + cols[2].w - 8, y + 20);
+        curX += cols[2].w;
+        ctx.strokeRect(curX, y, cols[3].w, rowH);
+        curX += cols[3].w;
+        const purTot = (previewData.purchaseTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        ctx.strokeRect(curX, y, cols[4].w, rowH);
+        ctx.fillText(purTot, curX + cols[4].w - 8, y + 20);
+        curX += cols[4].w;
+        const cashTot = (previewData.cashPaidTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        ctx.strokeRect(curX, y, cols[5].w, rowH);
+        ctx.fillText(cashTot, curX + cols[5].w - 8, y + 20);
+
+        y += rowH + 24;
+
+        const sumW = 300;
+        const sumX = W - PAD - 15 - sumW;
+        const sumRowH = 24;
+
+        const purTotalStr = (previewData.purchaseTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const cashTotalStr = (previewData.cashPaidTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const commTotalStr = (previewData.commissionAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const netBal = previewData.netBalance || 0;
+        const netBalStr = Math.abs(netBal).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const finalBalHeader = netBal >= 0 ? lbl.amtToGive : lbl.balDue;
+
+        ctx.font = 'bold 13px Arial, "Noto Sans Tamil", "Latha", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(lbl.totalAmt, sumX, y);
+        ctx.textAlign = 'right';
+        ctx.fillText(purTotalStr, sumX + sumW, y);
+
+        y += sumRowH;
+        ctx.textAlign = 'left';
+        ctx.fillText(lbl.creditAmt, sumX, y);
+        ctx.textAlign = 'right';
+        ctx.fillText(cashTotalStr, sumX + sumW, y);
+
+        y += sumRowH;
+        ctx.textAlign = 'left';
+        ctx.fillText(lbl.commAmt, sumX, y);
+        ctx.textAlign = 'right';
+        ctx.fillText(commTotalStr, sumX + sumW, y);
+
+        y += 10;
+        ctx.beginPath();
+        ctx.moveTo(sumX, y);
+        ctx.lineTo(sumX + sumW, y);
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        y += 20;
+        ctx.font = 'bold 15px Arial, "Noto Sans Tamil", "Latha", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(finalBalHeader, sumX, y);
+        ctx.textAlign = 'right';
+        ctx.fillText(netBalStr, sumX + sumW, y);
+
+        return canvas;
     };
 
     useEffect(() => {
@@ -242,6 +497,7 @@ const FarmerBillClose = () => {
                     newCalcs[fid] = {
                         farmerId: fid,
                         farmerName: farmer.name,
+                        farmerNameTa: farmer.nameTa || farmer.name,
                         farmerDisplayId: farmer.displayId || '—',
                         openingBalance,
                         purchaseTotal,
@@ -574,6 +830,7 @@ const FarmerBillClose = () => {
                 detailedItems.push({
                     date: p.date,
                     flowerName: item.flowerName,
+                    flowerNameTa: item.flowerNameTa || item.nameTa,
                     weight: item.weight,
                     rate: item.rate,
                     amount: item.amount
@@ -595,6 +852,58 @@ const FarmerBillClose = () => {
         setPreviewFarmerId(fid);
     };
 
+    const buildStatementRows = (detailedItems = [], detailedPayments = []) => {
+        const dateMap = {};
+
+        detailedItems.forEach(item => {
+            const d = item.date || '';
+            if (!dateMap[d]) dateMap[d] = { purchases: [], payments: [] };
+            dateMap[d].purchases.push(item);
+        });
+
+        detailedPayments.forEach(pay => {
+            const d = pay.date || '';
+            if (!dateMap[d]) dateMap[d] = { purchases: [], payments: [] };
+            dateMap[d].payments.push(pay);
+        });
+
+        const sortedDates = Object.keys(dateMap).sort((a, b) => a.localeCompare(b));
+
+        const rows = [];
+        sortedDates.forEach(date => {
+            const { purchases, payments } = dateMap[date];
+            const maxLen = Math.max(purchases.length, payments.length);
+            for (let i = 0; i < maxLen; i++) {
+                const pur = purchases[i];
+                const pay = payments[i];
+                
+                let fName = '';
+                if (pur) {
+                    fName = getLocalizedFlowerName(pur.flowerName, pur);
+                } else if (pay) {
+                    const desc = pay.description || 'Cash Payment';
+                    if (lang === 'ta') {
+                        fName = (desc === 'Cash Payment' || desc === 'CREDIT' || desc === 'Cash') ? 'பணம் வரவு' : desc;
+                    } else {
+                        fName = desc;
+                    }
+                }
+
+                rows.push({
+                    date,
+                    displayDate: i === 0 ? (date ? date.split('-').reverse().join('/') : '---') : '',
+                    fName,
+                    qty: pur && pur.weight !== undefined && pur.weight !== null ? Number(pur.weight) : null,
+                    rate: pur && pur.rate !== undefined && pur.rate !== null ? Number(pur.rate) : null,
+                    amount: pur && pur.amount !== undefined && pur.amount !== null ? Number(pur.amount) : null,
+                    credit: pay && pay.amount !== undefined && pay.amount !== null ? Number(pay.amount) : null,
+                });
+            }
+        });
+
+        return rows;
+    };
+
     const handlePrintStatement = () => {
         if (!previewData) return;
         
@@ -604,238 +913,222 @@ const FarmerBillClose = () => {
             return;
         }
 
-        const formattedFrom = fromDate.split('-').reverse().join('/');
-        const formattedTo = toDate.split('-').reverse().join('/');
-        const generatedDate = new Date().toLocaleDateString('en-IN');
+        const statementRows = buildStatementRows(previewData.detailedItems, previewData.detailedPayments);
 
         let rowsHtml = '';
-        
-        // Opening balance row
-        rowsHtml += `
-            <tr style="border-bottom: 1px solid #000; background: #fafafa;">
-                <td style="padding: 10px 12px; color: #777;">---</td>
-                <td style="padding: 10px 12px; font-weight: bold;">Opening Balance</td>
-                <td style="padding: 10px 12px; text-align: right; color: #777;">---</td>
-                <td style="padding: 10px 12px; text-align: right; color: #777;">---</td>
-                <td style="padding: 10px 12px; text-align: right; color: #777;">---</td>
-                <td style="padding: 10px 12px; text-align: right; font-weight: bold;">₹${previewData.openingBalance.toLocaleString('en-IN')}</td>
-            </tr>
-        `;
+        let totalQty = 0;
 
-        // Purchase items
-        previewData.detailedItems.forEach(item => {
+        statementRows.forEach(r => {
+            if (r.qty) totalQty += r.qty;
+
             rowsHtml += `
-                <tr style="border-bottom: 1px solid #000;">
-                    <td style="padding: 10px 12px;">${item.date.split('-').reverse().join('/')}</td>
-                    <td style="padding: 10px 12px; font-weight: 600;">${item.flowerName}</td>
-                    <td style="padding: 10px 12px; text-align: right;">${item.weight} KG</td>
-                    <td style="padding: 10px 12px; text-align: right;">₹${item.rate}</td>
-                    <td style="padding: 10px 12px; text-align: right; color: #777;">---</td>
-                    <td style="padding: 10px 12px; text-align: right; color: #16a34a; font-weight: bold;">₹${item.amount.toLocaleString('en-IN')}</td>
+                <tr>
+                    <td style="padding: 3px 2px;">${r.displayDate}</td>
+                    <td style="padding: 3px 2px; font-weight: bold;">${r.fName}</td>
+                    <td style="padding: 3px 2px; text-align: right;">${r.qty !== null ? r.qty.toFixed(3) : ''}</td>
+                    <td style="padding: 3px 2px; text-align: right;">${r.rate !== null ? r.rate : ''}</td>
+                    <td style="padding: 3px 2px; text-align: right;">${r.amount !== null ? r.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>
+                    <td style="padding: 3px 2px; text-align: right;">${r.credit !== null ? r.credit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>
                 </tr>
             `;
         });
 
-        // Payments
-        previewData.detailedPayments.forEach(pay => {
-            rowsHtml += `
-                <tr style="border-bottom: 1px solid #000;">
-                    <td style="padding: 10px 12px;">${pay.date.split('-').reverse().join('/')}</td>
-                    <td style="padding: 10px 12px; font-weight: 600;">${pay.description}</td>
-                    <td style="padding: 10px 12px; text-align: right; color: #777;">---</td>
-                    <td style="padding: 10px 12px; text-align: right; color: #777;">---</td>
-                    <td style="padding: 10px 12px; text-align: right; color: #ef4444; font-weight: bold;">₹${pay.amount.toLocaleString('en-IN')}</td>
-                    <td style="padding: 10px 12px; text-align: right; color: #777;">---</td>
-                </tr>
-            `;
-        });
+        const purchaseTotal = previewData.purchaseTotal || 0;
+        const cashPaidTotal = previewData.cashPaidTotal || 0;
+        const commissionAmount = previewData.commissionAmount || 0;
+        const netBalance = previewData.netBalance || 0;
 
-        // Commission Summary Row
-        if (previewData.commissionAmount > 0) {
-            rowsHtml += `
-                <tr style="background: #fff1f2; border-bottom: 1px solid #000;">
-                    <td colspan="4" style="padding: 10px 12px; text-align: right; font-weight: bold; color: #b91c1c;">Less: Commission (${previewData.commissionRate}%)</td>
-                    <td style="padding: 10px 12px; text-align: right; color: #ef4444; font-weight: bold;">₹${previewData.commissionAmount.toLocaleString('en-IN')}</td>
-                    <td style="padding: 10px 12px; text-align: right; color: #777;">---</td>
-                </tr>
-            `;
-        }
-
-        // Other Charges Summary Row
-        if (previewData.otherCharges > 0) {
-            rowsHtml += `
-                <tr style="background: #fff1f2; border-bottom: 1px solid #000;">
-                    <td colspan="4" style="padding: 10px 12px; text-align: right; font-weight: bold; color: #b91c1c;">Less: Other Charges</td>
-                    <td style="padding: 10px 12px; text-align: right; color: #ef4444; font-weight: bold;">₹${parseFloat(previewData.otherCharges).toLocaleString('en-IN')}</td>
-                    <td style="padding: 10px 12px; text-align: right; color: #777;">---</td>
-                </tr>
-            `;
-        }
-
-        // Final Closing Row
-        const finalDebit = (previewData.cashPaidTotal + previewData.commissionAmount + parseFloat(previewData.otherCharges || 0));
-        const finalCredit = previewData.purchaseTotal;
-
-        rowsHtml += `
-            <tr style="background: #fff7ed; font-weight: bold; border-top: 2px solid #000; border-bottom: 2px solid #000;">
-                <td colspan="4" style="padding: 10px 12px; text-align: right; font-weight: 800; color: #ea580c;">Net Closing Balance</td>
-                <td style="padding: 10px 12px; text-align: right; color: #ef4444; font-weight: 800;">₹${finalDebit.toLocaleString('en-IN')}</td>
-                <td style="padding: 10px 12px; text-align: right; color: #16a34a; font-weight: 800;">₹${finalCredit.toLocaleString('en-IN')}</td>
-            </tr>
-        `;
-
-        const netBalColor = previewData.netBalance >= 0 ? '#16a34a' : '#ef4444';
+        const isTa = lang === 'ta';
+        const farmerNameLoc = getLocalizedFarmerName(previewData);
+        const lbl = {
+            code: isTa ? 'குறியீடு' : 'CODE',
+            name: isTa ? 'பெயர்' : 'NAME',
+            advance: isTa ? 'முன்பணம்' : 'ADVANCE',
+            date: isTa ? 'தேதி' : 'DATE',
+            fname: isTa ? 'பூ விபரம்' : 'F.NAME',
+            qty: isTa ? 'எடை' : 'QTY',
+            rate: isTa ? 'விலை' : 'RATE',
+            amount: isTa ? 'தொகை' : 'AMOUNT',
+            credit: isTa ? 'வரவு' : 'CREDIT',
+            openingBal: isTa ? 'ஆரம்ப நிலுவை' : 'Opening Balance',
+            totalRow: isTa ? 'மொத்தம் :' : 'Total :',
+            totalAmt: isTa ? 'மொத்த தொகை :' : 'TOTAL AMOUNT :',
+            creditAmt: isTa ? 'வரவு தொகை :' : 'CREDIT AMOUNT :',
+            commAmt: isTa ? 'கமிஷன் தொகை :' : 'COMMISION AMOUNT :',
+            amtToGive: isTa ? 'தர வேண்டிய தொகை :' : 'AMOUNT TO GIVE :',
+            balDue: isTa ? 'நிலுவை தொகை :' : 'BALANCE DUE :'
+        };
 
         printWindow.document.write(`
+            <!DOCTYPE html>
             <html>
                 <head>
-                    <title>Farmer Statement Preview - #${previewData.farmerDisplayId}</title>
+                    <title>Farmer Statement - #${previewData.farmerDisplayId}</title>
+                    <meta charset="utf-8" />
                     <style>
+                        @page {
+                            margin: 8mm;
+                            size: auto;
+                        }
                         body {
                             font-family: Arial, sans-serif;
-                            margin: 40px;
-                            color: #333;
+                            margin: 0 auto;
+                            padding: 15px;
+                            width: 550px;
+                            color: #000;
+                            background: #fff;
+                            font-size: 13px;
+                            box-sizing: border-box;
+                        }
+                        .bill-box {
+                            border: 1.5px solid #000;
+                            padding: 15px;
                             background: #fff;
                         }
                         .header {
                             text-align: center;
-                            border-bottom: 2px solid #000;
-                            padding-bottom: 15px;
-                            margin-bottom: 20px;
+                            margin-bottom: 12px;
+                            line-height: 1.4;
                         }
-                        .header h1 {
-                            margin: 0;
-                            font-size: 26px;
-                            color: #ea580c;
-                            font-weight: 900;
-                            letter-spacing: -0.02em;
+                        .header .title {
+                            font-size: 16px;
+                            font-weight: bold;
+                            text-transform: uppercase;
+                            letter-spacing: 0.05em;
                         }
-                        .header p {
-                            margin: 4px 0 0 0;
+                        .header .subtitle {
+                            font-size: 11px;
+                            font-weight: bold;
+                        }
+                        .header .address {
+                            font-size: 11px;
+                        }
+                        .info-block {
+                            margin-top: 10px;
+                            margin-bottom: 12px;
                             font-size: 12px;
-                            color: #555;
+                            font-weight: bold;
+                            border-top: 1px solid #000;
+                            border-bottom: 1px solid #000;
+                            padding: 6px 0;
+                            line-height: 1.5;
                         }
-                        .details-table {
-                            width: 100%;
-                            margin-bottom: 20px;
-                            font-size: 14px;
-                            border-bottom: 1px solid #ddd;
-                            padding-bottom: 10px;
+                        .info-row {
+                            display: flex;
+                            justify-content: space-between;
                         }
-                        .details-table td {
-                            padding: 4px 0;
-                        }
-                        .statement-table {
+                        table.bill-table {
                             width: 100%;
                             border-collapse: collapse;
-                            font-size: 13px;
-                            margin-bottom: 30px;
-                        }
-                        .statement-table th {
-                            background: #fff7ed;
-                            color: #ea580c;
-                            font-weight: bold;
-                            border-bottom: 2px solid #fed7aa;
-                            padding: 10px 12px;
-                            text-align: left;
-                        }
-                        .statement-table td {
-                            border-bottom: 1px solid #eee;
-                        }
-                        .footer-section {
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: flex-start;
-                            margin-top: 30px;
-                        }
-                        .timestamp-info {
                             font-size: 12px;
-                            color: #666;
+                            margin-bottom: 14px;
                         }
-                        .summary-card {
-                            border: 1.5px solid #cbd5e1;
-                            border-radius: 12px;
-                            padding: 15px 20px;
-                            background: #f8fafc;
-                            width: 300px;
+                        table.bill-table th, table.bill-table td {
+                            border: 1px solid #000;
+                            padding: 5px 6px;
+                        }
+                        table.bill-table th {
+                            font-weight: bold;
+                            background: #fff;
+                        }
+                        table.bill-table tr.total-row td {
+                            font-weight: bold;
+                            border-top: 2px solid #000;
+                            border-bottom: 2px solid #000;
+                        }
+                        .summary-box {
+                            margin-top: 12px;
+                            font-size: 12px;
+                            font-weight: bold;
+                            line-height: 1.8;
+                            width: 100%;
                             display: flex;
                             flex-direction: column;
-                            gap: 8px;
-                            font-size: 13px;
+                            align-items: flex-end;
                         }
-                        .summary-card .row {
+                        .summary-inner {
+                            width: 280px;
+                        }
+                        .summary-row {
                             display: flex;
                             justify-content: space-between;
-                            align-items: center;
+                            padding: 2px 0;
                         }
-                        .summary-card .divider {
-                            border-top: 1.5px dashed #cbd5e1;
-                            margin: 4px 0;
+                        .summary-row.balance {
+                            border-top: 1.5px solid #000;
+                            margin-top: 6px;
+                            padding-top: 6px;
+                            font-size: 14px;
+                            font-weight: bold;
                         }
                     </style>
                 </head>
                 <body>
-                    <div class="header">
-                        <h1>${tenantData?.name || 'SVM Flowers'}</h1>
-                        <p style="font-weight: bold; text-transform: uppercase;">${tenantData?.type || ''}</p>
-                        <p>${tenantData?.address || ''}</p>
-                        <p>Phone: ${tenantData?.phone1 || ''} ${tenantData?.phone2 || ''}</p>
-                    </div>
-
-                    <table class="details-table">
-                        <tr>
-                            <td><strong>Farmer ID:</strong> <span style="color: #ea580c; font-weight: bold;">#${previewData.farmerDisplayId}</span></td>
-                            <td style="text-align: right;"><strong>Date Range:</strong> ${formattedFrom} - ${formattedTo}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Farmer Name:</strong> <span style="font-weight: bold; color: #1e293b;">${previewData.farmerName}</span></td>
-                            <td></td>
-                        </tr>
-                    </table>
-
-                    <table class="statement-table">
-                        <thead>
-                            <tr>
-                                <th style="text-align: left;">Date</th>
-                                <th style="text-align: left;">Particulars / Item</th>
-                                <th style="text-align: right;">Weight</th>
-                                <th style="text-align: right;">Rate</th>
-                                <th style="text-align: right;">Debit (Paid)</th>
-                                <th style="text-align: right;">Credit (Purch)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${rowsHtml}
-                        </tbody>
-                    </table>
-
-                    <div class="footer-section">
-                        <div class="timestamp-info">
-                            <span style="display: block; font-size: 10px; text-transform: uppercase; font-weight: bold; color: #999;">Statement generated on</span>
-                            <span style="font-weight: bold; color: #444;">${generatedDate}</span>
+                    <div class="bill-box">
+                        <div class="header">
+                            <div class="title">${tenantData?.type || 'SRI VALLI FLOWER MERCHANT'}</div>
+                            <div class="subtitle">CELL: ${tenantData?.phone1 || '9952535057'}&nbsp;&nbsp;&nbsp;&nbsp;<b>${tenantData?.name || 'S.V.M'}</b>&nbsp;&nbsp;&nbsp;&nbsp;CELL: ${tenantData?.phone2 || '9443247771'}</div>
+                            <div class="address">${tenantData?.address || 'B-7, FLOWER MARKET, TINDIVANAM.'}</div>
+                            
+                            <div class="info-block">
+                                <div class="info-row">
+                                    <span>${lbl.code} : ${previewData.farmerDisplayId}</span>
+                                    <span>${lbl.name} : ${farmerNameLoc}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span>${lbl.advance} : ${(previewData.openingBalance || 0).toLocaleString('en-IN')}</span>
+                                </div>
+                            </div>
                         </div>
-                        
-                        <div class="summary-card">
-                            <div class="row">
-                                <span style="color: #64748b; font-weight: bold;">TOTAL AMOUNT:</span>
-                                <span style="font-weight: bold; color: #1e293b;">₹${previewData.purchaseTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                            <div class="row">
-                                <span style="color: #64748b; font-weight: bold;">CREDIT AMOUNT:</span>
-                                <span style="font-weight: bold; color: #1e293b;">₹${previewData.cashPaidTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                            <div class="row">
-                                <span style="color: #64748b; font-weight: bold;">COMMISSION AMOUNT:</span>
-                                <span style="font-weight: bold; color: #1e293b;">₹${previewData.commissionAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                            <div class="row">
-                                <span style="color: #64748b; font-weight: bold;">OTHER CHARGES:</span>
-                                <span style="font-weight: bold; color: #1e293b;">₹${parseFloat(previewData.otherCharges || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                            <div class="divider"></div>
-                            <div class="row">
-                                <span style="color: #ea580c; font-weight: bold; text-transform: uppercase;">Net Amount:</span>
-                                <span style="font-size: 17px; font-weight: 900; color: ${netBalColor};">₹${previewData.netBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+
+                        <table class="bill-table">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left;">${lbl.date}</th>
+                                    <th style="text-align: left;">${lbl.fname}</th>
+                                    <th style="text-align: right;">${lbl.qty}</th>
+                                    <th style="text-align: right;">${lbl.rate}</th>
+                                    <th style="text-align: right;">${lbl.amount}</th>
+                                    <th style="text-align: right;">${lbl.credit}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="2">${lbl.openingBal}</td>
+                                    <td style="text-align: right;">0</td>
+                                    <td style="text-align: right;">0.00</td>
+                                    <td style="text-align: right;">${(previewData.openingBalance || 0).toFixed(2)}</td>
+                                    <td></td>
+                                </tr>
+                                ${rowsHtml}
+                                <tr class="total-row">
+                                    <td colspan="2"><b>${lbl.totalRow}</b></td>
+                                    <td style="text-align: right;"><b>${totalQty.toFixed(3)}</b></td>
+                                    <td></td>
+                                    <td style="text-align: right;"><b>${purchaseTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td>
+                                    <td style="text-align: right;"><b>${cashPaidTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="summary-box">
+                            <div class="summary-inner">
+                                <div class="summary-row">
+                                    <span>${lbl.totalAmt}</span>
+                                    <span>${purchaseTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                </div>
+                                <div class="summary-row">
+                                    <span>${lbl.creditAmt}</span>
+                                    <span>${cashPaidTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                </div>
+                                <div class="summary-row">
+                                    <span>${lbl.commAmt}</span>
+                                    <span>${commissionAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                </div>
+                                <div class="summary-row balance">
+                                    <span>${netBalance >= 0 ? lbl.amtToGive : lbl.balDue}</span>
+                                    <span>${Math.abs(netBalance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -855,100 +1148,16 @@ const FarmerBillClose = () => {
     const handlePDFDownload = () => {
         if (!previewData) return;
         try {
-            const doc = new jsPDF('p', 'mm', 'a4');
-            doc.setFont('Helvetica', 'bold');
-            doc.setFontSize(16);
-            doc.text(`${tenantData?.name || 'Flower Market'}`, 14, 15);
-            doc.setFontSize(11);
-            doc.setFont('Helvetica', 'normal');
-            doc.text(`${tenantData?.type || ''} | ${tenantData?.address || ''}`, 14, 21);
-            doc.text(`Phone: ${tenantData?.phone1 || ''} ${tenantData?.phone2 || ''}`, 14, 26);
-            doc.line(14, 29, 196, 29);
-
-            doc.setFont('Helvetica', 'bold');
-            doc.setFontSize(13);
-            doc.text('FARMER BILL STATEMENT', 14, 38);
-            doc.setFontSize(10);
-            doc.setFont('Helvetica', 'normal');
-            doc.text(`Farmer ID: ${previewData.farmerDisplayId || ''}`, 14, 44);
-            doc.text(`Farmer Name: ${previewData.farmerName || ''}`, 14, 49);
+            const statementRows = buildStatementRows(previewData.detailedItems, previewData.detailedPayments);
+            const canvas = generateFarmerStatementCanvas(previewData, tenantData, statementRows, lang);
             
-            const formatD = (dStr) => {
-                if (!dStr) return '---';
-                return dStr.split('-').reverse().join('/');
-            };
-            doc.text(`Period: ${formatD(fromDate)} to ${formatD(toDate)}`, 14, 54);
-
-            const tableHeaders = [['Date', 'Particulars / Flower', 'Weight (KG)', 'Rate (₹)', 'Debit (Paid)', 'Credit (Purch)', 'Balance']];
-            const tableData = [
-                ['---', 'Opening Balance', '---', '---', '---', '---', `₹${(previewData.openingBalance || 0).toFixed(0)}`]
-            ];
-
-            (previewData.detailedItems || []).forEach(item => {
-                tableData.push([
-                    formatD(item.date),
-                    item.flowerName || '',
-                    `${item.weight || 0} KG`,
-                    `₹${item.rate || 0}`,
-                    '---',
-                    `₹${(item.amount || 0).toFixed(0)}`,
-                    '---'
-                ]);
-            });
-
-            (previewData.detailedPayments || []).forEach(pay => {
-                tableData.push([
-                    formatD(pay.date),
-                    pay.description || '',
-                    '---',
-                    '---',
-                    `₹${(pay.amount || 0).toFixed(0)}`,
-                    '---',
-                    '---'
-                ]);
-            });
-
-            if (previewData.commissionAmount > 0) {
-                tableData.push([
-                    '---',
-                    `Less: Commission (${previewData.commissionRate || 0}%)`,
-                    '---',
-                    '---',
-                    `₹${(previewData.commissionAmount || 0).toFixed(0)}`,
-                    '---',
-                    '---'
-                ]);
-            }
-            if (previewData.otherCharges > 0) {
-                tableData.push([
-                    '---',
-                    'Less: Other Charges',
-                    '---',
-                    '---',
-                    `₹${(parseFloat(previewData.otherCharges || 0)).toFixed(0)}`,
-                    '---',
-                    '---'
-                ]);
-            }
-
-            tableData.push([
-                '---',
-                'TOTAL / NET CLOSING',
-                '---',
-                '---',
-                `₹${((previewData.cashPaidTotal || 0) + (previewData.commissionAmount || 0) + parseFloat(previewData.otherCharges || 0)).toFixed(0)}`,
-                `₹${(previewData.purchaseTotal || 0).toFixed(0)}`,
-                `₹${(previewData.netBalance || 0).toFixed(0)}`
-            ]);
-
-            autoTable(doc, {
-                head: tableHeaders,
-                body: tableData,
-                startY: 60,
-                theme: 'striped',
-                headStyles: { fillColor: [234, 88, 12] }
-            });
-
+            const imgData = canvas.toDataURL('image/png');
+            const doc = new jsPDF('p', 'mm', 'a4');
+            
+            const pdfWidth = 190;
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            
+            doc.addImage(imgData, 'PNG', 10, 10, pdfWidth, pdfHeight);
             doc.save(`Farmer_Statement_${(previewData.farmerName || 'Farmer').replace(/\s+/g, '_')}.pdf`);
             addToast('PDF downloaded successfully!');
         } catch (error) {
@@ -965,18 +1174,35 @@ const FarmerBillClose = () => {
             return;
         }
 
-        const formattedMsg = `*FARMER STATEMENT*
+        const isTa = lang === 'ta';
+        const farmerNameLoc = getLocalizedFarmerName(previewData);
+        const balLabel = (previewData.netBalance || 0) >= 0 
+            ? (isTa ? 'தர வேண்டிய தொகை' : 'Amount To Give') 
+            : (isTa ? 'நிலுவை தொகை' : 'Balance Due');
+
+        const formattedMsg = isTa ? `*விவசாயி கணக்கு அறிக்கை*
+*கடை:* ${tenantData?.name || 'SVM Flowers'}
+*விவசாயி:* ${farmerNameLoc} (${previewData.farmerDisplayId})
+*காலம்:* ${fromDate.split('-').reverse().join('/')} முதல் ${toDate.split('-').reverse().join('/')}
+----------------------------------
+*ஆரம்ப நிலுவை:* ₹${previewData.openingBalance.toFixed(0)}
+*மொத்த தொகை:* ₹${previewData.purchaseTotal.toFixed(2)}
+*வரவு தொகை:* ₹${previewData.cashPaidTotal.toFixed(2)}
+*கமிஷன்:* ₹${previewData.commissionAmount.toFixed(2)}
+----------------------------------
+*${balLabel}:* ₹${Math.abs(previewData.netBalance).toFixed(2)}
+நன்றி!`
+: `*FARMER STATEMENT*
 *Shop:* ${tenantData?.name || 'SVM Flowers'}
-*Farmer:* ${previewData.farmerName} (${previewData.farmerDisplayId})
+*Farmer:* ${farmerNameLoc} (${previewData.farmerDisplayId})
 *Period:* ${fromDate.split('-').reverse().join('/')} to ${toDate.split('-').reverse().join('/')}
 ----------------------------------
 *Opening Bal:* ₹${previewData.openingBalance.toFixed(0)}
-*Total Purchases:* ₹${previewData.purchaseTotal.toFixed(0)}
-*Total Cash Paid:* ₹${previewData.cashPaidTotal.toFixed(0)}
-*Commission:* ₹${previewData.commissionAmount.toFixed(0)}
-*Other Charges:* ₹${parseFloat(previewData.otherCharges || 0).toFixed(0)}
+*Total Amount:* ₹${previewData.purchaseTotal.toFixed(2)}
+*Credit Amount:* ₹${previewData.cashPaidTotal.toFixed(2)}
+*Commission:* ₹${previewData.commissionAmount.toFixed(2)}
 ----------------------------------
-*Closing Bal:* ₹${previewData.netBalance.toFixed(0)}
+*${balLabel}:* ₹${Math.abs(previewData.netBalance).toFixed(2)}
 Thank you!`;
 
         const whatsappNumber = farmerObj.contact.length === 10 ? '91' + farmerObj.contact : farmerObj.contact;
@@ -1146,7 +1372,7 @@ Thank you!`;
                                                 #{calc.farmerDisplayId}
                                             </td>
                                             <td style={{ ...TD_S, fontWeight: 600, whiteSpace: 'nowrap' }}>
-                                                {calc.farmerName}
+                                                {getLocalizedFarmerName(calc)}
                                             </td>
                                             <td style={{ ...TD_S, textAlign: 'right', fontWeight: 600, color: '#64748b' }}>{fmt(calc.openingBalance)}</td>
                                             <td style={{ ...TD_S, textAlign: 'right', fontWeight: 700, color: '#16a34a' }}>{fmt(calc.purchaseTotal)}</td>
@@ -1318,203 +1544,195 @@ Thank you!`;
             </div>
 
             {/* ── Preview Dialog Statement Modal ── */}
-            {previewData && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyArea: 'center', justifyContent: 'center', zIndex: 100, padding: '16px' }} className="no-print">
-                    <div style={{ background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '840px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden', boxSizing: 'border-box' }}>
-                        <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fafafa', flexShrink: 0, boxSizing: 'border-box' }}>
-                            <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                📋 Farmer Statement Preview
-                            </h3>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <button 
-                                    onClick={handleWhatsAppShare}
-                                    style={{
-                                        width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        borderRadius: '50%', border: '1px solid #e2e8f0', background: '#fff', color: '#16a34a', cursor: 'pointer', transition: 'all 0.15s'
-                                    }}
-                                    onMouseEnter={e => { e.currentTarget.style.background = '#f0fdf4'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
-                                >
-                                    <WhatsAppIcon size={16} />
-                                </button>
-                                <button 
-                                    onClick={handlePDFDownload}
-                                    style={{
-                                        width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        borderRadius: '50%', border: '1px solid #e2e8f0', background: '#fff', color: '#2563eb', cursor: 'pointer', transition: 'all 0.15s'
-                                    }}
-                                    onMouseEnter={e => { e.currentTarget.style.background = '#eff6ff'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
-                                >
-                                    <Download size={16} />
-                                </button>
-                                <button 
-                                    onClick={handlePrintStatement}
-                                    style={{
-                                        width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        borderRadius: '50%', border: '1px solid #e2e8f0', background: '#fff', color: '#475569', cursor: 'pointer', transition: 'all 0.15s'
-                                    }}
-                                    onMouseEnter={e => { e.currentTarget.style.background = '#f1f5f9'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
-                                >
-                                    <FileText size={16} />
-                                </button>
+            {previewData && (() => {
+                const isTa = lang === 'ta';
+                const farmerNameLoc = getLocalizedFarmerName(previewData);
+                const lbl = {
+                    code: isTa ? 'குறியீடு' : 'CODE',
+                    name: isTa ? 'பெயர்' : 'NAME',
+                    advance: isTa ? 'முன்பணம்' : 'ADVANCE',
+                    date: isTa ? 'தேதி' : 'DATE',
+                    fname: isTa ? 'பூ விபரம்' : 'F.NAME',
+                    qty: isTa ? 'எடை' : 'QTY',
+                    rate: isTa ? 'விலை' : 'RATE',
+                    amount: isTa ? 'தொகை' : 'AMOUNT',
+                    credit: isTa ? 'வரவு' : 'CREDIT',
+                    openingBal: isTa ? 'ஆரம்ப நிலுவை' : 'Opening Balance',
+                    totalRow: isTa ? 'மொத்தம் :' : 'Total :',
+                    totalAmt: isTa ? 'மொத்த தொகை :' : 'TOTAL AMOUNT :',
+                    creditAmt: isTa ? 'வரவு தொகை :' : 'CREDIT AMOUNT :',
+                    commAmt: isTa ? 'கமிஷன் தொகை :' : 'COMMISION AMOUNT :',
+                    amtToGive: isTa ? 'தர வேண்டிய தொகை :' : 'AMOUNT TO GIVE :',
+                    balDue: isTa ? 'நிலுவை தொகை :' : 'BALANCE DUE :',
+                    headerTitle: isTa ? 'விவசாயி கணக்கு அறிக்கை' : 'Farmer Statement Preview'
+                };
+                return (
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyArea: 'center', justifyContent: 'center', zIndex: 100, padding: '16px' }} className="no-print">
+                        <div style={{ background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '840px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden', boxSizing: 'border-box' }}>
+                            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fafafa', flexShrink: 0, boxSizing: 'border-box' }}>
+                                <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    📋 {lbl.headerTitle}
+                                </h3>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <button 
+                                        onClick={handleWhatsAppShare}
+                                        style={{
+                                            width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            borderRadius: '50%', border: '1px solid #e2e8f0', background: '#fff', color: '#16a34a', cursor: 'pointer', transition: 'all 0.15s'
+                                        }}
+                                        onMouseEnter={e => { e.currentTarget.style.background = '#f0fdf4'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
+                                    >
+                                        <WhatsAppIcon size={16} />
+                                    </button>
+                                    <button 
+                                        onClick={handlePDFDownload}
+                                        style={{
+                                            width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            borderRadius: '50%', border: '1px solid #e2e8f0', background: '#fff', color: '#2563eb', cursor: 'pointer', transition: 'all 0.15s'
+                                        }}
+                                        onMouseEnter={e => { e.currentTarget.style.background = '#eff6ff'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
+                                    >
+                                        <Download size={16} />
+                                    </button>
+                                    <button 
+                                        onClick={handlePrintStatement}
+                                        style={{
+                                            width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            borderRadius: '50%', border: '1px solid #e2e8f0', background: '#fff', color: '#475569', cursor: 'pointer', transition: 'all 0.15s'
+                                        }}
+                                        onMouseEnter={e => { e.currentTarget.style.background = '#f1f5f9'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
+                                    >
+                                        <FileText size={16} />
+                                    </button>
+                                    <button 
+                                        onClick={() => setPreviewData(null)}
+                                        style={{
+                                            width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            borderRadius: '50%', border: '1px solid #cbd5e1', background: '#fff', color: '#94a3b8', cursor: 'pointer', marginLeft: '12px', transition: 'all 0.15s'
+                                        }}
+                                        onMouseEnter={e => { e.currentTarget.style.color = '#475569'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; }}
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Statement content */}
+                            <div className="print-area" style={{ padding: '24px', overflowY: 'auto', flex: 1, fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#000', boxSizing: 'border-box', width: '100%', background: '#f8fafc', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
+                                <div style={{ background: '#fff', border: '1.5px solid #000', width: '100%', maxWidth: '650px', padding: '24px', boxSizing: 'border-box', height: 'fit-content' }}>
+                                    {/* Letterhead */}
+                                    <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                                        <h2 style={{ fontSize: '18px', fontWeight: 800, textTransform: 'uppercase', color: '#000', margin: '0 0 4px 0', letterSpacing: '0.04em' }}>{tenantData?.type || 'SRI VALLI FLOWER MERCHANT'}</h2>
+                                        <p style={{ fontSize: '12px', fontWeight: 700, color: '#000', margin: '0 0 4px 0' }}>
+                                            CELL: {tenantData?.phone1 || '9952535057'} &nbsp;&nbsp;&nbsp;&nbsp; <strong style={{ fontSize: '13px' }}>{tenantData?.name || 'S.V.M'}</strong> &nbsp;&nbsp;&nbsp;&nbsp; CELL: {tenantData?.phone2 || '9443247771'}
+                                        </p>
+                                        <p style={{ fontSize: '11px', color: '#000', margin: 0 }}>{tenantData?.address || 'B-7, FLOWER MARKET, TINDIVANAM.'}</p>
+
+                                        <div style={{ borderTop: '1px solid #000', borderBottom: '1px solid #000', padding: '6px 0', margin: '14px 0', fontSize: '12px', fontWeight: 700 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                <span>{lbl.code} : {previewData.farmerDisplayId}</span>
+                                                <span>{lbl.name} : {farmerNameLoc}</span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                                                <span>{lbl.advance} : {(previewData.openingBalance || 0).toLocaleString('en-IN')}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Detailed transaction entries */}
+                                    <div style={{ overflowX: 'auto' }}>
+                                        {(() => {
+                                            const modalRows = buildStatementRows(previewData.detailedItems, previewData.detailedPayments);
+                                            let totalQty = 0;
+                                            modalRows.forEach(r => { if (r.qty) totalQty += r.qty; });
+                                            return (
+                                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', color: '#000' }}>
+                                                    <thead>
+                                                        <tr style={{ background: '#fff' }}>
+                                                            <th style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontWeight: 800 }}>{lbl.date}</th>
+                                                            <th style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'left', fontWeight: 800 }}>{lbl.fname}</th>
+                                                            <th style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'right', fontWeight: 800 }}>{lbl.qty}</th>
+                                                            <th style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'right', fontWeight: 800 }}>{lbl.rate}</th>
+                                                            <th style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'right', fontWeight: 800 }}>{lbl.amount}</th>
+                                                            <th style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'right', fontWeight: 800 }}>{lbl.credit}</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr>
+                                                            <td colSpan={2} style={{ border: '1px solid #000', padding: '6px 8px' }}>{lbl.openingBal}</td>
+                                                            <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'right' }}>0</td>
+                                                            <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'right' }}>0.00</td>
+                                                            <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'right' }}>{(previewData.openingBalance || 0).toFixed(2)}</td>
+                                                            <td style={{ border: '1px solid #000', padding: '6px 8px' }}></td>
+                                                        </tr>
+                                                        {modalRows.map((r, index) => (
+                                                            <tr key={index}>
+                                                                <td style={{ border: '1px solid #000', padding: '6px 8px' }}>{r.displayDate}</td>
+                                                                <td style={{ border: '1px solid #000', padding: '6px 8px', fontWeight: 700 }}>{r.fName}</td>
+                                                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'right' }}>{r.qty !== null ? r.qty.toFixed(3) : ''}</td>
+                                                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'right' }}>{r.rate !== null ? r.rate : ''}</td>
+                                                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'right' }}>{r.amount !== null ? r.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>
+                                                                <td style={{ border: '1px solid #000', padding: '6px 8px', textAlign: 'right' }}>{r.credit !== null ? r.credit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</td>
+                                                            </tr>
+                                                        ))}
+                                                        <tr style={{ fontWeight: 800, background: '#fff' }}>
+                                                            <td colSpan={2} style={{ border: '1px solid #000', borderTop: '2px solid #000', borderBottom: '2px solid #000', padding: '7px 8px' }}>{lbl.totalRow}</td>
+                                                            <td style={{ border: '1px solid #000', borderTop: '2px solid #000', borderBottom: '2px solid #000', padding: '7px 8px', textAlign: 'right' }}>{totalQty.toFixed(3)}</td>
+                                                            <td style={{ border: '1px solid #000', borderTop: '2px solid #000', borderBottom: '2px solid #000', padding: '7px 8px' }}></td>
+                                                            <td style={{ border: '1px solid #000', borderTop: '2px solid #000', borderBottom: '2px solid #000', padding: '7px 8px', textAlign: 'right' }}>{(previewData.purchaseTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                            <td style={{ border: '1px solid #000', borderTop: '2px solid #000', borderBottom: '2px solid #000', padding: '7px 8px', textAlign: 'right' }}>{(previewData.cashPaidTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            );
+                                        })()}
+                                    </div>
+
+                                    <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', fontSize: '13px', fontWeight: 700 }}>
+                                        <div style={{ width: '280px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                <span>{lbl.totalAmt}</span>
+                                                <span>{(previewData.purchaseTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                <span>{lbl.creditAmt}</span>
+                                                <span>{(previewData.cashPaidTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                <span>{lbl.commAmt}</span>
+                                                <span>{(previewData.commissionAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                            </div>
+                                            <div style={{ borderTop: '1.5px solid #000', marginTop: '4px', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 800 }}>
+                                                <span>{(previewData.netBalance || 0) >= 0 ? lbl.amtToGive : lbl.balDue}</span>
+                                                <span>{Math.abs(previewData.netBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#fafafa', display: 'flex', justifyContent: 'flex-end', flexShrink: 0, boxSizing: 'border-box', width: '100%' }}>
                                 <button 
                                     onClick={() => setPreviewData(null)}
                                     style={{
-                                        width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        borderRadius: '50%', border: '1px solid #cbd5e1', background: '#fff', color: '#94a3b8', cursor: 'pointer', marginLeft: '12px', transition: 'all 0.15s'
+                                        padding: '10px 24px', background: '#ea580c', color: '#fff', borderRadius: '100px',
+                                        fontWeight: 800, fontSize: '13px', border: 'none', textTransform: 'uppercase',
+                                        letterSpacing: '0.05em', cursor: 'pointer', transition: 'background-color 0.15s'
                                     }}
-                                    onMouseEnter={e => { e.currentTarget.style.color = '#475569'; }}
-                                    onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; }}
+                                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#c2410c'}
+                                    onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ea580c'}
                                 >
-                                    <X size={16} />
+                                    {t('close') || 'Close Preview'}
                                 </button>
                             </div>
                         </div>
-
-                        {/* Statement content */}
-                        <div className="print-area" style={{ padding: '32px 32px 48px', overflowY: 'auto', overflowX: 'hidden', flex: 1, fontFamily: 'var(--font-sans)', fontSize: '13px', color: '#374151', boxSizing: 'border-box', width: '100%' }}>
-                            {/* Letterhead */}
-                            <div style={{ textAlign: 'center', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '20px', marginBottom: '24px' }}>
-                                <h2 style={{ fontSize: '24px', fontWeight: 850, letterSpacing: '-0.02em', color: '#ea580c', margin: '0 0 4px 0' }}>{tenantData?.name || 'SVM Flowers'}</h2>
-                                <p style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 2px 0' }}>{tenantData?.type || ''}</p>
-                                <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 2px 0' }}>{tenantData?.address || ''}</p>
-                                <p style={{ fontSize: '11px', color: '#94a3b8', margin: 0 }}>Phone: {tenantData?.phone1 || ''} {tenantData?.phone2 || ''}</p>
-                            </div>
-
-                            {/* Farmer Details */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginBottom: '24px', fontSize: '13px', borderBottom: '1.5px solid #f1f5f9', paddingBottom: '14px' }}>
-                                <div>
-                                    <div><span style={{ color: '#64748b', fontWeight: 700 }}>Farmer ID:</span> <span style={{ color: '#ea580c', fontWeight: 800 }}>#{previewData.farmerDisplayId}</span></div>
-                                    <div style={{ marginTop: '4px' }}><span style={{ color: '#64748b', fontWeight: 700 }}>Farmer Name:</span> <span style={{ color: '#1e293b', fontWeight: 800 }}>{previewData.farmerName}</span></div>
-                                </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <div><span style={{ color: '#64748b', fontWeight: 700 }}>Date Range:</span> <span style={{ color: '#1e293b', fontWeight: 800 }}>{fromDate.split('-').reverse().join('/')} - {toDate.split('-').reverse().join('/')}</span></div>
-                                </div>
-                            </div>
-
-                            {/* Detailed transaction entries */}
-                            <div style={{ overflowX: 'auto', border: '1.5px solid #e2e8f0', borderRadius: '12px', background: '#fff', boxSizing: 'border-box' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                                    <thead>
-                                        <tr style={{ background: '#fff7ed', borderBottom: '2px solid #fed7aa' }}>
-                                            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 750, color: '#ea580c' }}>Date</th>
-                                            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 750, color: '#ea580c' }}>Particulars / Item</th>
-                                            <th style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 750, color: '#ea580c' }}>Weight</th>
-                                            <th style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 750, color: '#ea580c' }}>Rate</th>
-                                            <th style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 750, color: '#ea580c' }}>Debit (Paid)</th>
-                                            <th style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 750, color: '#ea580c' }}>Credit (Purch)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#fafafa' }}>
-                                            <td style={{ padding: '12px 16px', color: '#94a3b8' }}>---</td>
-                                            <td style={{ padding: '12px 16px', fontWeight: 700, color: '#475569' }}>Opening Balance</td>
-                                            <td style={{ padding: '12px 16px', textAlign: 'right', color: '#94a3b8' }}>---</td>
-                                            <td style={{ padding: '12px 16px', textAlign: 'right', color: '#94a3b8' }}>---</td>
-                                            <td style={{ padding: '12px 16px', textAlign: 'right', color: '#94a3b8' }}>---</td>
-                                            <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, color: '#374151' }}>₹{previewData.openingBalance.toLocaleString('en-IN')}</td>
-                                        </tr>
-                                        {previewData.detailedItems.map((item, index) => (
-                                            <tr key={index} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                <td style={{ padding: '12px 16px' }}>{item.date.split('-').reverse().join('/')}</td>
-                                                <td style={{ padding: '12px 16px', fontWeight: 600 }}>{item.flowerName}</td>
-                                                <td style={{ padding: '12px 16px', textAlign: 'right' }}>{item.weight} KG</td>
-                                                <td style={{ padding: '12px 16px', textAlign: 'right' }}>₹{item.rate}</td>
-                                                <td style={{ padding: '12px 16px', textAlign: 'right', color: '#94a3b8' }}>---</td>
-                                                <td style={{ padding: '12px 16px', textAlign: 'right', color: '#16a34a', fontWeight: 700 }}>₹{item.amount.toLocaleString('en-IN')}</td>
-                                            </tr>
-                                        ))}
-                                        {previewData.detailedPayments.map((pay, index) => (
-                                            <tr key={index} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                <td style={{ padding: '12px 16px' }}>{pay.date.split('-').reverse().join('/')}</td>
-                                                <td style={{ padding: '12px 16px', fontWeight: 600 }}>{pay.description}</td>
-                                                <td style={{ padding: '12px 16px', textAlign: 'right', color: '#94a3b8' }}>---</td>
-                                                <td style={{ padding: '12px 16px', textAlign: 'right', color: '#94a3b8' }}>---</td>
-                                                <td style={{ padding: '12px 16px', textAlign: 'right', color: '#ef4444', fontWeight: 700 }}>₹{pay.amount.toLocaleString('en-IN')}</td>
-                                                <td style={{ padding: '12px 16px', textAlign: 'right', color: '#94a3b8' }}>---</td>
-                                            </tr>
-                                        ))}
-                                        
-                                        {/* Summary Rows */}
-                                        {previewData.commissionAmount > 0 && (
-                                            <tr style={{ background: '#fff1f2', borderBottom: '1px solid #fecdd3' }}>
-                                                <td colSpan={4} style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 750, color: '#b91c1c' }}>Less: Commission ({previewData.commissionRate}%)</td>
-                                                <td style={{ padding: '12px 16px', textAlign: 'right', color: '#ef4444', fontWeight: 700 }}>₹{previewData.commissionAmount.toLocaleString('en-IN')}</td>
-                                                <td style={{ padding: '12px 16px', textAlign: 'right', color: '#94a3b8' }}>---</td>
-                                            </tr>
-                                        )}
-                                        {previewData.otherCharges > 0 && (
-                                            <tr style={{ background: '#fff1f2', borderBottom: '1px solid #fecdd3' }}>
-                                                <td colSpan={4} style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 750, color: '#b91c1c' }}>Less: Other Charges</td>
-                                                <td style={{ padding: '12px 16px', textAlign: 'right', color: '#ef4444', fontWeight: 700 }}>₹{parseFloat(previewData.otherCharges).toLocaleString('en-IN')}</td>
-                                                <td style={{ padding: '12px 16px', textAlign: 'right', color: '#94a3b8' }}>---</td>
-                                            </tr>
-                                        )}
- 
-                                        {/* Final Summary Row */}
-                                        <tr style={{ background: '#fff7ed', fontWeight: 700, borderTop: '2px solid #fed7aa' }}>
-                                            <td colSpan={4} style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 800, color: '#ea580c' }}>Net Closing Balance</td>
-                                            <td style={{ padding: '12px 16px', textAlign: 'right', color: '#ef4444', fontWeight: 800 }}>₹{(previewData.cashPaidTotal + previewData.commissionAmount + parseFloat(previewData.otherCharges || 0)).toLocaleString('en-IN')}</td>
-                                            <td style={{ padding: '12px 16px', textAlign: 'right', color: '#16a34a', fontWeight: 800 }}>₹{previewData.purchaseTotal.toLocaleString('en-IN')}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
- 
-                            <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px', flexWrap: 'wrap' }}>
-                                <div>
-                                    <span style={{ display: 'block', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94a3b8', fontWeight: 700 }}>Statement generated on</span>
-                                    <span style={{ fontSize: '13px', color: '#475569', fontWeight: 650, marginTop: '2px', display: 'block' }}>{new Date().toLocaleDateString('en-IN')}</span>
-                                </div>
-                                
-                                <div style={{ border: '1.5px solid #e2e8f0', borderRadius: '16px', padding: '18px 20px', background: '#f8fafc', width: '320px', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px', boxSizing: 'border-box' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total Amount:</span>
-                                        <span style={{ fontWeight: 800, color: '#1e293b' }}>₹{previewData.purchaseTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Credit Amount:</span>
-                                        <span style={{ fontWeight: 800, color: '#1e293b' }}>₹{previewData.cashPaidTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Commission Amount:</span>
-                                        <span style={{ fontWeight: 800, color: '#1e293b' }}>₹{previewData.commissionAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Other Charges:</span>
-                                        <span style={{ fontWeight: 800, color: '#1e293b' }}>₹{parseFloat(previewData.otherCharges || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    </div>
-                                    <div style={{ borderTop: '1.5px dashed #cbd5e1', margin: '4px 0' }}></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '12px', color: '#ea580c', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Net Amount:</span>
-                                        <span style={{ fontSize: '18px', fontWeight: 900, color: previewData.netBalance >= 0 ? '#16a34a' : '#ef4444' }}>
-                                            ₹ {previewData.netBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="h-6"></div>
-                        </div>
- 
-                        <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#fafafa', display: 'flex', justifyContent: 'flex-end', flexShrink: 0, boxSizing: 'border-box', width: '100%' }}>
-                            <button 
-                                onClick={() => setPreviewData(null)}
-                                style={{
-                                    padding: '10px 24px', background: '#ea580c', color: '#fff', borderRadius: '100px',
-                                    fontWeight: 800, fontSize: '13px', border: 'none', textTransform: 'uppercase',
-                                    letterSpacing: '0.05em', cursor: 'pointer', transition: 'background-color 0.15s'
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#c2410c'}
-                                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ea580c'}
-                            >
-                                Close Preview
-                            </button>
-                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </div>
     );
 };

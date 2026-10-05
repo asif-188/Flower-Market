@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
-import { Search, MessageCircle, BarChart2, X, User, ChevronRight, Download } from 'lucide-react';
+import { Search, MessageCircle, BarChart2, X, User, ChevronRight, Download, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { subscribeToCollection, db } from '../utils/storage';
 import { doc, getDoc } from 'firebase/firestore';
@@ -45,6 +45,8 @@ const Reports = () => {
     const [appliedFrom, setAppliedFrom]   = useState(today);
     const [appliedTo, setAppliedTo]       = useState(today);
     const [search, setSearch]             = useState('');
+    const [sortField, setSortField]       = useState('displayId');
+    const [sortOrder, setSortOrder]       = useState('asc');
     const [activePreset, setActivePreset] = useState('today');
     const [detailBuyer, setDetailBuyer]     = useState(null);
     const [breakdownBuyer, setBreakdownBuyer] = useState(null);
@@ -54,6 +56,15 @@ const Reports = () => {
     const [downloadingRowId, setDownloadingRowId] = useState(null);
     const [mainTableSelectedIndex, setMainTableSelectedIndex] = useState(-1);
     const mainTableRowRefs = React.useRef([]);
+
+    const handleSort = (field) => {
+        if (sortField === field) {
+            setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+        } else {
+            setSortField(field);
+            setSortOrder(field === 'customerName' || field === 'displayId' ? 'asc' : 'desc');
+        }
+    };
 
     const bizInfo = tenantData || { motto: 'SRI RAMA JAYAM', name: 'S.V.M', type: 'SRI VALLI FLOWER MERCHANT', address: 'B-7, FLOWER MARKET, TINDIVANAM.', phone1: '9443247771', phone2: '9952535057' };
 
@@ -164,6 +175,33 @@ const Reports = () => {
         r.name.toLowerCase().includes(search.toLowerCase()) ||
         r.displayId.toString().includes(search)
     );
+
+    const sortedFiltered = useMemo(() => {
+        return [...filtered].sort((a, b) => {
+            let valA, valB;
+            if (sortField === 'customerName' || sortField === 'displayId') {
+                const numA = parseInt(a.displayId, 10);
+                const numB = parseInt(b.displayId, 10);
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    valA = numA;
+                    valB = numB;
+                } else {
+                    valA = (a.name || '').toLowerCase();
+                    valB = (b.name || '').toLowerCase();
+                }
+            } else {
+                valA = Number(a[sortField]) || 0;
+                valB = Number(b[sortField]) || 0;
+            }
+
+            if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+            if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+
+            const tieA = parseInt(a.displayId, 10) || 0;
+            const tieB = parseInt(b.displayId, 10) || 0;
+            return tieA - tieB;
+        });
+    }, [filtered, sortField, sortOrder]);
 
     const detailTransactionsForList = useMemo(() => {
         if (!detailBuyer) return [];
@@ -685,10 +723,10 @@ const Reports = () => {
     };
 
     const handleDownloadXLSX = async () => {
-        if (report.length === 0) return alert('No data to download.');
+        if (sortedFiltered.length === 0) return alert('No data to download.');
         setIsDownloading(true);
         try {
-            const data = report.map(r => ({ 
+            const data = sortedFiltered.map(r => ({ 
                 ID: r.displayId, 
                 Customer: r.name, 
                 'Opening Balance': r.opening,
@@ -707,6 +745,38 @@ const Reports = () => {
             a.click();
         } catch (e) { alert('Error: ' + e.message); }
         finally { setIsDownloading(false); }
+    };
+
+    const renderSortHeader = (field, label, align = 'left') => {
+        const isSorted = sortField === field;
+        return (
+            <th 
+                style={{ 
+                    ...S.th, 
+                    textAlign: align, 
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    color: isSorted ? '#16a34a' : '#1e293b',
+                    transition: 'color 0.15s'
+                }}
+                onClick={() => handleSort(field)}
+                title={`Sort by ${label}`}
+            >
+                <div style={{ 
+                    display: 'inline-flex', 
+                    alignItems: 'center', 
+                    gap: '4px',
+                    justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start'
+                }}>
+                    <span>{label}</span>
+                    {isSorted ? (
+                        sortOrder === 'asc' ? <ArrowUp size={13} style={{ color: '#16a34a' }} /> : <ArrowDown size={13} style={{ color: '#16a34a' }} />
+                    ) : (
+                        <ArrowUpDown size={12} style={{ color: '#9ca3af', opacity: 0.6 }} />
+                    )}
+                </div>
+            </th>
+        );
     };
 
     // Style helpers (matching screenshot)
@@ -824,7 +894,7 @@ const Reports = () => {
                 ))}
 
                 {/* Search */}
-                <div style={{ flex: '1 1 220px', minWidth: '220px', position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <div style={{ flex: '1 1 200px', minWidth: '180px', position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <Search size={14} style={{ position: 'absolute', left: '12px', color: '#9ca3af', pointerEvents: 'none' }} />
                     <input type="text" placeholder="Search by name or ID..."
                         value={search} onChange={e => setSearch(e.target.value)}
@@ -833,6 +903,50 @@ const Reports = () => {
                         onBlur={e => e.target.style.borderColor = '#e2e8f0'}
                     />
                 </div>
+
+                {/* Sort Selector Dropdown */}
+                <div style={{ flex: '0 0 auto', minWidth: '170px', display: 'flex', alignItems: 'center' }}>
+                    <select
+                        value={`${sortField}-${sortOrder}`}
+                        onChange={(e) => {
+                            const parts = e.target.value.split('-');
+                            const o = parts.pop();
+                            const f = parts.join('-');
+                            setSortField(f);
+                            setSortOrder(o);
+                        }}
+                        style={{
+                            width: '100%',
+                            padding: '10px 12px',
+                            borderRadius: '10px',
+                            border: '1.5px solid #e2e8f0',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            color: '#374151',
+                            background: '#fff',
+                            outline: 'none',
+                            fontFamily: 'var(--font-sans)',
+                            cursor: 'pointer'
+                        }}
+                        onFocus={e => e.target.style.borderColor = '#16a34a'}
+                        onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                    >
+                        <option value="displayId-asc">Sort: Customer ID (#1 → #999)</option>
+                        <option value="displayId-desc">Sort: Customer ID (#999 → #1)</option>
+                        <option value="customerName-asc">Sort: Customer Name (A → Z)</option>
+                        <option value="customerName-desc">Sort: Customer Name (Z → A)</option>
+                        <option value="opening-desc">Sort: Opening Balance (High → Low)</option>
+                        <option value="opening-asc">Sort: Opening Balance (Low → High)</option>
+                        <option value="sales-desc">Sort: Sales (High → Low)</option>
+                        <option value="sales-asc">Sort: Sales (Low → High)</option>
+                        <option value="paid-desc">Sort: Paid (High → Low)</option>
+                        <option value="paid-asc">Sort: Paid (Low → High)</option>
+                        <option value="less-desc">Sort: Cash Less (High → Low)</option>
+                        <option value="less-asc">Sort: Cash Less (Low → High)</option>
+                        <option value="balance-desc">Sort: Balance (High → Low)</option>
+                        <option value="balance-asc">Sort: Balance (Low → High)</option>
+                    </select>
+                </div>
             </div>
 
             {/* ── Table ── */}
@@ -840,24 +954,24 @@ const Reports = () => {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr>
-                            <th style={S.th}>{t('customerName')}</th>
-                            <th style={{ ...S.th, textAlign: 'right' }}>{t('openingBalance')}</th>
-                            <th style={{ ...S.th, textAlign: 'right' }}>{t('sales')}</th>
-                            <th style={{ ...S.th, textAlign: 'right' }}>{t('paid')}</th>
-                            <th style={{ ...S.th, textAlign: 'right' }}>{t('cashLess')}</th>
-                            <th style={{ ...S.th, textAlign: 'right' }}>{t('balance')}</th>
+                            {renderSortHeader('displayId', t('customerName'))}
+                            {renderSortHeader('opening', t('openingBalance'), 'right')}
+                            {renderSortHeader('sales', t('sales'), 'right')}
+                            {renderSortHeader('paid', t('paid'), 'right')}
+                            {renderSortHeader('less', t('cashLess'), 'right')}
+                            {renderSortHeader('balance', t('balance'), 'right')}
                             <th style={{ ...S.th, textAlign: 'center' }}>{t('action')}</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {filtered.length === 0 ? (
+                        {sortedFiltered.length === 0 ? (
                             <tr>
                                 <td colSpan={7} style={{ padding: '60px 16px', textAlign: 'center', color: '#9ca3af', fontStyle: 'italic', fontSize: '14px' }}>
                                     {t('noRecords')}
                                 </td>
                             </tr>
                         ) : (
-                            filtered.map((row, idx) => {
+                            sortedFiltered.map((row, idx) => {
                                 const isHighlighted = mainTableSelectedIndex === idx;
                                 return (
                                     <tr key={row.id}
@@ -867,7 +981,7 @@ const Reports = () => {
                                         onKeyDown={(e) => {
                                             if (e.key === 'ArrowDown') {
                                                 e.preventDefault();
-                                                const nextIdx = Math.min(idx + 1, filtered.length - 1);
+                                                const nextIdx = Math.min(idx + 1, sortedFiltered.length - 1);
                                                 setMainTableSelectedIndex(nextIdx);
                                                 mainTableRowRefs.current[nextIdx]?.focus();
                                             } else if (e.key === 'ArrowUp') {
