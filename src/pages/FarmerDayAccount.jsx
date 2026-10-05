@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Calendar, Search, Printer, FileText } from 'lucide-react';
 import { subscribeToCollection, getTenant, COLLECTIONS, db } from '../utils/storage';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { LangContext } from '../components/Layout';
 
 const FarmerDayAccount = () => {
+    const { t, lang } = useContext(LangContext);
     const [farmers, setFarmers] = useState([]);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -153,15 +155,15 @@ const FarmerDayAccount = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                 <div>
-                    <h2 className="text-3xl font-black text-gray-800 tracking-tight">Day Account</h2>
-                    <p className="text-gray-400 font-bold text-xs uppercase tracking-wider mt-1">Daily outstanding ledger balances and daily summary</p>
+                    <h2 className="text-3xl font-black text-gray-800 tracking-tight">{lang === 'ta' ? 'தினசரி கணக்கு' : 'Day Account'}</h2>
+                    <p className="text-gray-400 font-bold text-xs uppercase tracking-wider mt-1">{lang === 'ta' ? 'தினசரி நிலுவை தொகைகள் மற்றும் அறிக்கை' : 'Daily outstanding ledger balances and daily summary'}</p>
                 </div>
             </div>
 
             {/* Filters */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50/50 p-6 rounded-2xl border border-gray-100 mb-8 items-end no-print">
                 <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Select Date</label>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">{lang === 'ta' ? 'தேதியைத் தேர்ந்தெடுக்கவும்' : 'Select Date'}</label>
                     <div className="relative">
                         <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input 
@@ -173,13 +175,13 @@ const FarmerDayAccount = () => {
                     </div>
                 </div>
                 <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Search Farmer</label>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">{t('searchFarmer') || (lang === 'ta' ? 'விவசாயி தேட' : 'Search Farmer')}</label>
                     <div className="relative">
                         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input 
                             type="text"
                             className="w-full pl-10 pr-3 py-2 border rounded-xl font-bold text-gray-700 outline-none focus:border-orange-500"
-                            placeholder="Search farmer name or ID..."
+                            placeholder={lang === 'ta' ? 'பெயர் அல்லது எண் மூலம் தேடுக...' : 'Search farmer name or ID...'}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -190,7 +192,7 @@ const FarmerDayAccount = () => {
                         onClick={handlePrint}
                         className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-orange-100"
                     >
-                        <Printer size={14} /> Print Day Summary
+                        <Printer size={14} /> {lang === 'ta' ? 'அறிக்கையை அச்சிட' : 'Print Day Summary'}
                     </button>
                 </div>
             </div>
@@ -200,13 +202,13 @@ const FarmerDayAccount = () => {
                 <table className="w-full border-separate border-spacing-0">
                     <thead>
                         <tr className="bg-orange-50/50">
-                            <th className="px-4 py-3.5 text-xs font-black text-orange-900 uppercase tracking-widest text-left first:rounded-l-xl">Farmer ID</th>
-                            <th className="px-4 py-3.5 text-xs font-black text-orange-900 uppercase tracking-widest text-left">Farmer Name</th>
-                            <th className="px-4 py-3.5 text-xs font-black text-orange-900 uppercase tracking-widest text-right">Previous Outstanding</th>
-                            <th className="px-4 py-3.5 text-xs font-black text-orange-900 uppercase tracking-widest text-right">Today's Purchase</th>
-                            <th className="px-4 py-3.5 text-xs font-black text-orange-900 uppercase tracking-widest text-right">Today's Paid</th>
-                            <th className="px-4 py-3.5 text-xs font-black text-orange-900 uppercase tracking-widest text-right">Commission</th>
-                            <th className="px-4 py-3.5 text-xs font-black text-orange-900 uppercase tracking-widest text-right last:rounded-r-xl">Closing Balance</th>
+                            <th className="px-4 py-3.5 text-xs font-black text-orange-900 uppercase tracking-widest text-left first:rounded-l-xl">{lang === 'ta' ? 'விவசாயி கோடு' : 'Farmer ID'}</th>
+                            <th className="px-4 py-3.5 text-xs font-black text-orange-900 uppercase tracking-widest text-left">{lang === 'ta' ? 'விவசாயி பெயர்' : 'Farmer Name'}</th>
+                            <th className="px-4 py-3.5 text-xs font-black text-orange-900 uppercase tracking-widest text-right">{lang === 'ta' ? 'முந்தைய பாக்கி' : 'Previous Outstanding'}</th>
+                            <th className="px-4 py-3.5 text-xs font-black text-orange-900 uppercase tracking-widest text-right">{lang === 'ta' ? 'இன்றைய கொள்முதல்' : "Today's Purchase"}</th>
+                            <th className="px-4 py-3.5 text-xs font-black text-orange-900 uppercase tracking-widest text-right">{lang === 'ta' ? 'இன்றைய வரவு' : "Today's Paid"}</th>
+                            <th className="px-4 py-3.5 text-xs font-black text-orange-900 uppercase tracking-widest text-right">{lang === 'ta' ? 'கமிஷன்' : 'Commission'}</th>
+                            <th className="px-4 py-3.5 text-xs font-black text-orange-900 uppercase tracking-widest text-right last:rounded-r-xl">{lang === 'ta' ? 'இறுதி இருப்பு' : 'Closing Balance'}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
@@ -232,13 +234,13 @@ const FarmerDayAccount = () => {
                         {filteredRows.length === 0 && (
                             <tr>
                                 <td colSpan={7} className="py-20 text-center text-gray-400 font-bold italic text-xs">
-                                    No records found.
+                                    {lang === 'ta' ? 'தகவல்கள் எதுவும் இல்லை.' : 'No records found.'}
                                 </td>
                             </tr>
                         )}
                         {/* Totals Row */}
                         <tr className="bg-orange-50/30 font-black">
-                            <td colSpan={2} className="px-4 py-4 text-sm text-orange-950 uppercase">Grand Total</td>
+                            <td colSpan={2} className="px-4 py-4 text-sm text-orange-950 uppercase">{lang === 'ta' ? 'மொத்த கூட்டுத்தொகை' : 'Grand Total'}</td>
                             <td className={`px-4 py-4 text-sm text-right ${totals.prevOutstanding >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                                 ₹{totals.prevOutstanding.toFixed(0)}
                             </td>

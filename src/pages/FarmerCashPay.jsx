@@ -447,7 +447,7 @@ const FarmerCashPay = () => {
                         onMouseEnter={e => { e.currentTarget.style.background = '#ea580c'; e.currentTarget.style.color = '#fff'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#ea580c'; }}
                     >
-                        <Plus size={14} /> Record Payment
+                        <Plus size={14} /> {lang === 'ta' ? 'பணம் பதிவிட' : 'Record Payment'}
                     </button>
                 </div>
             </div>
@@ -525,7 +525,7 @@ const FarmerCashPay = () => {
                 </div>
 
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px', background: '#fff', padding: '6px 15px', borderRadius: '10px', border: '1.5px solid #ea580c', boxShadow: '0 2px 10px rgba(234,88,12,0.1)' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#ea580c', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total:</span>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#ea580c', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{lang === 'ta' ? 'மொத்தம்:' : 'Total:'}</span>
                     <span style={{ fontSize: '16px', fontWeight: 900, color: '#1e293b', fontFamily: 'var(--font-display)' }}>{fmt(totalPaid)}</span>
                 </div>
             </div>
@@ -536,8 +536,8 @@ const FarmerCashPay = () => {
                     <thead>
                         <tr>
                             <th style={S.th}>{t('date')}</th>
-                            <th style={S.th}>Farmer Name</th>
-                            <th style={{ ...S.th, textAlign: 'right' }}>Amount Paid</th>
+                            <th style={S.th}>{lang === 'ta' ? 'விவசாயி பெயர்' : 'Farmer Name'}</th>
+                            <th style={{ ...S.th, textAlign: 'right' }}>{lang === 'ta' ? 'செலுத்திய தொகை' : 'Amount Paid'}</th>
                             <th style={S.th}>{t('notes')}</th>
                             <th style={{ ...S.th, textAlign: 'center' }}>{t('action')}</th>
                         </tr>
@@ -649,7 +649,7 @@ const FarmerCashPay = () => {
                     <div style={{ background: '#fff', borderRadius: '16px', width: '95%', maxWidth: '1200px', height: '90vh', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden', fontFamily: 'var(--font-sans)', display: 'flex', flexDirection: 'column' }}>
                         {/* Modal Header — solid orange */}
                         <div style={{ background: '#ea580c', padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-                            <span style={{ fontSize: '18px', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-display)' }}>Record Farmer Payment</span>
+                            <span style={{ fontSize: '18px', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-display)' }}>{lang === 'ta' ? 'விவசாயி பணம் பதிவு' : 'Record Farmer Payment'}</span>
                             <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', display: 'flex' }}>
                                 <X size={24} strokeWidth={2.5} />
                             </button>
@@ -675,7 +675,7 @@ const FarmerCashPay = () => {
 
                                     {/* Farmer Searchable Dropdown */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Farmer</label>
+                                        <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{lang === 'ta' ? 'விவசாயி' : 'Farmer'}</label>
                                         <SearchSelect 
                                             items={farmers}
                                             value={formData.entityId}
@@ -685,7 +685,7 @@ const FarmerCashPay = () => {
                                             }}
                                             inputRef={farmerRef}
                                             onKeyDown={(e) => handleKeyDown(e, amountRef)}
-                                            placeholder="Select Farmer"
+                                            placeholder={lang === 'ta' ? 'விவசாயியைத் தேர்ந்தெடுக்கவும்' : 'Select Farmer'}
                                             lang={lang}
                                         />
                                     </div>
@@ -700,7 +700,7 @@ const FarmerCashPay = () => {
 
                                     {/* Given Amount */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Paid Amount</label>
+                                        <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{lang === 'ta' ? 'செலுத்திய தொகை' : 'Paid Amount'}</label>
                                         <input
                                             ref={amountRef}
                                             type="number"
@@ -717,11 +717,11 @@ const FarmerCashPay = () => {
 
                                     {/* Notes */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>Short Note</label>
+                                        <label style={{ width: '120px', flexShrink: 0, fontSize: '13px', fontWeight: 600, color: '#475569' }}>{lang === 'ta' ? 'குறிப்பு' : 'Short Note'}</label>
                                         <input
                                             ref={notesRef}
                                             type="text"
-                                            placeholder="e.g. Advance, weekly balance"
+                                            placeholder={lang === 'ta' ? 'எ.கா. முன்பணம், வாராந்திர கணக்கு' : 'e.g. Advance, weekly balance'}
                                             value={formData.notes}
                                             onChange={e => setFormData({ ...formData, notes: e.target.value })}
                                             onKeyDown={(e) => handleKeyDown(e, saveRef)}
@@ -752,7 +752,7 @@ const FarmerCashPay = () => {
                                                 ? <div style={{ width: '20px', height: '20px', border: '3px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
                                                 : <CheckCircle2 size={20} />
                                             }
-                                            RECORD PAYMENT
+                                            {lang === 'ta' ? 'பணம் பதிவு செய்' : 'RECORD PAYMENT'}
                                         </button>
                                     </div>
                                 </form>
@@ -762,10 +762,10 @@ const FarmerCashPay = () => {
                             <div style={{ flex: 1, background: '#fdf8f6', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                                 <div style={{ padding: '20px 24px', background: '#fff', borderBottom: '1.5px solid #fed7aa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: '#ea580c', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                        Today's Payments List
+                                        {lang === 'ta' ? 'இன்றைய பணம் செலுத்திய பட்டியல்' : "Today's Payments List"}
                                     </h3>
                                     <div style={{ background: '#ea580c', color: '#fff', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 800 }}>
-                                        {payments.filter(p => p.date === new Date().toISOString().split('T')[0]).length} ENTRIES
+                                        {payments.filter(p => p.date === new Date().toISOString().split('T')[0]).length} {lang === 'ta' ? 'பதிவுகள்' : 'ENTRIES'}
                                     </div>
                                 </div>
                                 
@@ -806,15 +806,15 @@ const FarmerCashPay = () => {
                                         }
                                         {payments.filter(p => p.date === new Date().toISOString().split('T')[0]).length === 0 && (
                                             <div style={{ padding: '60px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '14px', fontStyle: 'italic' }}>
-                                                No payments recorded today yet.
+                                                {lang === 'ta' ? 'இன்று பணம் எதுவும் செலுத்தப்படவில்லை.' : 'No payments recorded today yet.'}
                                             </div>
                                         )}
                                     </div>
                                 </div>
 
-                                {/* Total for Today in Modal */}
+                                 {/* Total for Today in Modal */}
                                 <div style={{ padding: '16px 24px', background: '#fff', borderTop: '2.5px solid #ea580c', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Today's Total Paid:</span>
+                                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>{lang === 'ta' ? 'இன்று மொத்த வரவு:' : "Today's Total Paid:"}</span>
                                     <span style={{ fontSize: '24px', fontWeight: 950, color: '#ea580c' }}>
                                         {fmt(payments
                                             .filter(p => p.date === new Date().toISOString().split('T')[0])

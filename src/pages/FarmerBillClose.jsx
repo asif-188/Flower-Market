@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Calendar, User, FileText, Download, MessageCircle, Lock, Unlock, Eye, Sparkles, X, Save, Trash2, Edit, Check } from 'lucide-react';
-import { subscribeToCollection, saveFBillClosing, saveFLedger, COLLECTIONS, db, addData, getTenant } from '../utils/storage';
+import { subscribeToCollection, COLLECTIONS, db, addData, getTenant } from '../utils/storage';
 import { useTenant } from '../utils/TenantContext';
-import { collection, query, where, getDocs, doc, updateDoc, increment, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, increment, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import WhatsAppIcon from '../components/WhatsAppIcon';
 import { LangContext } from '../components/Layout';
 
@@ -70,10 +69,9 @@ const FarmerBillClose = () => {
     const [calculations, setCalculations] = useState({});
     const [isCalculating, setIsCalculating] = useState(false);
     const [toasts, setToasts] = useState([]);
-    const [isSaving, setIsSaving] = useState(false);
+    const [_isSaving, setIsSaving] = useState(false);
 
     // Dialog state for previewing statement
-    const [previewFarmerId, setPreviewFarmerId] = useState(null);
     const [previewData, setPreviewData] = useState(null);
 
     // Load farmers & products list
@@ -568,7 +566,7 @@ const FarmerBillClose = () => {
         }
     };
 
-    const handleSaveBillClose = async () => {
+    const _handleSaveBillClose = async () => {
         if (Object.keys(calculations).length === 0) return;
         if (!window.confirm(t('confirmSaveStatements') || 'Save statements for the selected period?')) return;
 
@@ -849,7 +847,6 @@ const FarmerBillClose = () => {
             detailedItems,
             detailedPayments
         });
-        setPreviewFarmerId(fid);
     };
 
     const buildStatementRows = (detailedItems = [], detailedPayments = []) => {
@@ -1211,10 +1208,6 @@ Thank you!`;
     };
 
     const fmt = (n) => `₹${Number(n).toLocaleString('en-IN')}`;
-    const formatDate = (dateStr) => {
-        if (!dateStr) return '—';
-        return dateStr.split('-').reverse().join('/');
-    };
 
     return (
         <div style={S.page}>
@@ -1265,7 +1258,7 @@ Thank you!`;
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: '#fff7ed', padding: '16px 20px', borderRadius: '16px', border: '1px solid #fed7aa', marginBottom: '24px', flexWrap: 'wrap' }}>
                 {/* From Date */}
                 <div style={{ width: '190px' }}>
-                    <label style={LABEL_S}>From Date</label>
+                    <label style={LABEL_S}>{lang === 'ta' ? 'தொடக்க தேதி' : 'From Date'}</label>
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <Calendar size={14} style={{ position: 'absolute', left: '10px', color: '#ea580c' }} />
                         <input 
@@ -1279,7 +1272,7 @@ Thank you!`;
 
                 {/* To Date */}
                 <div style={{ width: '190px' }}>
-                    <label style={LABEL_S}>To Date</label>
+                    <label style={LABEL_S}>{lang === 'ta' ? 'முடிவு தேதி' : 'To Date'}</label>
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <Calendar size={14} style={{ position: 'absolute', left: '10px', color: '#ea580c' }} />
                         <input 
@@ -1344,16 +1337,16 @@ Thank you!`;
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                             <tr>
-                                <th style={{ ...TH_S, whiteSpace: 'nowrap' }}>{t('farmerId') || 'Farmer ID'}</th>
-                                <th style={{ ...TH_S, whiteSpace: 'nowrap' }}>{t('farmerName') || 'Farmer Name'}</th>
-                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>Opening Bal</th>
-                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>Purchases</th>
-                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>Cash Paid</th>
-                                <th style={{ ...TH_S, textAlign: 'center', whiteSpace: 'nowrap' }}>Comm %</th>
-                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>{t('commission') || 'Commission'}</th>
-                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>Other Charges</th>
-                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>Closing Bal</th>
-                                <th style={{ ...TH_S, textAlign: 'center', whiteSpace: 'nowrap' }}>{t('actions') || 'Actions'}</th>
+                                <th style={{ ...TH_S, whiteSpace: 'nowrap' }}>{t('farmerId') || (lang === 'ta' ? 'விவசாயி கோடு' : 'Farmer ID')}</th>
+                                <th style={{ ...TH_S, whiteSpace: 'nowrap' }}>{t('farmerName') || (lang === 'ta' ? 'விவசாயி பெயர்' : 'Farmer Name')}</th>
+                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>{lang === 'ta' ? 'ஆரம்ப இருப்பு' : 'Opening Bal'}</th>
+                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>{lang === 'ta' ? 'கொள்முதல்' : 'Purchases'}</th>
+                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>{lang === 'ta' ? 'வரவு (பணம்)' : 'Cash Paid'}</th>
+                                <th style={{ ...TH_S, textAlign: 'center', whiteSpace: 'nowrap' }}>{lang === 'ta' ? 'கமிஷன் %' : 'Comm %'}</th>
+                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>{lang === 'ta' ? 'கமிஷன்' : (t('commission') || 'Commission')}</th>
+                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>{lang === 'ta' ? 'இதர கட்டணம்' : 'Other Charges'}</th>
+                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>{lang === 'ta' ? 'நிலுவை இருப்பு' : 'Closing Bal'}</th>
+                                <th style={{ ...TH_S, textAlign: 'center', whiteSpace: 'nowrap' }}>{t('actions') || (lang === 'ta' ? 'செயல்கள்' : 'Actions')}</th>
                             </tr>
                         </thead>
                         <tbody>
