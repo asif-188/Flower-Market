@@ -515,21 +515,23 @@ const FarmerPurchase = () => {
         const { oldBalance, cashPaid, todayTotal, finalBalance } = financialStats;
 
         const dateStr = date.split('-').reverse().join('/');
-        let msg = `*POOVANAM MARKET*\n`;
-        msg += `*Farmer Purchase Bill*\n\n`;
-        msg += `*Date:* ${dateStr}\n`;
-        msg += `*Farmer:* ${farmer.name} (#${farmer.displayId})\n`;
+        const isTa = lang === 'ta';
+        let msg = isTa ? `*பூவானம் மார்க்கெட்*\n` : `*POOVANAM MARKET*\n`;
+        msg += isTa ? `*விவசாயி கொள்முதல் பில்*\n\n` : `*Farmer Purchase Bill*\n\n`;
+        msg += isTa ? `*தேதி:* ${dateStr}\n` : `*Date:* ${dateStr}\n`;
+        msg += isTa ? `*விவசாயி:* ${farmer.name} (#${farmer.displayId})\n` : `*Farmer:* ${farmer.name} (#${farmer.displayId})\n`;
         msg += `---------------------------\n`;
         activeFarmerEntries.forEach((entry, idx) => {
             const it = entry.items[0];
-            msg += `${idx + 1}. ${it.flowerName}: ${it.weight} KG @ ₹${it.rate} = ₹${it.amount.toFixed(0)}\n`;
+            const flName = (isTa && it.taName) ? it.taName : it.flowerName;
+            msg += `${idx + 1}. ${flName}: ${it.weight} KG @ ₹${it.rate} = ₹${it.amount.toFixed(0)}\n`;
         });
         msg += `---------------------------\n`;
-        msg += `*Today's Purchase:* ₹${todayTotal.toFixed(0)}\n`;
-        msg += `*Cash Paid Today:* ₹${cashPaid.toFixed(0)}\n`;
-        msg += `*Old Balance:* ₹${oldBalance.toFixed(0)}\n`;
-        msg += `*Net Balance:* ₹${finalBalance.toFixed(0)}\n\n`;
-        msg += `Thank you!`;
+        msg += isTa ? `*இன்றைய கொள்முதல்:* ₹${todayTotal.toFixed(0)}\n` : `*Today's Purchase:* ₹${todayTotal.toFixed(0)}\n`;
+        msg += isTa ? `*இன்றைய வரவு (பணம்):* ₹${cashPaid.toFixed(0)}\n` : `*Cash Paid Today:* ₹${cashPaid.toFixed(0)}\n`;
+        msg += isTa ? `*பழைய பாக்கி:* ₹${oldBalance.toFixed(0)}\n` : `*Old Balance:* ₹${oldBalance.toFixed(0)}\n`;
+        msg += isTa ? `*மொத்த பாக்கி:* ₹${finalBalance.toFixed(0)}\n\n` : `*Net Balance:* ₹${finalBalance.toFixed(0)}\n\n`;
+        msg += isTa ? `நன்றி!` : `Thank you!`;
 
         const phone = farmer.contact ? farmer.contact.replace(/\D/g, '') : '';
         if (phone.length === 10) {

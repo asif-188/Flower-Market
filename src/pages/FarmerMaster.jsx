@@ -110,7 +110,7 @@ const S = {
 
 const FarmerMaster = () => {
     const { isEditDeleteAllowed } = useTenant();
-    const { t } = useContext(LangContext);
+    const { t, lang } = useContext(LangContext);
     const [farmers, setFarmers] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
@@ -482,7 +482,7 @@ const FarmerMaster = () => {
                     <User size={22} color="#ea580c" />
                     <div>
                         <h2 style={S.title}>{t('farmerMaster')}</h2>
-                        <p className="text-xs font-semibold text-gray-400 mt-0.5">Manage all your farmers in one place</p>
+                        <p className="text-xs font-semibold text-gray-400 mt-0.5">{lang === 'ta' ? 'உங்கள் அனைத்து விவசாயிகளையும் ஒரே இடத்தில் நிர்வகிக்கவும்' : 'Manage all your farmers in one place'}</p>
                     </div>
                 </div>
                 
@@ -547,12 +547,12 @@ const FarmerMaster = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: '#fff7ed', padding: '16px 20px', borderRadius: '16px', border: '1px solid #fed7aa', marginBottom: '24px', flexWrap: 'wrap' }} className="no-print">
                 {/* Search */}
                 <div style={{ flex: '1 1 240px', maxWidth: '320px' }}>
-                    <label style={LABEL_S}>Search Farmers</label>
+                    <label style={LABEL_S}>{lang === 'ta' ? 'விவசாயி தேட' : 'Search Farmers'}</label>
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <Search size={14} style={{ position: 'absolute', left: '10px', color: '#ea580c' }} />
                         <input 
                             type="text" 
-                            placeholder="Name, ID, village or contact..." 
+                            placeholder={lang === 'ta' ? 'பெயர், கோடு, கிராமம் அல்லது தொடர்பு...' : 'Name, ID, village or contact...'} 
                             style={{ ...INPUT_S, paddingLeft: '32px' }}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -562,13 +562,13 @@ const FarmerMaster = () => {
 
                 {/* Village Selector */}
                 <div style={{ width: '180px' }}>
-                    <label style={LABEL_S}>Village</label>
+                    <label style={LABEL_S}>{t('village') || (lang === 'ta' ? 'கிராமம்' : 'Village')}</label>
                     <select 
                         value={selectedVillage} 
                         onChange={(e) => setSelectedVillage(e.target.value)}
                         style={INPUT_S}
                     >
-                        <option value="all">All Villages</option>
+                        <option value="all">{lang === 'ta' ? 'அனைத்து கிராமங்களும்' : 'All Villages'}</option>
                         {uniqueVillages.map(v => (
                             <option key={v} value={v}>{v}</option>
                         ))}
@@ -588,7 +588,7 @@ const FarmerMaster = () => {
                         onMouseEnter={e => { e.currentTarget.style.background = '#ea580c'; e.currentTarget.style.color = '#fff'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#ea580c'; }}
                     >
-                        <Filter size={13} /> Filter
+                        <Filter size={13} /> {t('filter') || (lang === 'ta' ? 'வடிகட்டு' : 'Filter')}
                     </button>
                     <button 
                         onClick={handleResetFilters} 
@@ -601,7 +601,7 @@ const FarmerMaster = () => {
                         onMouseEnter={e => { e.currentTarget.style.background = '#64748b'; e.currentTarget.style.color = '#fff'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#64748b'; }}
                     >
-                        <RotateCcw size={13} /> Reset
+                        <RotateCcw size={13} /> {lang === 'ta' ? 'மீட்டமை' : 'Reset'}
                     </button>
                 </div>
             </div>
@@ -609,7 +609,7 @@ const FarmerMaster = () => {
             {/* ── Table Card ── */}
             <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid #e5e7eb', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', padding: '24px 16px' }}>
                 <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#374151', margin: '0 0 20px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Farmer List
+                    {lang === 'ta' ? 'விவசாயிகள் பட்டியல்' : 'Farmer List'}
                 </h3>
 
                 <div style={{ overflowX: 'auto' }}>
@@ -721,7 +721,7 @@ const FarmerMaster = () => {
                 {/* Pagination footer */}
                 <div style={{ display: 'flex', alignItems: 'center', justifySide: 'space-between', justifyContent: 'space-between', marginTop: '24px', boxSizing: 'border-box' }} className="no-print">
                     <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>
-                        Showing {entryStart} to {entryEnd} of {sortedFarmers.length} entries
+                        {lang === 'ta' ? `${sortedFarmers.length} இல் ${entryStart} முதல் ${entryEnd} வரை காட்டப்படுகிறது` : `Showing ${entryStart} to ${entryEnd} of ${sortedFarmers.length} entries`}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <button 
@@ -737,7 +737,7 @@ const FarmerMaster = () => {
                             onMouseEnter={e => { if (currentPage !== 1) e.currentTarget.style.borderColor = '#ea580c'; }}
                             onMouseLeave={e => { if (currentPage !== 1) e.currentTarget.style.borderColor = '#e2e8f0'; }}
                         >
-                            Previous
+                            {lang === 'ta' ? 'முந்தையது' : 'Previous'}
                         </button>
                         
                         {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
@@ -769,7 +769,7 @@ const FarmerMaster = () => {
                             onMouseEnter={e => { if (currentPage !== totalPages && totalPages !== 0) e.currentTarget.style.borderColor = '#ea580c'; }}
                             onMouseLeave={e => { if (currentPage !== totalPages && totalPages !== 0) e.currentTarget.style.borderColor = '#e2e8f0'; }}
                         >
-                            Next
+                            {lang === 'ta' ? 'அடுத்தது' : 'Next'}
                         </button>
                     </div>
                 </div>
@@ -880,7 +880,7 @@ const FarmerMaster = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label style={{display:'block',marginBottom:'5px',fontSize:'12px',fontWeight:600,color:'#64748b'}}>Status</label>
+                                    <label style={{display:'block',marginBottom:'5px',fontSize:'12px',fontWeight:600,color:'#64748b'}}>{lang === 'ta' ? 'நிலை' : 'Status'}</label>
                                     <select 
                                         style={{
                                             width:'100%',padding:'10px 12px',borderRadius:'10px',
@@ -893,8 +893,8 @@ const FarmerMaster = () => {
                                         value={currentFarmer.status || 'Active'}
                                         onChange={(e) => setCurrentFarmer({ ...currentFarmer, status: e.target.value })}
                                     >
-                                        <option value="Active">Active</option>
-                                        <option value="Inactive">Inactive</option>
+                                        <option value="Active">{lang === 'ta' ? 'செயலில்' : 'Active'}</option>
+                                        <option value="Inactive">{lang === 'ta' ? 'செயலிழந்தது' : 'Inactive'}</option>
                                     </select>
                                 </div>
                             </div>

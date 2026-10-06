@@ -53,7 +53,7 @@ const S = {
 };
 
 const FarmerMonthReport = () => {
-    const { t } = useContext(LangContext);
+    const { t, lang } = useContext(LangContext);
     const { tenantData } = useTenant();
     const [farmers, setFarmers] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -190,6 +190,7 @@ const FarmerMonthReport = () => {
             return;
         }
         
+        const isTa = lang === 'ta';
         const rowsHtml = filteredRows.map(row => `
             <tr>
                 <td style="text-align: center; padding: 6px; border: 1px solid #000;">${row.displayId || '—'}</td>
@@ -204,7 +205,7 @@ const FarmerMonthReport = () => {
 
         const grandTotalsHtml = `
             <tr style="font-weight: bold;">
-                <td colSpan="2" style="text-align: left; padding: 6px; border: 1px solid #000;">GRAND TOTAL</td>
+                <td colSpan="2" style="text-align: left; padding: 6px; border: 1px solid #000;">${isTa ? 'மொத்த கூட்டுத்தொகை' : 'GRAND TOTAL'}</td>
                 <td style="text-align: right; padding: 6px; border: 1px solid #000;">${grandTotals.openingBalance !== 0 ? grandTotals.openingBalance.toFixed(2) : ''}</td>
                 <td style="text-align: right; padding: 6px; border: 1px solid #000;">${grandTotals.purchase !== 0 ? grandTotals.purchase.toFixed(2) : ''}</td>
                 <td style="text-align: right; padding: 6px; border: 1px solid #000;">${grandTotals.cashPaid !== 0 ? grandTotals.cashPaid.toFixed(2) : ''}</td>
@@ -219,7 +220,7 @@ const FarmerMonthReport = () => {
         printWindow.document.write(`
             <html>
                 <head>
-                    <title>Farmer Month Report</title>
+                    <title>${isTa ? 'விவசாயி மாத அறிக்கை' : 'Farmer Month Report'}</title>
                     <style>
                         body { font-family: Arial, sans-serif; margin: 20px; color: #000; }
                         .letterhead { width: 100%; border-collapse: collapse; margin-bottom: 5px; }
@@ -239,11 +240,11 @@ const FarmerMonthReport = () => {
                         <tr>
                             <td style="width: 25%; font-weight: bold; font-size: 11px; vertical-align: top;">CELL : 9952535057</td>
                             <td style="width: 50%; text-align: center;">
-                                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">SRI RAMA JAYAM</div>
+                                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">${isTa ? 'ஸ்ரீ ராம ஜெயம்' : 'SRI RAMA JAYAM'}</div>
                                 <div class="shop-title">${tenantData?.name || 'SVM Flowers'}</div>
                                 <div class="shop-subtitle">${tenantData?.type || 'Sri Valli Flower Merchant'}</div>
                                 <div class="shop-details">${tenantData?.address || 'B-7, Flower Market, Tindivanam.'}</div>
-                                <div style="font-size: 15px; font-weight: bold; margin-top: 8px;">Final Report</div>
+                                <div style="font-size: 15px; font-weight: bold; margin-top: 8px;">${isTa ? 'இறுதி அறிக்கை' : 'Final Report'}</div>
                             </td>
                             <td style="width: 25%; text-align: right; font-weight: bold; font-size: 11px; vertical-align: top;">CELL : 9952535057</td>
                         </tr>
@@ -253,20 +254,20 @@ const FarmerMonthReport = () => {
 
                     <table class="report-title-row">
                         <tr>
-                            <td style="width: 100%; text-align: left;">Month of ${displayFrom} to ${displayTo}</td>
+                            <td style="width: 100%; text-align: left;">${isTa ? `கால அளவு: ${displayFrom} முதல் ${displayTo}` : `Month of ${displayFrom} to ${displayTo}`}</td>
                         </tr>
                     </table>
 
                     <table class="report-table">
                         <thead>
                             <tr>
-                                <th style="width: 12%; text-align: center;">FARMER CODE</th>
-                                <th style="text-align: left;">FARMER NAME</th>
-                                <th style="width: 13%; text-align: right;">ADVANCE</th>
-                                <th style="width: 13%; text-align: right;">PURCHASE AMOUNT</th>
-                                <th style="width: 13%; text-align: right;">CREDIT AMOUNT</th>
-                                <th style="width: 13%; text-align: right;">COMMISSION</th>
-                                <th style="width: 13%; text-align: right;">DEBIT AMOUNT</th>
+                                <th style="width: 12%; text-align: center;">${isTa ? 'விவசாயி கோடு' : 'FARMER CODE'}</th>
+                                <th style="text-align: left;">${isTa ? 'விவசாயி பெயர்' : 'FARMER NAME'}</th>
+                                <th style="width: 13%; text-align: right;">${isTa ? 'முன்பணம்' : 'ADVANCE'}</th>
+                                <th style="width: 13%; text-align: right;">${isTa ? 'கொள்முதல் தொகை' : 'PURCHASE AMOUNT'}</th>
+                                <th style="width: 13%; text-align: right;">${isTa ? 'வரவு தொகை' : 'CREDIT AMOUNT'}</th>
+                                <th style="width: 13%; text-align: right;">${isTa ? 'கமிஷன்' : 'COMMISSION'}</th>
+                                <th style="width: 13%; text-align: right;">${isTa ? 'நிலுவை தொகை' : 'DEBIT AMOUNT'}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -288,7 +289,18 @@ const FarmerMonthReport = () => {
     };
 
     const handleShareWhatsApp = (row) => {
-        const msg = `*STATEMENT FOR ${row.farmerName}*\n*Period:* ${fromDate.split('-').reverse().join('/')} to ${toDate.split('-').reverse().join('/')}\n-------------------\n*Opening Balance:* ₹${row.openingBalance.toLocaleString('en-IN')}\n*Purchases:* ₹${row.purchase.toLocaleString('en-IN')}\n*Cash Paid:* ₹${row.cashPaid.toLocaleString('en-IN')}\n*Commission:* ₹${row.commission.toLocaleString('en-IN')}\n-------------------\n*Closing Balance:* ₹${row.closingBalance.toLocaleString('en-IN')}`;
+        const isTa = lang === 'ta';
+        const msg = isTa ? `*விவசாயி கணக்கு அறிக்கை - ${row.farmerName}*
+*கால அளவு:* ${fromDate.split('-').reverse().join('/')} முதல் ${toDate.split('-').reverse().join('/')}
+-------------------
+*ஆரம்ப இருப்பு:* ₹${row.openingBalance.toLocaleString('en-IN')}
+*கொள்முதல் தொகை:* ₹${row.purchase.toLocaleString('en-IN')}
+*வரவு (பணம்):* ₹${row.cashPaid.toLocaleString('en-IN')}
+*கமிஷன்:* ₹${row.commission.toLocaleString('en-IN')}
+-------------------
+*இறுதி இருப்பு:* ₹${row.closingBalance.toLocaleString('en-IN')}`
+        : `*STATEMENT FOR ${row.farmerName}*\n*Period:* ${fromDate.split('-').reverse().join('/')} to ${toDate.split('-').reverse().join('/')}\n-------------------\n*Opening Balance:* ₹${row.openingBalance.toLocaleString('en-IN')}\n*Purchases:* ₹${row.purchase.toLocaleString('en-IN')}\n*Cash Paid:* ₹${row.cashPaid.toLocaleString('en-IN')}\n*Commission:* ₹${row.commission.toLocaleString('en-IN')}\n-------------------\n*Closing Balance:* ₹${row.closingBalance.toLocaleString('en-IN')}`;
+        
         window.open(`https://wa.me/${row.contact || ''}?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
@@ -299,13 +311,14 @@ const FarmerMonthReport = () => {
             return;
         }
 
+        const isTa = lang === 'ta';
         const displayFrom = fromDate.split('-').reverse().join('/');
         const displayTo = toDate.split('-').reverse().join('/');
 
         printWindow.document.write(`
             <html>
                 <head>
-                    <title>Farmer Statement - ${row.farmerName}</title>
+                    <title>${isTa ? `விவசாயி அறிக்கை - ${row.farmerName}` : `Farmer Statement - ${row.farmerName}`}</title>
                     <style>
                         body { font-family: Arial, sans-serif; margin: 30px; color: #000; }
                         .letterhead { width: 100%; border-collapse: collapse; margin-bottom: 5px; }
@@ -326,7 +339,7 @@ const FarmerMonthReport = () => {
                         <tr>
                             <td style="width: 25%; font-weight: bold; font-size: 11px; vertical-align: top;">CELL : 9952535057</td>
                             <td style="width: 50%; text-align: center;">
-                                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">SRI RAMA JAYAM</div>
+                                <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">${isTa ? 'ஸ்ரீ ராம ஜெயம்' : 'SRI RAMA JAYAM'}</div>
                                 <div class="shop-title">${tenantData?.name || 'SVM Flowers'}</div>
                                 <div class="shop-subtitle">${tenantData?.type || 'Sri Valli Flower Merchant'}</div>
                                 <div class="shop-details">${tenantData?.address || 'B-7, Flower Market, Tindivanam.'}</div>
@@ -337,27 +350,27 @@ const FarmerMonthReport = () => {
                     
                     <hr style="border: 0; border-top: 1.5px solid #000; margin-bottom: 15px;" />
 
-                    <div class="invoice-title">FARMER STATEMENT</div>
+                    <div class="invoice-title">${isTa ? 'விவசாயி அறிக்கை' : 'FARMER STATEMENT'}</div>
 
                     <table class="meta-table">
                         <tr>
-                            <td style="width: 50%;"><strong>Farmer Code:</strong> #${row.displayId || '—'}</td>
-                            <td style="width: 50%; text-align: right;"><strong>From Date:</strong> ${displayFrom}</td>
+                            <td style="width: 50%;"><strong>${isTa ? 'விவசாயி கோடு:' : 'Farmer Code:'}</strong> #${row.displayId || '—'}</td>
+                            <td style="width: 50%; text-align: right;"><strong>${isTa ? 'ஆரம்ப தேதி:' : 'From Date:'}</strong> ${displayFrom}</td>
                         </tr>
                         <tr>
-                            <td style="width: 50%;"><strong>Farmer Name:</strong> ${row.farmerName}</td>
-                            <td style="width: 50%; text-align: right;"><strong>To Date:</strong> ${displayTo}</td>
+                            <td style="width: 50%;"><strong>${isTa ? 'விவசாயி பெயர்:' : 'Farmer Name:'}</strong> ${row.farmerName}</td>
+                            <td style="width: 50%; text-align: right;"><strong>${isTa ? 'முடிவு தேதி:' : 'To Date:'}</strong> ${displayTo}</td>
                         </tr>
                     </table>
 
                     <table class="report-table">
                         <thead>
                             <tr>
-                                <th style="text-align: right;">ADVANCE (OP. BAL)</th>
-                                <th style="text-align: right;">PURCHASES</th>
-                                <th style="text-align: right;">CREDIT AMOUNT (CASH PAID)</th>
-                                <th style="text-align: right;">COMMISSION</th>
-                                <th style="text-align: right;">DEBIT AMOUNT (CLOSING BAL)</th>
+                                <th style="text-align: right;">${isTa ? 'முன்பணம் (ஆரம்ப இருப்பு)' : 'ADVANCE (OP. BAL)'}</th>
+                                <th style="text-align: right;">${isTa ? 'கொள்முதல்' : 'PURCHASES'}</th>
+                                <th style="text-align: right;">${isTa ? 'வரவு (கொடுத்த பணம்)' : 'CREDIT AMOUNT (CASH PAID)'}</th>
+                                <th style="text-align: right;">${isTa ? 'கமிஷன்' : 'COMMISSION'}</th>
+                                <th style="text-align: right;">${isTa ? 'நிலுவை (இறுதி இருப்பு)' : 'DEBIT AMOUNT (CLOSING BAL)'}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -490,21 +503,21 @@ const FarmerMonthReport = () => {
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                             <tr>
-                                <th style={{ ...TH_S, whiteSpace: 'nowrap' }}>{t('farmerId') || 'Farmer ID'}</th>
-                                <th style={{ ...TH_S, whiteSpace: 'nowrap' }}>{t('farmerName') || 'Farmer Name'}</th>
-                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>Opening Bal</th>
-                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>Purchases</th>
-                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>Cash Paid</th>
-                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>Commission</th>
-                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>Closing Bal</th>
-                                <th style={{ ...TH_S, textAlign: 'center', whiteSpace: 'nowrap' }}>{t('actions') || 'Actions'}</th>
+                                <th style={{ ...TH_S, whiteSpace: 'nowrap' }}>{t('farmerId') || (lang === 'ta' ? 'விவசாயி கோடு' : 'Farmer ID')}</th>
+                                <th style={{ ...TH_S, whiteSpace: 'nowrap' }}>{t('farmerName') || (lang === 'ta' ? 'விவசாயி பெயர்' : 'Farmer Name')}</th>
+                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>{lang === 'ta' ? 'ஆரம்ப இருப்பு' : 'Opening Bal'}</th>
+                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>{lang === 'ta' ? 'கொள்முதல்' : 'Purchases'}</th>
+                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>{lang === 'ta' ? 'வரவு (பணம்)' : 'Cash Paid'}</th>
+                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>{lang === 'ta' ? 'கமிஷன்' : 'Commission'}</th>
+                                <th style={{ ...TH_S, textAlign: 'right', whiteSpace: 'nowrap' }}>{lang === 'ta' ? 'இறுதி இருப்பு' : 'Closing Bal'}</th>
+                                <th style={{ ...TH_S, textAlign: 'center', whiteSpace: 'nowrap' }}>{t('actions') || (lang === 'ta' ? 'செயல்கள்' : 'Actions')}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredRows.length === 0 ? (
                                 <tr>
                                     <td colSpan={8} style={{ padding: '60px 16px', textAlign: 'center', color: '#9ca3af', fontStyle: 'italic', fontSize: '14px' }}>
-                                        No records found for the selected period.
+                                        {lang === 'ta' ? 'இந்தக் காலத்தில் தகவல்கள் எதுவும் இல்லை.' : 'No records found for the selected period.'}
                                     </td>
                                 </tr>
                             ) : (
@@ -565,7 +578,7 @@ const FarmerMonthReport = () => {
                             {/* Grand Total Row */}
                             {filteredRows.length > 0 && (
                                 <tr style={{ background: '#fff7ed', fontWeight: 800, borderTop: '2px solid #fed7aa' }}>
-                                    <td style={{ ...TD_S, fontWeight: 900, color: '#c2410c' }} colSpan={2}>GRAND TOTAL</td>
+                                    <td style={{ ...TD_S, fontWeight: 900, color: '#c2410c' }} colSpan={2}>{lang === 'ta' ? 'மொத்த கூட்டுத்தொகை' : 'GRAND TOTAL'}</td>
                                     <td style={{ ...TD_S, textAlign: 'right', fontWeight: 900, color: '#64748b' }}>₹{grandTotals.openingBalance.toLocaleString('en-IN')}</td>
                                     <td style={{ ...TD_S, textAlign: 'right', fontWeight: 900, color: '#16a34a' }}>₹{grandTotals.purchase.toLocaleString('en-IN')}</td>
                                     <td style={{ ...TD_S, textAlign: 'right', fontWeight: 900, color: '#ef4444' }}>₹{grandTotals.cashPaid.toLocaleString('en-IN')}</td>
