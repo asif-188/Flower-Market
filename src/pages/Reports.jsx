@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useContext } from 'react';
-import { Search, MessageCircle, BarChart2, X, User, ChevronRight, Download, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useContext, useCallback } from 'react';
+import { Search, MessageCircle, BarChart2, X, User, ChevronRight, Download, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { subscribeToCollection, db } from '../utils/storage';
+import { fetchCollectionOnce, db } from '../utils/storage';
 import { doc, getDoc } from 'firebase/firestore';
 import { LangContext } from '../components/Layout';
 import { generateBuyerReceiptCanvas, generateLedgerCanvas, parseMottoLines } from '../utils/receiptCanvas';
@@ -55,6 +55,7 @@ const Reports = () => {
     const [sharingRowId, setSharingRowId]    = useState(null);
     const [downloadingRowId, setDownloadingRowId] = useState(null);
     const [mainTableSelectedIndex, setMainTableSelectedIndex] = useState(-1);
+    const [isLoadingData, setIsLoadingData] = useState(false);
     const mainTableRowRefs = React.useRef([]);
 
     const handleSort = (field) => {
@@ -68,15 +69,33 @@ const Reports = () => {
 
     const bizInfo = tenantData || { motto: 'SRI RAMA JAYAM', name: 'S.V.M', type: 'SRI VALLI FLOWER MERCHANT', address: 'B-7, FLOWER MARKET, TINDIVANAM.', phone1: '9443247771', phone2: '9952535057' };
 
-    useEffect(() => {
-        const u1 = subscribeToCollection('sales',    setSales, true, appliedFrom);
-        const u2 = subscribeToCollection('buyers',   setBuyers);
-        const u3 = subscribeToCollection('payments', setPayments, true, appliedFrom);
-        const u4 = subscribeToCollection('products', setProducts);
-        const u5 = subscribeToCollection('outside_purchases', setOutsidePurchases, true, appliedFrom);
-        const u6 = subscribeToCollection('vendors', setVendors, true);
-        return () => { u1(); u2(); u3(); u4(); u5(); u6(); };
+    const loadData = useCallback(async () => {
+        setIsLoadingData(true);
+        try {
+            const [sData, bData, pData, prData, opData, vData] = await Promise.all([
+                fetchCollectionOnce('sales', true, appliedFrom),
+                fetchCollectionOnce('buyers'),
+                fetchCollectionOnce('payments', true, appliedFrom),
+                fetchCollectionOnce('products'),
+                fetchCollectionOnce('outside_purchases', true, appliedFrom),
+                fetchCollectionOnce('vendors', true)
+            ]);
+            setSales(sData);
+            setBuyers(bData);
+            setPayments(pData);
+            setProducts(prData);
+            setOutsidePurchases(opData);
+            setVendors(vData);
+        } catch (err) {
+            console.error('Error fetching report data:', err);
+        } finally {
+            setIsLoadingData(false);
+        }
     }, [appliedFrom]);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
     const applyPreset = (preset) => {
         if (preset === 'custom') {
@@ -861,6 +880,18 @@ const Reports = () => {
                 )}
 
                 <div style={{ flex: 1 }} />
+
+                {/* Refresh Data Button */}
+                <button 
+                    onClick={loadData} 
+                    disabled={isLoadingData} 
+                    title="Refresh Data"
+                    style={{ width: '34px', height: '34px', borderRadius: '8px', border: '1.5px solid #e2e8f0', background: '#fff', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#f0fdf4'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
+                >
+                    <RefreshCw size={15} className={isLoadingData ? 'animate-spin' : ''} />
+                </button>
 
                 {/* WhatsApp */}
                 <button onClick={handleWhatsAppShare} title="Share on WhatsApp"

@@ -144,6 +144,34 @@ export const subscribeToCollection = (collectionName, callback, filterByTenant =
   return () => { if (activeUnsub) { try { activeUnsub(); } catch (_) {} } };
 };
 
+export const fetchCollectionOnce = async (collectionName, filterByTenant = true, startDate = null, endDate = null, dateField = 'date') => {
+  const tenantId = getTenant();
+  const constraints = [];
+  if (filterByTenant) {
+    constraints.push(where('tenantId', '==', tenantId));
+  }
+  if (startDate) {
+    constraints.push(where(dateField, '>=', startDate));
+  }
+  if (endDate) {
+    constraints.push(where(dateField, '<=', endDate));
+  }
+  const orderField = (startDate || endDate) ? dateField : 'createdAt';
+  try {
+    const q = query(
+      collection(db, collectionName),
+      ...constraints,
+      orderBy(orderField, 'desc')
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (error) {
+    const fallbackQ = query(collection(db, collectionName), ...constraints);
+    const snap = await getDocs(fallbackQ);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+};
+
 // --- Generic Operations (to replace manual addDoc/updateDoc) ---
 
 export const addData = async (colName, data) => {

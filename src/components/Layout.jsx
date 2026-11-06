@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, ChevronLeft, Globe, User, Settings, History, Bell } from 'lucide-react';
 import Petals from './Petals';
 import { useTenant } from '../utils/TenantContext';
-import { subscribeToPaymentReminders, subscribeToCollection, combineRemindersWithExistingSales } from '../utils/storage';
+import { subscribeToPaymentReminders } from '../utils/storage';
 import PaymentRemindersModal from './PaymentRemindersModal';
 
 // ── Language Context ──────────────────────────────────────────────────────────
@@ -351,21 +351,12 @@ const Layout = () => {
   const [activeRemindersCount, setActiveRemindersCount] = useState(0);
 
   useEffect(() => {
-    let stored = [];
-    let sales = [];
-    let buyers = [];
-
-    const updateCount = () => {
-      const combined = combineRemindersWithExistingSales(stored, sales, buyers);
-      const activeCount = combined.filter(r => (r.status === 'Pending' || r.status === 'Remind Later') && r.pendingAmount > 0).length;
+    const u1 = subscribeToPaymentReminders((stored) => {
+      const activeCount = stored.filter(r => (r.status === 'Pending' || r.status === 'Remind Later') && (Number(r.pendingAmount) > 0 || Number(r.balance) > 0)).length;
       setActiveRemindersCount(activeCount);
-    };
+    });
 
-    const u1 = subscribeToPaymentReminders((d) => { stored = d; updateCount(); });
-    const u2 = subscribeToCollection('sales', (d) => { sales = d; updateCount(); }, true);
-    const u3 = subscribeToCollection('buyers', (d) => { buyers = d; updateCount(); }, true);
-
-    return () => { u1(); u2(); u3(); };
+    return () => { u1(); };
   }, []);
 
   const t = (key) => strings[lang]?.[key] ?? strings['en']?.[key] ?? key;
